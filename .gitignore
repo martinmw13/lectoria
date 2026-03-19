@@ -12,6 +12,7 @@ wheels/
 # Runtime data
 data/books/
 data/music/
+ignore/
 
 # Frontend build
 frontend/node_modules/
