@@ -1,0 +1,26 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Runtime data
+data/books/
+data/music/
+
+# Frontend build
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.idea/
+
+# Environment
+.env
+.env.*
+api_keys.env
