@@ -14,7 +14,7 @@ context: |
   - Narrative Context Map (NCM): structured JSON artifact per book, central contract between all modules
   - Scene attributes: emotion (9 categories: joy, sorrow, tension, anger, peace, romance, mystery, excitement, wonder), pacing, scene_type, setting, image_prompt, transition_type. Optional: key_phrases, key_objects
   - Music: curated MTG-Jamendo subset (~200-500 tracks), tag-derived vectors, two-phase matching (filter by emotion + rank by cosine similarity)
-  - Images: automatic via scene.image_prompt + on-demand via raw user-selected text sent directly to API. Character identification by string matching against NCM character list (names + aliases). Character memory (best-effort)
+  - Images: automatic via scene.image_prompt + on-demand via raw user-selected text sent directly to API. Character identification by string matching against NCM character list (names + aliases). Character memory (best-effort). On-demand images cached per scene on disk under images/on_demand/ (see openspec/changes/reader-experience-hardening)
   - Reader: scene-based navigation (not page-based), with page-view fallback toggle
   - BYOK: all AI via external APIs, provider-agnostic (user selects LLM and image generation provider)
   - Frontend: React + TypeScript

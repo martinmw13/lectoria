@@ -1,7 +1,8 @@
-"""Music matching service — tag-based scene-to-track matching (Decisions 6, 12, 16).
+"""Music matching service — tag-based scene-to-track matching (Decisions 6, 12, 16, 21-23).
 
 Contains:
 - Jamendo mood/theme tag vocabulary and mappings
+- Style presets for instrument/genre filtering (Decisions 21-23)
 - Scene attribute → tag vector encoding
 - Track index loading and scene-to-track matching
 - Hysteresis logic for music transitions
@@ -238,6 +239,177 @@ EMOTION_TO_CLUSTER: dict[Emotion, str] = {
 
 SHORT_SCENE_THRESHOLD = 20  # paragraphs
 
+# ---------------------------------------------------------------------------
+# Style presets — instrument/genre filter rules (Decisions 21-23)
+# Each preset has include/exclude sets drawn from MTG-Jamendo instrument (40)
+# and genre (87) tag vocabularies. A track matches if it has at least one
+# included tag AND none of the excluded tags. Tracks with no instrument/genre
+# tags always fail (available only in "auto" mode).
+# ---------------------------------------------------------------------------
+
+STYLE_PRESETS: dict[str, dict[str, set[str]]] = {
+    "cinematic": {
+        "include": {
+            "orchestra",
+            "strings",
+            "violin",
+            "cello",
+            "brass",
+            "horn",
+            "trombone",
+            "trumpet",
+            "soundtrack",
+            "symphonic",
+            "orchestral",
+        },
+        "exclude": {
+            "electricguitar",
+            "drums",
+            "drummachine",
+            "hiphop",
+            "reggae",
+            "rap",
+            "punkrock",
+            "metal",
+            "jazz",
+            "easylistening",
+            "lounge",
+            "pop",
+            "indie",
+            "folk",
+            "blues",
+            "chillout",
+            "ambient",
+            "singersongwriter",
+        },
+    },
+    "piano_only": {
+        "include": {"piano", "electricpiano", "keyboard", "rhodes"},
+        "exclude": {
+            "electricguitar",
+            "drums",
+            "drummachine",
+            "bass",
+            "synthesizer",
+            "brass",
+            "saxophone",
+            "strings",
+            "violin",
+            "cello",
+            "flute",
+            "oboe",
+            "orchestra",
+            "harp",
+            "trumpet",
+            "horn",
+            "guitar",
+            "acousticguitar",
+            "rock",
+            "pop",
+            "indie",
+            "metal",
+            "hiphop",
+            "electronic",
+            "orchestral",
+        },
+    },
+    "ambient": {
+        "include": {
+            "synthesizer",
+            "pad",
+            "sampler",
+            "ambient",
+            "chillout",
+            "downtempo",
+            "electronic",
+            "darkambient",
+            "newage",
+            "atmospheric",
+        },
+        "exclude": {
+            "drums",
+            "drummachine",
+            "electricguitar",
+            "voice",
+            "rap",
+            "hiphop",
+            "metal",
+            "rock",
+        },
+    },
+    "synthwave": {
+        "include": {
+            "synthesizer",
+            "drummachine",
+            "electricpiano",
+            "electronic",
+            "electropop",
+            "synthpop",
+            "newwave",
+            "80s",
+            "edm",
+        },
+        "exclude": {
+            "acousticguitar",
+            "piano",
+            "strings",
+            "orchestra",
+            "jazz",
+            "classical",
+            "folk",
+            "country",
+        },
+    },
+    "noir_jazz": {
+        "include": {
+            "saxophone",
+            "trumpet",
+            "piano",
+            "doublebass",
+            "jazz",
+            "acidjazz",
+            "jazzfusion",
+            "blues",
+            "swing",
+            "bossanova",
+            "soul",
+        },
+        "exclude": {
+            "electronic",
+            "synthesizer",
+            "rock",
+            "metal",
+            "hiphop",
+            "edm",
+            "techno",
+            "trance",
+        },
+    },
+}
+
+VALID_STYLE_NAMES: set[str] = {"auto"} | set(STYLE_PRESETS.keys())
+
+
+def matches_preset(track: MusicIndexEntry, preset_name: str) -> bool:
+    """Check if a track matches a style preset's include/exclude rules.
+
+    Returns True if the track has at least one tag from include AND
+    none from exclude. Tracks with no instrument/genre tags always
+    fail preset filters (they remain available in "auto" mode).
+    """
+    if preset_name not in STYLE_PRESETS:
+        return False
+    rules = STYLE_PRESETS[preset_name]
+    track_tags = set(track.instrument_tags) | set(track.genre_tags)
+
+    if not track_tags:
+        return False
+
+    has_include = bool(track_tags & rules["include"])
+    has_exclude = bool(track_tags & rules["exclude"])
+
+    return has_include and not has_exclude
+
 
 # ---------------------------------------------------------------------------
 # One-hot encoding
@@ -357,31 +529,66 @@ def _rank_candidates(
 # ---------------------------------------------------------------------------
 
 
+def _apply_style_filter(
+    candidates: list[MusicIndexEntry],
+    style: str | None,
+) -> list[MusicIndexEntry]:
+    """Filter candidates by style preset. Returns unfiltered list if style is None/auto."""
+    if not style or style == "auto":
+        return candidates
+    return [t for t in candidates if matches_preset(t, style)]
+
+
 def match_scene_to_track(
     scene: Scene,
     index: list[MusicIndexEntry],
     *,
     previous_track_id: str | None = None,
     exclude_track_ids: set[str] | None = None,
+    style: str | None = None,
 ) -> MusicIndexEntry | None:
-    """Two-phase matching: filter by emotion, rank by cosine similarity.
+    """Three-phase matching: filter by emotion, filter by style, rank by cosine similarity.
+
+    Fallback chain (Decision 23):
+      emotion + style -> style only (all emotions) -> emotion only (no style)
 
     Args:
         scene: The scene to match.
         index: Full music index.
         previous_track_id: Track playing in the previous scene (for variety).
         exclude_track_ids: Tracks to skip entirely (e.g., user-skipped tracks).
+        style: Style preset name (None or "auto" = no style filtering).
 
     Returns:
         Best matching track, or None if no candidates.
     """
     exclude = exclude_track_ids or set()
 
-    candidates = [t for t in index if t.emotion_primary == scene.emotion]
+    emotion_filtered = [t for t in index if t.emotion_primary == scene.emotion]
+    candidates = _apply_style_filter(emotion_filtered, style)
+
+    if not candidates and style and style != "auto":
+        # Fallback 1: style only, ignoring emotion
+        candidates = _apply_style_filter(list(index), style)
+        if candidates:
+            logger.info(
+                "emotion+style yielded 0 candidates for emotion=%s style=%s, "
+                "falling back to style-only (%d candidates)",
+                scene.emotion,
+                style,
+                len(candidates),
+            )
 
     if not candidates:
-        logger.warning("No tracks for emotion=%s, falling back to full index", scene.emotion)
-        candidates = list(index)
+        # Fallback 2: emotion only, ignoring style
+        candidates = emotion_filtered if emotion_filtered else list(index)
+        if style and style != "auto":
+            logger.info(
+                "style-only also yielded 0 for style=%s, "
+                "falling back to emotion-only (%d candidates)",
+                style,
+                len(candidates),
+            )
 
     if not candidates:
         return None
@@ -406,19 +613,38 @@ def match_scene_to_track_detailed(
     *,
     previous_track_id: str | None = None,
     top_n: int = 5,
+    style: str | None = None,
 ) -> dict:
     """Like match_scene_to_track but returns detailed matching info for dev view.
 
-    Returns dict with: selected_track, score, scene_vector, candidates (top N with scores).
+    Returns dict with: selected_track, score, scene_vector, candidates (top N with scores),
+    and fallback information.
     """
-    candidates = [t for t in index if t.emotion_primary == scene.emotion]
-    fell_back = False
-    if not candidates:
-        candidates = list(index)
-        fell_back = True
+    fallback = "none"
+
+    emotion_filtered = [t for t in index if t.emotion_primary == scene.emotion]
+    candidates = _apply_style_filter(emotion_filtered, style)
+
+    if not candidates and style and style != "auto":
+        candidates = _apply_style_filter(list(index), style)
+        fallback = "style_only"
 
     if not candidates:
-        return {"selected_track": None, "score": 0.0, "candidates": [], "fell_back": fell_back}
+        candidates = emotion_filtered if emotion_filtered else list(index)
+        fallback = (
+            "emotion_only"
+            if (style and style != "auto")
+            else ("full_index" if not emotion_filtered else "none")
+        )
+
+    if not candidates:
+        return {
+            "selected_track": None,
+            "score": 0.0,
+            "candidates": [],
+            "fallback": fallback,
+            "style_applied": style,
+        }
 
     scene_vec = np.array(scene_to_vector(scene))
     scored = _rank_candidates(scene_vec, candidates)
@@ -437,7 +663,8 @@ def match_scene_to_track_detailed(
         "selected_track": candidate_dicts[selected_idx]["track_id"],
         "score": candidate_dicts[selected_idx]["score"],
         "scene_vector": scene_vec.tolist(),
-        "fell_back_to_full_index": fell_back,
+        "fallback": fallback,
+        "style_applied": style,
         "candidates": candidate_dicts[:top_n],
     }
 

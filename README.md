@@ -7,7 +7,7 @@ Multimodal EPUB reader with AI-driven narrative enrichment: a two-stage LLM pipe
 | Layer | Technology |
 |-------|------------|
 | Backend | Python 3.14, FastAPI, Pydantic, ebooklib |
-| LLM / images | Google Gemini / Imagen (pluggable providers) |
+| LLM / images | Google Gemini / Gemini image (pluggable providers) |
 | Frontend | React, TypeScript, Vite |
 | Spec / planning | OpenSpec (`openspec/changes/`) |
 

@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException
 from lectoria.core.config import get_settings
 from lectoria.services.music import (
     EMOTION_TO_CLUSTER,
+    STYLE_PRESETS,
+    VALID_STYLE_NAMES,
     load_music_index,
     match_scene_to_track,
     match_scene_to_track_detailed,
@@ -19,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/{book_id}/chapters/{chapter_idx}/scenes/{scene_idx}/track")
+@router.get("/books/{book_id}/chapters/{chapter_idx}/scenes/{scene_idx}/track")
 async def get_scene_track(
     book_id: str,
     chapter_idx: int,
@@ -27,6 +29,7 @@ async def get_scene_track(
     previous_track_id: str | None = None,
     exclude: str | None = None,
     detailed: bool = False,
+    style: str | None = None,
 ) -> dict:
     """Get the matched music track for a scene.
 
@@ -37,7 +40,14 @@ async def get_scene_track(
         previous_track_id: Track currently playing (for variety rule).
         exclude: Comma-separated track IDs to skip (user-skipped tracks).
         detailed: If true, include dev metadata (candidates, scores, vectors).
+        style: Style preset name (auto, cinematic, piano_only, ambient, synthwave, noir_jazz).
     """
+    if style and style not in VALID_STYLE_NAMES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid style '{style}'. Valid options: {sorted(VALID_STYLE_NAMES)}",
+        )
+
     settings = get_settings()
     book_dir = settings.books_dir / book_id
     ncm_path = book_dir / "ncm.json"
@@ -63,6 +73,7 @@ async def get_scene_track(
             scene,
             index,
             previous_track_id=previous_track_id,
+            style=style,
         )
 
     track = match_scene_to_track(
@@ -70,11 +81,12 @@ async def get_scene_track(
         index,
         previous_track_id=previous_track_id,
         exclude_track_ids=exclude_ids or None,
+        style=style,
     )
     if track is None:
         raise HTTPException(status_code=404, detail="No matching track found")
 
-    numeric_id = track.track_id.replace("track_", "")
+    numeric_id = str(int(track.track_id.replace("track_", "")))
     local_path = settings.music_dir / track.file_path
     return {
         "track_id": track.track_id,
@@ -87,7 +99,7 @@ async def get_scene_track(
     }
 
 
-@router.get("/{book_id}/chapters/{chapter_idx}/scenes/{scene_idx}/crossfade")
+@router.get("/books/{book_id}/chapters/{chapter_idx}/scenes/{scene_idx}/crossfade")
 async def check_crossfade(
     book_id: str,
     chapter_idx: int,
@@ -132,3 +144,22 @@ async def check_crossfade(
         "current_cluster": EMOTION_TO_CLUSTER[scene.emotion],
         "previous_cluster": EMOTION_TO_CLUSTER[prev_scene.emotion],
     }
+
+
+PRESET_DESCRIPTIONS: dict[str, str] = {
+    "auto": "No style filter - uses the full library (default)",
+    "cinematic": "Orchestral, strings, brass - film scores and epic soundtracks",
+    "piano_only": "Solo piano and keyboard - intimate and minimal",
+    "ambient": "Synthesizers, pads, atmospheric textures - no vocals or drums",
+    "synthwave": "Electronic, retro synths, 80s vibes - sci-fi and neon",
+    "noir_jazz": "Jazz, saxophone, blues - smoky and dark",
+}
+
+
+@router.get("/music/presets")
+async def list_presets() -> list[dict]:
+    """Return available music style presets with descriptions."""
+    return [
+        {"name": name, "description": PRESET_DESCRIPTIONS.get(name, "")}
+        for name in ["auto", *STYLE_PRESETS.keys()]
+    ]

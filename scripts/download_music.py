@@ -27,7 +27,7 @@ JAMENDO_CDN = "https://prod-1.storage.jamendo.com/"
 
 
 def numeric_id(track_id: str) -> str:
-    return track_id.replace("track_", "")
+    return str(int(track_id.replace("track_", "")))
 
 
 async def download_track(

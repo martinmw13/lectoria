@@ -8,9 +8,10 @@ interface Props {
   scene: Scene;
   chapter: ChapterAnalysis;
   bookId: string;
+  onClose?: () => void;
 }
 
-export default function DevPanel({ scene, chapter, bookId }: Props) {
+export default function DevPanel({ scene, chapter, bookId, onClose }: Props) {
   const [musicMatch, setMusicMatch] = useState<DetailedMatch | null>(null);
   const [musicError, setMusicError] = useState('');
 
@@ -32,7 +33,14 @@ export default function DevPanel({ scene, chapter, bookId }: Props) {
 
   return (
     <aside className="dev-panel">
-      <h3>Developer View</h3>
+      <div className="dev-panel-header">
+        <h3>Developer View</h3>
+        {onClose && (
+          <button className="dev-panel-close" onClick={onClose} title="Close (Ctrl+D)">
+            &times;
+          </button>
+        )}
+      </div>
 
       {/* Scene attributes */}
       <section className="dev-section">
@@ -97,8 +105,11 @@ export default function DevPanel({ scene, chapter, bookId }: Props) {
                 <tr><td>Score</td><td>{musicMatch.score.toFixed(3)}</td></tr>
                 <tr>
                   <td>Fallback</td>
-                  <td>{musicMatch.fell_back_to_full_index ? 'Yes (no emotion match)' : 'No'}</td>
+                  <td>{musicMatch.fallback !== 'none' ? `Yes (${musicMatch.fallback})` : 'No'}</td>
                 </tr>
+                {musicMatch.style_applied && (
+                  <tr><td>Style</td><td>{musicMatch.style_applied}</td></tr>
+                )}
               </tbody>
             </table>
             {musicMatch.candidates.length > 0 && (

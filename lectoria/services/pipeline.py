@@ -194,10 +194,14 @@ async def run_pipeline(
 
     # 2. LLM 1 — book-level analysis
     _progress("llm1", f"Analyzing book ({len(narrative_chapters)} chapters)")
-    book_map = await analyze_book(llm_provider, chapters_data)
+    book_map, llm1_usage = await analyze_book(llm_provider, chapters_data)
     if not book_id:
         book_id = make_book_id(book_map.title)
-    _progress("llm1", f"Done: '{book_map.title}', {len(book_map.characters)} characters")
+    _progress(
+        "llm1",
+        f"Done: '{book_map.title}', {len(book_map.characters)} characters "
+        f"| tokens: prompt={llm1_usage.prompt_tokens} completion={llm1_usage.completion_tokens} total={llm1_usage.total}",
+    )
 
     # 3. Save intermediate artifacts
     book_dir = get_book_dir(book_id)
@@ -205,25 +209,45 @@ async def run_pipeline(
     save_bookmap(book_dir, book_map)
 
     # 4. LLM 2 — per-chapter scene analysis (concurrent with bounded parallelism)
-    llm2_concurrency = 3
+    llm2_concurrency = 2
     sem = asyncio.Semaphore(llm2_concurrency)
     total = len(narrative_chapters)
 
-    async def _analyze_one(idx: int, chapter: Chapter) -> ChapterAnalysis:
+    from lectoria.services.narrative import TokenUsage
+
+    async def _analyze_one(idx: int, chapter: Chapter) -> tuple[ChapterAnalysis, TokenUsage]:
         async with sem:
             _progress("llm2", f"Chapter {idx}/{total}: {chapter.title or '(untitled)'}")
             return await analyze_chapter(llm_provider, chapter, book_map)
 
-    chapter_analyses = list(
+    results = list(
         await asyncio.gather(*(_analyze_one(i, ch) for i, ch in enumerate(narrative_chapters, 1)))
     )
+    chapter_analyses = [r[0] for r in results]
 
-    _progress("llm2", f"Done: {sum(len(a.scenes) for a in chapter_analyses)} total scenes")
+    llm2_usage = TokenUsage()
+    for _, ch_usage in results:
+        llm2_usage.prompt_tokens += ch_usage.prompt_tokens
+        llm2_usage.completion_tokens += ch_usage.completion_tokens
+        llm2_usage.calls += ch_usage.calls
+
+    _progress(
+        "llm2",
+        f"Done: {sum(len(a.scenes) for a in chapter_analyses)} total scenes "
+        f"| tokens: prompt={llm2_usage.prompt_tokens} completion={llm2_usage.completion_tokens} total={llm2_usage.total} ({llm2_usage.calls} calls)",
+    )
 
     # 5. Assemble and save NCM
     _progress("assembly", "Merging LLM 1 + LLM 2 outputs")
     ncm = await assemble_ncm(book_map, chapter_analyses)
     save_ncm(book_dir, ncm)
-    _progress("complete", f"NCM saved to {book_dir}")
+
+    total_prompt = llm1_usage.prompt_tokens + llm2_usage.prompt_tokens
+    total_completion = llm1_usage.completion_tokens + llm2_usage.completion_tokens
+    _progress(
+        "complete",
+        f"NCM saved to {book_dir} "
+        f"| total tokens: prompt={total_prompt} completion={total_completion} total={total_prompt + total_completion}",
+    )
 
     return book_id, ncm

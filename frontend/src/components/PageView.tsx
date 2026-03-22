@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { generateImage, type NCM } from '../api/client';
+import { generateImage, generateSceneImage, type NCM } from '../api/client';
 import type { Page, Paragraph } from '../utils/paginate';
 
 type Character = NCM['book_map']['characters'][0];
@@ -32,15 +32,30 @@ export default function PageView({
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState('');
   const [popup, setPopup] = useState<PopupPos | null>(null);
+  const [sceneImageLoaded, setSceneImageLoaded] = useState(false);
+  const [confirmPictureScene, setConfirmPictureScene] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const sceneImageUrl = `/api/data/books/${bookId}/images/scenes/ch${chapterIndex}_sc${scene.scene_index}.png`;
+  const cachedOnDemandUrl = `/api/data/books/${bookId}/images/on_demand/ch${chapterIndex}_sc${scene.scene_index}.png`;
 
   useEffect(() => {
     setPopup(null);
     setGeneratedImage(null);
     setImageError('');
-  }, [page]);
+    setSceneImageLoaded(false);
+    setConfirmPictureScene(false);
+
+    // Check if a scene image already exists on disk
+    const sceneImg = new window.Image();
+    sceneImg.onload = () => setSceneImageLoaded(true);
+    sceneImg.src = sceneImageUrl;
+
+    // Restore cached on-demand image if one exists on disk
+    const img = new window.Image();
+    img.onload = () => setGeneratedImage(cachedOnDemandUrl);
+    img.src = cachedOnDemandUrl;
+  }, [page, cachedOnDemandUrl, sceneImageUrl]);
 
   useEffect(() => {
     function handleMouseUp() {
@@ -97,13 +112,34 @@ export default function PageView({
     setImageError('');
     try {
       const result = await generateImage(bookId, selectedText, chapterIndex, scene.scene_index);
-      setGeneratedImage(`data:${result.content_type};base64,${result.image_base64}`);
+      if (result.cache_url) {
+        setGeneratedImage(`${result.cache_url}?t=${Date.now()}`);
+      } else {
+        setGeneratedImage(`data:${result.content_type};base64,${result.image_base64}`);
+      }
     } catch (e) {
       setImageError(String(e));
     } finally {
       setImageLoading(false);
     }
   }, [popup, bookId, chapterIndex, scene.scene_index]);
+
+  const handlePictureScene = useCallback(async () => {
+    setConfirmPictureScene(false);
+    setImageLoading(true);
+    setImageError('');
+    try {
+      const result = await generateSceneImage(bookId, chapterIndex, scene.scene_index);
+      setSceneImageLoaded(true);
+      if (result.cache_url) {
+        setGeneratedImage(`${result.cache_url}?t=${Date.now()}`);
+      }
+    } catch (e) {
+      setImageError(String(e));
+    } finally {
+      setImageLoading(false);
+    }
+  }, [bookId, chapterIndex, scene.scene_index]);
 
   return (
     <div ref={containerRef} className="page-view" style={{ position: 'relative' }}>
@@ -112,9 +148,28 @@ export default function PageView({
           <span className="scene-title">{scene.title}</span>
           <div className="scene-header-right">
             {imageLoading && <span className="image-loading-indicator">Generating...</span>}
+            {scene.image_prompt && !sceneImageLoaded && !imageLoading && (
+              <button
+                className="picture-scene-btn"
+                onClick={() => setConfirmPictureScene(true)}
+                title="Generate an image for this scene"
+              >
+                Picture scene
+              </button>
+            )}
             <span className="scene-emotion" data-emotion={scene.emotion}>
               {scene.emotion}
             </span>
+          </div>
+        </div>
+      )}
+
+      {confirmPictureScene && (
+        <div className="confirm-picture-scene">
+          <p>Generate an image for this scene? This will call the image generation API.</p>
+          <div className="confirm-actions">
+            <button className="primary" onClick={handlePictureScene}>Generate</button>
+            <button onClick={() => setConfirmPictureScene(false)}>Cancel</button>
           </div>
         </div>
       )}

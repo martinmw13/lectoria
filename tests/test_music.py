@@ -1,13 +1,15 @@
-"""Tests for music service — vector encoding, matching, and hysteresis."""
+"""Tests for music service — vector encoding, matching, hysteresis, and style presets."""
 
 import pytest
 
 from lectoria.models.ncm import Emotion, MusicIndexEntry, Pacing, Scene, SceneType
 from lectoria.services.music import (
+    STYLE_PRESETS,
     TAG_DIM,
     TAG_TO_INDEX,
     assign_emotion_primary,
     match_scene_to_track,
+    matches_preset,
     scene_to_vector,
     should_crossfade,
     tags_to_vector,
@@ -35,12 +37,16 @@ def _track(
     track_id: str,
     emotion: Emotion,
     tags: list[str],
+    instrument_tags: list[str] | None = None,
+    genre_tags: list[str] | None = None,
 ) -> MusicIndexEntry:
     return MusicIndexEntry(
         track_id=track_id,
         file_path=f"tracks/{track_id}.mp3",
         duration_seconds=180.0,
         tags=tags,
+        instrument_tags=instrument_tags or [],
+        genre_tags=genre_tags or [],
         emotion_primary=emotion,
         tag_vector=tags_to_vector(tags),
     )
@@ -181,3 +187,133 @@ class TestShouldCrossfade:
         s1 = _scene(Emotion.SORROW, start=1, end=5)
         s2 = _scene(Emotion.JOY, start=6, end=10)
         assert should_crossfade(s1, s2) is True
+
+
+class TestMatchesPreset:
+    def test_track_with_matching_include_tag(self):
+        track = _track("t1", Emotion.JOY, ["happy"], instrument_tags=["piano"])
+        assert matches_preset(track, "piano_only") is True
+
+    def test_track_with_excluded_tag_rejected(self):
+        track = _track("t1", Emotion.JOY, ["happy"], instrument_tags=["piano", "drums"])
+        assert matches_preset(track, "piano_only") is False
+
+    def test_track_with_no_instrument_genre_tags_fails(self):
+        track = _track("t1", Emotion.JOY, ["happy"])
+        assert matches_preset(track, "cinematic") is False
+
+    def test_track_with_only_excluded_tags_rejected(self):
+        track = _track("t1", Emotion.JOY, ["happy"], instrument_tags=["electricguitar"])
+        assert matches_preset(track, "cinematic") is False
+
+    def test_unknown_preset_returns_false(self):
+        track = _track("t1", Emotion.JOY, ["happy"], instrument_tags=["piano"])
+        assert matches_preset(track, "nonexistent") is False
+
+    def test_genre_tags_also_checked(self):
+        track = _track("t1", Emotion.MYSTERY, ["deep"], genre_tags=["jazz", "blues"])
+        assert matches_preset(track, "noir_jazz") is True
+
+    def test_cinematic_orchestra(self):
+        track = _track(
+            "t1", Emotion.TENSION, ["dramatic"], instrument_tags=["strings", "orchestra"]
+        )
+        assert matches_preset(track, "cinematic") is True
+
+    def test_synthwave_with_synth_and_80s(self):
+        track = _track(
+            "t1",
+            Emotion.EXCITEMENT,
+            ["energetic"],
+            instrument_tags=["synthesizer"],
+            genre_tags=["80s"],
+        )
+        assert matches_preset(track, "synthwave") is True
+
+    def test_ambient_rejects_vocals(self):
+        track = _track("t1", Emotion.PEACE, ["calm"], instrument_tags=["synthesizer", "voice"])
+        assert matches_preset(track, "ambient") is False
+
+    def test_all_presets_defined(self):
+        assert set(STYLE_PRESETS.keys()) == {
+            "cinematic",
+            "piano_only",
+            "ambient",
+            "synthwave",
+            "noir_jazz",
+        }
+
+
+class TestMatchSceneToTrackWithStyle:
+    @pytest.fixture()
+    def styled_index(self):
+        return [
+            _track("piano1", Emotion.SORROW, ["sad", "melancholic"], instrument_tags=["piano"]),
+            _track(
+                "orch1",
+                Emotion.SORROW,
+                ["sad", "dramatic"],
+                instrument_tags=["strings", "orchestra"],
+            ),
+            _track(
+                "synth1",
+                Emotion.SORROW,
+                ["sad", "deep"],
+                instrument_tags=["synthesizer"],
+                genre_tags=["electronic"],
+            ),
+            _track(
+                "jazz1",
+                Emotion.SORROW,
+                ["sad", "emotional"],
+                instrument_tags=["saxophone", "piano"],
+                genre_tags=["jazz"],
+            ),
+            _track(
+                "rock1",
+                Emotion.SORROW,
+                ["sad", "heavy"],
+                instrument_tags=["electricguitar", "drums"],
+            ),
+            _track("joy_piano", Emotion.JOY, ["happy", "fun"], instrument_tags=["piano"]),
+        ]
+
+    def test_style_narrows_candidates(self, styled_index):
+        scene = _scene(Emotion.SORROW)
+        result = match_scene_to_track(scene, styled_index, style="piano_only")
+        assert result is not None
+        assert result.track_id == "piano1"
+
+    def test_cinematic_selects_orchestral(self, styled_index):
+        scene = _scene(Emotion.SORROW)
+        result = match_scene_to_track(scene, styled_index, style="cinematic")
+        assert result is not None
+        assert result.track_id == "orch1"
+
+    def test_auto_style_no_filtering(self, styled_index):
+        scene = _scene(Emotion.SORROW)
+        result_auto = match_scene_to_track(scene, styled_index, style="auto")
+        result_none = match_scene_to_track(scene, styled_index, style=None)
+        assert result_auto is not None
+        assert result_none is not None
+        assert result_auto.track_id == result_none.track_id
+
+    def test_fallback_to_style_only_when_emotion_style_empty(self, styled_index):
+        scene = _scene(Emotion.WONDER)
+        result = match_scene_to_track(scene, styled_index, style="piano_only")
+        assert result is not None
+        assert "piano" in result.instrument_tags
+
+    def test_fallback_to_emotion_only_when_style_yields_nothing(self):
+        index = [
+            _track(
+                "rock1",
+                Emotion.TENSION,
+                ["dark", "heavy"],
+                instrument_tags=["electricguitar", "drums"],
+            ),
+        ]
+        scene = _scene(Emotion.TENSION)
+        result = match_scene_to_track(scene, index, style="noir_jazz")
+        assert result is not None
+        assert result.track_id == "rock1"
