@@ -22,5 +22,5 @@ Architecture, testing, and workflow patterns are in `.claude/rules/` with glob-b
 
 ## Known Technical Debt
 
-<!-- - [ ] List known issues, legacy patterns, and areas without tests -->
-<!-- - [ ] Explain WHY things are the way they are, not just WHAT -->
+- **Frontend lint is non-blocking in CI** (`continue-on-error: true` on the lint step in `.github/workflows/ci.yml`). The prototype phase left 3 real React issues in `DevPanel.tsx` and `ReaderPage.tsx` (TDZ violations, synchronous setState in `useEffect`, missing hook dependencies). These are bugs, not style preferences. Re-enable lint as blocking once a dedicated frontend cleanup PR fixes them.
+- **No typecheck in CI** for backend. `pyright` is wired in `justfile` but not yet enforced — opt-in until the codebase is clean.

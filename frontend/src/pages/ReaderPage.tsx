@@ -15,7 +15,7 @@ export default function ReaderPage() {
   const [chaptersData, setChaptersData] = useState<ChaptersData | null>(null);
   const [chapterIdx, setChapterIdx] = useState(0);
   const [pageIdx, setPageIdx] = useState(0);
-  const [maxRevealed, setMaxRevealed] = useState(0);
+  const [, setMaxRevealed] = useState(0);
   const [showNav, setShowNav] = useState(false);
   const [devMode, setDevMode] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
