@@ -44,7 +44,7 @@ export default function SceneView({
   const sceneImageUrl = `/api/data/books/${bookId}/images/scenes/ch${chapterIndex}_sc${scene.scene_index}.png`;
 
   useEffect(() => {
-    function handleMouseUp(e: MouseEvent) {
+    function handleMouseUp() {
       // Small delay so the selection is finalized
       requestAnimationFrame(() => {
         const sel = window.getSelection();

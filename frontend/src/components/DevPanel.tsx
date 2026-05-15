@@ -16,12 +16,19 @@ export default function DevPanel({ scene, chapter, bookId, onClose }: Props) {
   const [musicError, setMusicError] = useState('');
 
   useEffect(() => {
-    setMusicMatch(null);
-    setMusicError('');
-
+    let cancelled = false;
     getSceneTrack(bookId, chapter.chapter_index, scene.scene_index, undefined, true)
-      .then((data) => setMusicMatch(data as DetailedMatch))
-      .catch((e) => setMusicError(String(e)));
+      .then((data) => {
+        if (cancelled) return;
+        setMusicMatch(data as DetailedMatch);
+        setMusicError('');
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setMusicMatch(null);
+        setMusicError(String(e));
+      });
+    return () => { cancelled = true; };
   }, [bookId, chapter.chapter_index, scene.scene_index]);
 
   const coercions = [

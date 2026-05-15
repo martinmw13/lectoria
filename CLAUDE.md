@@ -1,0 +1,26 @@
+# Lectoria
+
+Lector de texto con enriquecimiento multimodal basado en análisis narrativo. Multimodal EPUB reader with AI-driven narrative enrichment.
+
+**Stack**: Python 3.14 + FastAPI + Uvicorn + Pydantic + Google Gemini API (`google-genai`) + ebooklib + BeautifulSoup + React + TypeScript + Vite + uv + ruff + pytest
+
+## Boundaries
+
+- **Autonomous**: Tests, docs, comments (in feature branch), ruff formatting, type hints
+- **Ask first**: Application/pipeline code changes, new API routes, changes to AI prompts
+- **Prohibited**: Secrets and credential files (`api_keys.env`, `.env*`), production data, merge to main without PR, modifications to `frontend/dist/`
+
+## Scoped Rules
+
+Architecture, testing, and workflow patterns are in `.claude/rules/` with glob-based auto-loading.
+
+## Required Workflows
+
+- Changes with multiple valid approaches: brainstorm before implementing
+- All changes: run tests before committing
+- PRs: use PR template with AI attribution
+
+## Known Technical Debt
+
+- **No typecheck in CI** for backend. `pyright` is wired in `justfile` but not yet enforced — opt-in until the codebase is clean.
+- **Two `react-hooks/exhaustive-deps` warnings** remain in `MusicPlayer.tsx:193` and `ReaderPage.tsx:54`. They are warnings (not errors) and do not block CI. Address when touching those components.
