@@ -1,4 +1,16 @@
 {
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '=== git worktrees ==='; git worktree list; echo; echo '=== current branch ==='; git rev-parse --abbrev-ref HEAD; echo; if [ \"$(git worktree list | wc -l)\" -gt 1 ]; then echo 'NOTE: multiple worktrees exist — if another Claude session is active in this repo, call EnterWorktree before editing to avoid cross-session conflicts.'; fi"
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Read",
