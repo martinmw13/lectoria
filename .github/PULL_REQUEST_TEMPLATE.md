@@ -15,5 +15,6 @@
 
 - [ ] Tests added/updated
 - [ ] Documentation updated (if applicable)
+- [ ] `CHANGELOG.md` updated under `[Unreleased]` (skip for chore-only / no user-visible change)
 - [ ] No new `# noqa` without documented justification
 - [ ] No secrets, API keys, or production data in the diff
