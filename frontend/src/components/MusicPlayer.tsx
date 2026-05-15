@@ -137,7 +137,7 @@ export default function MusicPlayer({
       .catch(() => setError('Autoplay blocked -- click play'));
   }, [volume, muted, stopAll]);
 
-  async function loadAndPlay(t: TrackMatch, useCrossfade: boolean) {
+  const loadAndPlay = useCallback(async (t: TrackMatch, useCrossfade: boolean) => {
     const localUrl = buildAudioUrl(t, true);
     const cdnUrl = t.stream_url;
     const fallback = localUrl !== cdnUrl ? cdnUrl : null;
@@ -149,7 +149,7 @@ export default function MusicPlayer({
     } else {
       startPlaying(audio);
     }
-  }
+  }, [crossfadeTo, startPlaying]);
 
   // Scene change: fetch initial track
   useEffect(() => {
@@ -190,7 +190,7 @@ export default function MusicPlayer({
 
     load();
     return () => { cancelled = true; };
-  }, [bookId, chapterIndex, sceneIndex]);
+  }, [bookId, chapterIndex, sceneIndex, prevChapterIndex, prevSceneIndex, loadAndPlay]);
 
   async function skipTrack() {
     if (!track || skipping) return;
