@@ -19,8 +19,9 @@ Architecture, testing, and workflow patterns are in `.claude/rules/` with glob-b
 - Changes with multiple valid approaches: brainstorm before implementing
 - All changes: run tests before committing
 - PRs: use PR template with AI attribution
-- User-visible changes: add an entry under `[Unreleased]` in `CHANGELOG.md`
-  (Keep a Changelog format). Skip for chore/internal-only PRs.
+- User-visible changes: use a conventional commit message (`feat:`, `fix:`) with a
+  clear description — release-please generates `CHANGELOG.md` automatically from commits.
+  Do not edit `CHANGELOG.md` by hand.
 
 ## Known Technical Debt
 
