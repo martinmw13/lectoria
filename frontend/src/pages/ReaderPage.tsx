@@ -51,12 +51,10 @@ export default function ReaderPage() {
   const sourceChapter = chaptersData?.chapters.find(
     (c) => c.chapter_index === chapter?.chapter_index,
   );
-  const paragraphs = sourceChapter?.paragraphs || [];
-
   const pages: Page[] = useMemo(() => {
     if (!chapter) return [];
-    return paginateChapter(chapter.scenes, paragraphs);
-  }, [chapter, paragraphs]);
+    return paginateChapter(chapter.scenes, sourceChapter?.paragraphs || []);
+  }, [chapter, sourceChapter?.paragraphs]);
 
   const currentPage = pages[pageIdx];
   const currentScene = currentPage?.scene;

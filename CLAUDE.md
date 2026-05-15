@@ -23,4 +23,3 @@ Architecture, testing, and workflow patterns are in `.claude/rules/` with glob-b
 ## Known Technical Debt
 
 - **No typecheck in CI** for backend. `pyright` is wired in `justfile` but not yet enforced — opt-in until the codebase is clean.
-- **Two `react-hooks/exhaustive-deps` warnings** remain in `MusicPlayer.tsx:193` and `ReaderPage.tsx:54`. They are warnings (not errors) and do not block CI. Address when touching those components.
