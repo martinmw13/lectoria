@@ -22,6 +22,8 @@ tagged release.
 - Bumped GitHub Actions group (4 updates) (#3).
 - Bumped `@types/node` from 24.12.0 to 25.8.0 (#9).
 - Bumped Python minor/patch group (11 updates) (#10).
+- Bumped `google-genai` from 1.68.0 to 2.3.0; upstream breaking changes are
+  limited to Interactions, which we don't use (#11).
 
 ### Fixed
 
