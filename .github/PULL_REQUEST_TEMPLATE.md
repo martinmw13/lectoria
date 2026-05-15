@@ -15,6 +15,6 @@
 
 - [ ] Tests added/updated
 - [ ] Documentation updated (if applicable)
-- [ ] `CHANGELOG.md` updated under `[Unreleased]` (skip for chore-only / no user-visible change)
+- [ ] Commit message is conventional (`feat:` / `fix:` / `chore:` etc.) — release-please generates the changelog from commits
 - [ ] No new `# noqa` without documented justification
 - [ ] No secrets, API keys, or production data in the diff

@@ -39,23 +39,18 @@ export default function PageView({
   const sceneImageUrl = `/api/data/books/${bookId}/images/scenes/ch${chapterIndex}_sc${scene.scene_index}.png`;
   const cachedOnDemandUrl = `/api/data/books/${bookId}/images/on_demand/ch${chapterIndex}_sc${scene.scene_index}.png`;
 
+  // State resets on page change are handled by the parent's `key` prop
+  // (ReaderPage wraps PageView in a div keyed by `${chapterIdx}-${pageIdx}`),
+  // which remounts this component on navigation.
   useEffect(() => {
-    setPopup(null);
-    setGeneratedImage(null);
-    setImageError('');
-    setSceneImageLoaded(false);
-    setConfirmPictureScene(false);
-
-    // Check if a scene image already exists on disk
     const sceneImg = new window.Image();
     sceneImg.onload = () => setSceneImageLoaded(true);
     sceneImg.src = sceneImageUrl;
 
-    // Restore cached on-demand image if one exists on disk
     const img = new window.Image();
     img.onload = () => setGeneratedImage(cachedOnDemandUrl);
     img.src = cachedOnDemandUrl;
-  }, [page, cachedOnDemandUrl, sceneImageUrl]);
+  }, [cachedOnDemandUrl, sceneImageUrl]);
 
   useEffect(() => {
     function handleMouseUp() {
