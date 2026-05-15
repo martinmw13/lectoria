@@ -22,6 +22,8 @@ tagged release.
 - Bumped GitHub Actions group (4 updates) (#3).
 - Bumped `@types/node` from 24.12.0 to 25.8.0 (#9).
 - Bumped Python minor/patch group (11 updates) (#10).
+- Bumped `google-genai` from 1.68.0 to 2.3.0; upstream breaking changes are
+  limited to Interactions, which we don't use (#11).
 - Upgraded frontend tooling: ESLint 9 → 10, TypeScript 5.9 → 6.0,
   `typescript-eslint` 8.56 → 8.59, `eslint-plugin-react-hooks` 7.0 → 7.1, plus
   the npm minor/patch group (react/react-dom, react-router-dom, vite,
