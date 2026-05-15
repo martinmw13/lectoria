@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "LS",
+      "Bash(just test*)",
+      "Bash(just lint*)",
+      "Bash(just check*)",
+      "Bash(just format*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)"
+    ],
+    "deny": [
+      "Bash(rm -rf*)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Read(./.openspec-archive/**)",
+      "Read(./.cursor/**)"
+    ]
+  }
+}

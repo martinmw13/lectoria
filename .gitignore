@@ -20,6 +20,10 @@ frontend/dist/
 
 # IDE
 .idea/
+.cursor/
+
+# Local-only archives (kept on disk for reference, not in git/remote)
+.openspec-archive/
 
 # Environment
 .env
