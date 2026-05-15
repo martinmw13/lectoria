@@ -251,6 +251,7 @@ export default function ReaderPage() {
           scene={currentScene}
           chapter={chapter}
           bookId={bookId!}
+          onClose={() => setDevMode(false)}
         />
       )}
     </div>

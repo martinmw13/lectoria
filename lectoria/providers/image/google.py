@@ -1,4 +1,9 @@
-"""Google Imagen image generation provider adapter."""
+"""Google image generation via Gemini native image models (not Imagen).
+
+Imagen ``generate_images`` models are paid-only for typical AI Studio projects.
+Gemini 2.5 Flash Image (``gemini-2.5-flash-image``) uses ``generate_content`` and
+matches the free-tier image quota documented for the Gemini API.
+"""
 
 import logging
 
@@ -9,11 +14,33 @@ from lectoria.providers.registry import register_image_provider
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "imagen-3.0-generate-002"
+# Stable "Nano Banana" model — text-to-image via generate_content (not Imagen).
+DEFAULT_MODEL = "gemini-2.5-flash-image"
+
+
+def _first_image_bytes(response: types.GenerateContentResponse) -> bytes:
+    parts = response.parts
+    if not parts:
+        # Prompt may have been blocked by safety filters
+        feedback = getattr(response, "prompt_feedback", None)
+        logger.error("No content parts returned. prompt_feedback=%s", feedback)
+        raise RuntimeError(
+            f"Image generation returned no content parts (prompt may have been blocked: {feedback})"
+        )
+    text_parts = []
+    for part in parts:
+        if part.inline_data is not None and part.inline_data.data:
+            return part.inline_data.data
+        if part.text:
+            text_parts.append(part.text)
+    # Model responded with text only (refused or explained instead of drawing)
+    refusal_snippet = "; ".join(text_parts)[:300] if text_parts else "(no text either)"
+    logger.error("No image in response. Text returned: %s", refusal_snippet)
+    raise RuntimeError(f"Image generation returned text instead of image: {refusal_snippet}")
 
 
 class GoogleImageProvider:
-    """Image generation provider backed by Google Imagen via the google-genai SDK."""
+    """Image generation via Gemini native image output (google-genai SDK)."""
 
     def __init__(self, api_key: str, *, model: str = DEFAULT_MODEL) -> None:
         self._client = genai.Client(api_key=api_key)
@@ -25,24 +52,22 @@ class GoogleImageProvider:
         *,
         reference_image: bytes | None = None,
     ) -> bytes:
-        # Imagen generate_images does not support reference images for consistency;
-        # reference_image is ignored (character memory falls back to text-only).
+        # Native image models do not take a reference image for consistency here.
         if reference_image is not None:
-            logger.debug("Reference image provided but Imagen does not support it; ignoring")
+            logger.debug("Reference image provided; Gemini Flash Image path ignores it")
 
-        response = await self._client.aio.models.generate_images(
+        wrapped = f"Generate an illustration for the following scene:\n\n{prompt}"
+        logger.debug("Image prompt (%d chars): %.200s...", len(wrapped), wrapped)
+
+        response = await self._client.aio.models.generate_content(
             model=self._model,
-            prompt=prompt,
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                output_mime_type="image/png",
+            contents=[wrapped],
+            config=types.GenerateContentConfig(
+                response_modalities=["TEXT", "IMAGE"],
             ),
         )
 
-        if not response.generated_images:
-            raise RuntimeError("Image generation returned no images (possibly filtered by safety)")
-
-        return response.generated_images[0].image.image_bytes
+        return _first_image_bytes(response)
 
     def supports_reference_image(self) -> bool:
         return False

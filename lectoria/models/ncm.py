@@ -218,5 +218,7 @@ class MusicIndexEntry(BaseModel):
     file_path: str
     duration_seconds: float
     tags: list[str] = Field(default_factory=list)
+    instrument_tags: list[str] = Field(default_factory=list)
+    genre_tags: list[str] = Field(default_factory=list)
     emotion_primary: Emotion
     tag_vector: list[float] = Field(default_factory=list)

@@ -201,8 +201,26 @@ export interface DetailedMatch {
   selected_track: string;
   score: number;
   scene_vector: number[];
-  fell_back_to_full_index: boolean;
+  fallback: string;
+  style_applied: string | null;
   candidates: Array<{ track_id: string; tags: string[]; score: number }>;
+}
+
+export interface StylePreset {
+  name: string;
+  description: string;
+}
+
+export function getMusicStyle(): string {
+  return localStorage.getItem('lectoria_music_style') || 'auto';
+}
+
+export function setMusicStyle(style: string): void {
+  localStorage.setItem('lectoria_music_style', style);
+}
+
+export async function getPresets(): Promise<StylePreset[]> {
+  return jsonFetch<StylePreset[]>('/api/music/presets');
 }
 
 export async function getSceneTrack(
@@ -217,6 +235,8 @@ export async function getSceneTrack(
   if (previousTrackId) params.set('previous_track_id', previousTrackId);
   if (detailed) params.set('detailed', 'true');
   if (exclude && exclude.length) params.set('exclude', exclude.join(','));
+  const style = getMusicStyle();
+  if (style && style !== 'auto') params.set('style', style);
   const url = `${BASE}/${bookId}/chapters/${chapterIdx}/scenes/${sceneIdx}/track?${params}`;
   return jsonFetch(url);
 }
@@ -243,12 +263,27 @@ export async function generateImage(
   selectedText: string,
   chapterIndex?: number,
   sceneIndex?: number,
-): Promise<{ image_base64: string; content_type: string }> {
+): Promise<{ image_base64: string; content_type: string; cache_url?: string }> {
   return jsonFetch(`${BASE}/${bookId}/images/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...providerHeaders() },
     body: JSON.stringify({
       selected_text: selectedText,
+      chapter_index: chapterIndex,
+      scene_index: sceneIndex,
+    }),
+  });
+}
+
+export async function generateSceneImage(
+  bookId: string,
+  chapterIndex: number,
+  sceneIndex: number,
+): Promise<{ cache_url: string; generated: boolean }> {
+  return jsonFetch(`${BASE}/${bookId}/images/scene`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...providerHeaders() },
+    body: JSON.stringify({
       chapter_index: chapterIndex,
       scene_index: sceneIndex,
     }),

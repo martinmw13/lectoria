@@ -4,15 +4,25 @@ Services call providers through these protocols, never directly.
 Each concrete adapter (e.g., google.py, openai.py) implements one or both.
 """
 
+from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
+
+
+@dataclass(frozen=True, slots=True)
+class CompletionResult:
+    """Return value from LLMProvider.complete() (Decision 31)."""
+
+    text: str
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
 
 
 @runtime_checkable
 class LLMProvider(Protocol):
     """Protocol for LLM text completion providers."""
 
-    async def complete(self, prompt: str, *, system: str | None = None) -> str:
-        """Send a prompt and return the completion text."""
+    async def complete(self, prompt: str, *, system: str | None = None) -> CompletionResult:
+        """Send a prompt and return completion text with token usage."""
         ...
 
     def max_context_tokens(self) -> int:

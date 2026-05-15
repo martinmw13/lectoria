@@ -32,6 +32,10 @@ def _character_image_path(book_dir: Path, character_id: str) -> Path:
     return book_dir / "images" / "characters" / f"{character_id}.png"
 
 
+def _on_demand_image_path(book_dir: Path, chapter_index: int, scene_index: int) -> Path:
+    return book_dir / "images" / "on_demand" / f"ch{chapter_index}_sc{scene_index}.png"
+
+
 # ---------------------------------------------------------------------------
 # Automatic image generation (Decision 5)
 # ---------------------------------------------------------------------------
@@ -226,11 +230,13 @@ async def generate_on_demand(
     book_dir: Path,
     *,
     scene: Scene | None = None,
+    chapter_index: int | None = None,
 ) -> bytes:
-    """Generate an image from user-selected text (Decision 5 — raw text, no LLM rewriting).
+    """Generate an image from user-selected text (Decision 5 -- raw text, no LLM rewriting).
 
     Character descriptions are injected. If character memory exists and the provider
     supports reference images, the first identified character's reference is passed.
+    The generated image is cached to disk per scene so it persists across sessions.
     """
     scene_chars = scene.characters_present if scene else None
     identified = identify_characters(selected_text, book_map.characters, scene_chars)
@@ -252,5 +258,12 @@ async def generate_on_demand(
             char_path.parent.mkdir(parents=True, exist_ok=True)
             char_path.write_bytes(image_bytes)
             logger.info("Stored character memory: %s -> %s", identified[0].name, char_path)
+
+    # Cache to disk so it survives navigation and app restarts
+    if chapter_index is not None and scene is not None:
+        cache_path = _on_demand_image_path(book_dir, chapter_index, scene.scene_index)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_bytes(image_bytes)
+        logger.info("Cached on-demand image: %s", cache_path)
 
     return image_bytes

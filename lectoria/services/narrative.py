@@ -7,6 +7,7 @@ LLM 2: per-chapter with BookMap context → ChapterAnalysis (scenes with attribu
 import json
 import logging
 import re
+from dataclasses import dataclass
 
 from pydantic import ValidationError
 
@@ -216,22 +217,37 @@ Rules:
 """
 
 
+@dataclass
+class TokenUsage:
+    """Accumulated token counts from one or more LLM calls."""
+
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    calls: int = 0
+
+    @property
+    def total(self) -> int:
+        return self.prompt_tokens + self.completion_tokens
+
+    def add(self, prompt: int | None, completion: int | None) -> None:
+        self.calls += 1
+        self.prompt_tokens += prompt or 0
+        self.completion_tokens += completion or 0
+
+
 async def analyze_book(
     provider: LLMProvider,
     chapters_data: ChaptersData,
-) -> BookMap:
+) -> tuple[BookMap, TokenUsage]:
     """Run LLM 1: analyze the full book and produce a BookMap.
 
-    Args:
-        provider: LLM provider to use for the API call.
-        chapters_data: Structured text extracted from the EPUB.
-
     Returns:
-        BookMap with characters, setting, genre, and chapter summaries.
+        Tuple of (BookMap, TokenUsage) with cumulative token counts.
 
     Raises:
         RuntimeError: If all retries fail.
     """
+    usage = TokenUsage()
     book_text = _format_book_text(chapters_data)
 
     token_estimate = len(book_text) // 4  # rough estimate
@@ -249,16 +265,20 @@ async def analyze_book(
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             logger.info("LLM 1 attempt %d/%d", attempt, MAX_RETRIES)
-            raw_response = await provider.complete(prompt, system=_LLM1_SYSTEM)
-            json_str = _extract_json(raw_response)
+            result = await provider.complete(prompt, system=_LLM1_SYSTEM)
+            usage.add(result.prompt_tokens, result.completion_tokens)
+            json_str = _extract_json(result.text)
             data = json.loads(json_str)
             book_map = BookMap.model_validate(data)
             logger.info(
-                "LLM 1 success: %d characters, %d chapter summaries",
+                "LLM 1 success: %d characters, %d chapter summaries "
+                "(tokens: prompt=%d, completion=%d)",
                 len(book_map.characters),
                 len(book_map.chapters),
+                usage.prompt_tokens,
+                usage.completion_tokens,
             )
-            return book_map
+            return book_map, usage
 
         except (json.JSONDecodeError, ValidationError, ValueError, RuntimeError) as e:
             last_error = e
@@ -369,22 +389,18 @@ async def analyze_chapter(
     provider: LLMProvider,
     chapter: Chapter,
     book_map: BookMap,
-) -> ChapterAnalysis:
+) -> tuple[ChapterAnalysis, TokenUsage]:
     """Run LLM 2: analyze a single chapter and produce scene segmentation.
 
-    Args:
-        provider: LLM provider to use.
-        chapter: Chapter with numbered paragraphs.
-        book_map: BookMap from LLM 1 (used as context).
-
     Returns:
-        ChapterAnalysis with scenes covering all paragraphs.
+        Tuple of (ChapterAnalysis, TokenUsage) with per-chapter token counts.
 
     Raises:
         RuntimeError: If all retries fail.
     """
+    usage = TokenUsage()
     if not chapter.paragraphs:
-        return ChapterAnalysis(chapter_index=chapter.chapter_index, scenes=[])
+        return ChapterAnalysis(chapter_index=chapter.chapter_index, scenes=[]), usage
 
     prompt = _format_llm2_prompt(chapter, book_map)
     model_name = getattr(provider, "model", "unknown")
@@ -398,20 +414,23 @@ async def analyze_chapter(
                 attempt,
                 MAX_RETRIES,
             )
-            raw_response = await provider.complete(prompt, system=_LLM2_SYSTEM)
-            json_str = _extract_json(raw_response)
+            result = await provider.complete(prompt, system=_LLM2_SYSTEM)
+            usage.add(result.prompt_tokens, result.completion_tokens)
+            json_str = _extract_json(result.text)
             data = json.loads(json_str)
             _coerce_scene_enums(data)
             analysis = ChapterAnalysis.model_validate(data)
             analysis.llm_model = str(model_name)
             analysis.attempt_count = attempt
             logger.info(
-                "LLM 2 chapter %d success: %d scenes (attempt %d)",
+                "LLM 2 chapter %d success: %d scenes (attempt %d, tokens: prompt=%d, completion=%d)",
                 chapter.chapter_index,
                 len(analysis.scenes),
                 attempt,
+                usage.prompt_tokens,
+                usage.completion_tokens,
             )
-            return analysis
+            return analysis, usage
 
         except (json.JSONDecodeError, ValidationError, ValueError, RuntimeError) as e:
             last_error = e
@@ -432,7 +451,7 @@ async def analyze_chapter(
     fallback.llm_model = str(model_name)
     fallback.attempt_count = MAX_RETRIES
     fallback.is_fallback = True
-    return fallback
+    return fallback, usage
 
 
 def _format_llm2_prompt(chapter: Chapter, book_map: BookMap) -> str:

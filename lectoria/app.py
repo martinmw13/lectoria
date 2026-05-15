@@ -26,7 +26,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(books.router, prefix="/api/books", tags=["books"])
-    app.include_router(music.router, prefix="/api/books", tags=["music"])
+    app.include_router(music.router, prefix="/api", tags=["music"])
     app.include_router(images.router, prefix="/api/books", tags=["images"])
 
     settings = get_settings()
