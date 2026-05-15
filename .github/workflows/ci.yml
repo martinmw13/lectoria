@@ -58,7 +58,6 @@ jobs:
 
       - name: Lint
         run: npm run lint
-        continue-on-error: true  # TODO: re-enable as blocking after frontend cleanup PR
 
       - name: Build
         run: npm run build

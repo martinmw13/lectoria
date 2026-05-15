@@ -23,6 +23,10 @@ export default function ReaderPage() {
   const [slideDir, setSlideDir] = useState<'none' | 'left' | 'right'>('none');
   const slideTimeout = useRef<number | null>(null);
 
+  // Latest-ref pattern: keydown listener is registered once but always calls the freshest goNext/goPrev.
+  const goNextRef = useRef<() => void>(() => {});
+  const goPrevRef = useRef<() => void>(() => {});
+
   useEffect(() => {
     if (!bookId) return;
     Promise.all([getNCM(bookId), getChapters(bookId)])
@@ -36,12 +40,12 @@ export default function ReaderPage() {
         e.preventDefault();
         setDevMode((prev) => !prev);
       }
-      if (e.key === 'ArrowRight') { e.preventDefault(); goNext(); }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev(); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); goNextRef.current(); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); goPrevRef.current(); }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  });
+  }, []);
 
   const chapter = ncm?.chapters[chapterIdx];
   const sourceChapter = chaptersData?.chapters.find(
@@ -123,6 +127,11 @@ export default function ReaderPage() {
     setMaxRevealed(0);
     setShowNav(false);
   }
+
+  useEffect(() => {
+    goNextRef.current = goNext;
+    goPrevRef.current = goPrev;
+  });
 
   // Determine which scene the music should react to
   const musicSceneIndex = currentScene?.scene_index ?? 0;
