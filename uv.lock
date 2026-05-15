@@ -541,7 +541,7 @@ requires-dist = [
     { name = "beautifulsoup4" },
     { name = "ebooklib" },
     { name = "fastapi" },
-    { name = "google-genai", specifier = ">=2.3.0" },
+    { name = "google-genai", specifier = ">=2.3.0,<3" },
     { name = "httpx", marker = "extra == 'dev'" },
     { name = "lxml" },
     { name = "numpy" },
