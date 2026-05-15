@@ -9,7 +9,6 @@ Multimodal EPUB reader with AI-driven narrative enrichment: a two-stage LLM pipe
 | Backend | Python 3.14, FastAPI, Pydantic, ebooklib |
 | LLM / images | Google Gemini / Gemini image (pluggable providers) |
 | Frontend | React, TypeScript, Vite |
-| Spec / planning | OpenSpec (`openspec/changes/`) |
 
 ## Requirements
 
@@ -20,10 +19,13 @@ Multimodal EPUB reader with AI-driven narrative enrichment: a two-stage LLM pipe
 ## Setup
 
 ```bash
-# Backend
-uv sync --extra dev    # core deps + pytest, ruff, pytest-asyncio
+just install   # uv sync --all-extras + pre-commit install + npm install
+```
 
-# Frontend
+Or manually:
+
+```bash
+uv sync --all-extras   # backend deps including dev
 cd frontend && npm install && cd ..
 ```
 
@@ -41,26 +43,18 @@ Development runs two processes: the **FastAPI backend** and the **Vite dev serve
 **API only** — REST endpoints and OpenAPI UI at http://localhost:8000/docs:
 
 ```bash
-uv run python main.py
+just dev
 ```
 
 **Client only** — run when the API is already available on port 8000:
 
 ```bash
-cd frontend && npm run dev
+just dev-frontend
 ```
 
 Navigate to http://localhost:5173.
 
-**API and client** — both processes from the repository root:
-
-```bash
-./start.sh
-```
-
-Use http://localhost:5173 as the application entry point; keep the API on http://localhost:8000.
-
-If Node is installed outside the default PATH, update `start.sh` accordingly.
+Use http://localhost:5173 as the application entry point; the API runs on http://localhost:8000.
 
 ## Configuration
 
@@ -92,22 +86,19 @@ OpenAPI: http://localhost:8000/docs
 ## Tests
 
 ```bash
-uv run pytest tests/ -v
+just test         # all tests
+just check        # lint + format check
+just typecheck    # pyright (opt-in, not yet in CI)
 ```
-
-Requires dev dependencies (`pytest`, `pytest-asyncio`).
 
 ## Project layout
 
 ```
 lectoria/           # Python package (api, models, services, providers)
 frontend/           # React reader + settings (BYOK)
-openspec/changes/   # Design decisions, specs, tasks
 notebooks/          # Exploration / evaluation
 data/               # Runtime (gitignored under books/music as configured)
 ```
-
-Design rationale and schema details: `openspec/changes/multimodal-reader-system/design.md`.
 
 ## License
 

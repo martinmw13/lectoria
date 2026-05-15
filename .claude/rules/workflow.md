@@ -36,6 +36,20 @@ Before implementing, classify the change:
 2. **Plan**: Use `/create_plan` to write implementation plan in `docs/plans/`
 3. **Implement**: Use `/implement_plan` to execute with review gates
 
+## README Maintenance
+
+`README.md` must stay current. After any change in these categories, update it in the **same commit**:
+
+| Change | README section to update |
+|--------|--------------------------|
+| Dev commands or task runner targets added/removed/renamed | Setup, Run locally, Tests |
+| Files or directories deleted or moved | Project layout |
+| New environment variables or config | Configuration |
+| New API routes or areas | API overview |
+| Stack changes (new dep, removed dep) | Stack |
+
+This is **autonomous** — do not wait to be asked. If you touch anything in the list above, README update is part of the change.
+
 ## Branch Convention
 
 `type/description` — e.g., `feat/add-customer-dimension`, `fix/null-handling-pipeline`
