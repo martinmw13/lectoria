@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Project is pre-1.0 — minor versions may include breaking changes until the first
 tagged release.
 
+## [0.2.0](https://github.com/martinmw13/lectoria/compare/v0.1.0...v0.2.0) (2026-05-16)
+
+
+### Features
+
+* enhance music style selection and image generation features ([4a42515](https://github.com/martinmw13/lectoria/commit/4a42515a1f1d1134a09a3a11f3e4cee8c6ca8b83))
+
+
+### Bug Fixes
+
+* **frontend:** resolve react-hooks/exhaustive-deps warnings ([#12](https://github.com/martinmw13/lectoria/issues/12)) ([6f36987](https://github.com/martinmw13/lectoria/commit/6f369873c676260959707733f626174cbbd0c24d))
+
 ## [Unreleased]
 
 ### Added
