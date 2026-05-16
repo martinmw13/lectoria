@@ -31,3 +31,4 @@ frontend/dist/
 api_keys.env
 .claude/handoffs/
 .claude/settings.local.json
+.claude/skills/lectoria-daily-progress
