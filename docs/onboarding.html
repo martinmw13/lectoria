@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lectoria — Developer Onboarding</title>
+<style>
+  :root {
+    --bg: #fafaf8;
+    --surface: #ffffff;
+    --border: #e5e5e0;
+    --text: #1a1a18;
+    --muted: #6b6b65;
+    --accent: #2563eb;
+    --accent-light: #eff6ff;
+    --code-bg: #f4f4f0;
+    --sidebar-bg: #1e1e1c;
+    --sidebar-text: #d4d4cc;
+    --sidebar-active: #ffffff;
+    --sidebar-hover: #2a2a28;
+    --pill-joy: #fef3c7; --pill-joy-t: #92400e;
+    --pill-sorrow: #dbeafe; --pill-sorrow-t: #1e40af;
+    --pill-tension: #fee2e2; --pill-tension-t: #991b1b;
+    --pill-peace: #d1fae5; --pill-peace-t: #065f46;
+    --pill-romance: #fce7f3; --pill-romance-t: #9d174d;
+    --pill-mystery: #ede9fe; --pill-mystery-t: #5b21b6;
+    --pill-excitement: #ffedd5; --pill-excitement-t: #9a3412;
+    --pill-wonder: #f0fdf4; --pill-wonder-t: #14532d;
+    --pill-anger: #fef2f2; --pill-anger-t: #7f1d1d;
+    --decision-bg: #f0f9ff; --decision-border: #bae6fd;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    display: flex;
+  }
+
+  /* ── Sidebar ─────────────────────────────────────────── */
+  #sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 240px;
+    height: 100vh;
+    background: var(--sidebar-bg);
+    overflow-y: auto;
+    padding: 1.5rem 0 2rem;
+    z-index: 100;
+    scrollbar-width: thin;
+    scrollbar-color: #444 transparent;
+  }
+
+  #sidebar .site-title {
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0 1.25rem 1.25rem;
+    border-bottom: 1px solid #333;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.01em;
+  }
+
+  #sidebar .site-title span {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: #888;
+    margin-top: 0.2rem;
+    letter-spacing: 0;
+  }
+
+  #sidebar .toc-section {
+    padding: 0.5rem 0;
+  }
+
+  #sidebar .toc-group-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #555;
+    padding: 0.5rem 1.25rem 0.25rem;
+  }
+
+  #sidebar a {
+    display: block;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.82rem;
+    padding: 0.3rem 1.25rem;
+    border-left: 2px solid transparent;
+    transition: all 0.1s;
+  }
+
+  #sidebar a:hover {
+    background: var(--sidebar-hover);
+    color: var(--sidebar-active);
+  }
+
+  #sidebar a.active {
+    color: var(--sidebar-active);
+    border-left-color: #60a5fa;
+    background: rgba(96, 165, 250, 0.08);
+  }
+
+  #sidebar a.sub {
+    font-size: 0.77rem;
+    padding-left: 2rem;
+    color: #888;
+  }
+
+  /* ── Main content ─────────────────────────────────────── */
+  main {
+    margin-left: 240px;
+    flex: 1;
+    max-width: calc(100% - 240px);
+    padding: 2.5rem 3rem 4rem;
+  }
+
+  @media (max-width: 768px) {
+    #sidebar { display: none; }
+    main { margin-left: 0; max-width: 100%; padding: 1.5rem; }
+  }
+
+  /* ── Typography ──────────────────────────────────────── */
+  section { margin-bottom: 3.5rem; }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+
+  h1 + .lead {
+    font-size: 1.05rem;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+    max-width: 72ch;
+  }
+
+  h2 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 2rem 0 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid var(--border);
+    color: var(--text);
+    scroll-margin-top: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 1.5rem 0 0.5rem;
+    color: var(--text);
+    scroll-margin-top: 1.5rem;
+  }
+
+  h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 1.25rem 0 0.4rem;
+  }
+
+  p { margin-bottom: 0.85rem; max-width: 80ch; }
+
+  ul, ol { padding-left: 1.4rem; margin-bottom: 0.85rem; max-width: 78ch; }
+  li { margin-bottom: 0.3rem; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  strong { font-weight: 600; }
+
+  /* ── Code ────────────────────────────────────────────── */
+  code {
+    font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Cascadia Code', monospace;
+    font-size: 0.83em;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.1em 0.35em;
+    color: #c7254e;
+  }
+
+  pre {
+    background: #1e1e1c;
+    color: #d4d4cc;
+    border-radius: 8px;
+    padding: 1.2rem 1.4rem;
+    overflow-x: auto;
+    margin: 1rem 0 1.25rem;
+    font-size: 0.83rem;
+    line-height: 1.6;
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+
+  /* ── Tables ──────────────────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 1.25rem;
+    font-size: 0.88rem;
+  }
+
+  th {
+    text-align: left;
+    padding: 0.6rem 0.85rem;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  td {
+    padding: 0.55rem 0.85rem;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td { background: #fafaf8; }
+
+  /* ── Cards / callouts ────────────────────────────────── */
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-light);
+    padding: 0.85rem 1.1rem;
+    border-radius: 0 6px 6px 0;
+    margin: 1rem 0 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  .callout.decision {
+    border-left-color: #0ea5e9;
+    background: var(--decision-bg);
+  }
+
+  .callout p { margin-bottom: 0; }
+
+  .decision-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+
+  @media (max-width: 900px) {
+    .decision-grid { grid-template-columns: 1fr; }
+  }
+
+  .decision-card {
+    background: var(--decision-bg);
+    border: 1px solid var(--decision-border);
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .decision-card .d-num {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #0284c7;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.25rem;
+  }
+
+  .decision-card h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: 0;
+    margin: 0 0 0.3rem;
+  }
+
+  .decision-card p { color: var(--muted); max-width: none; margin: 0; }
+
+  /* ── Emotion pills ───────────────────────────────────── */
+  .pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
+
+  .pill {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 100px;
+  }
+
+  .pill.joy      { background: var(--pill-joy);       color: var(--pill-joy-t); }
+  .pill.sorrow   { background: var(--pill-sorrow);    color: var(--pill-sorrow-t); }
+  .pill.tension  { background: var(--pill-tension);   color: var(--pill-tension-t); }
+  .pill.peace    { background: var(--pill-peace);     color: var(--pill-peace-t); }
+  .pill.romance  { background: var(--pill-romance);   color: var(--pill-romance-t); }
+  .pill.mystery  { background: var(--pill-mystery);   color: var(--pill-mystery-t); }
+  .pill.excitement{ background: var(--pill-excitement); color: var(--pill-excitement-t); }
+  .pill.wonder   { background: var(--pill-wonder);    color: var(--pill-wonder-t); }
+  .pill.anger    { background: var(--pill-anger);     color: var(--pill-anger-t); }
+
+  /* ── Diagram ─────────────────────────────────────────── */
+  .diagram {
+    background: #1e1e1c;
+    color: #a8b5c8;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    border-radius: 8px;
+    padding: 1.2rem 1.4rem;
+    overflow-x: auto;
+    line-height: 1.55;
+    margin: 1rem 0;
+    white-space: pre;
+  }
+
+  .diagram .green  { color: #6ee7b7; }
+  .diagram .blue   { color: #93c5fd; }
+  .diagram .yellow { color: #fde68a; }
+  .diagram .pink   { color: #f9a8d4; }
+  .diagram .dim    { color: #555; }
+
+  /* ── File ref ────────────────────────────────────────── */
+  .file-ref {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: #0369a1;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 3px;
+    padding: 0.1em 0.4em;
+  }
+
+  /* ── Layout helpers ──────────────────────────────────── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin: 1rem 0;
+  }
+
+  @media (max-width: 900px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  .box {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.1rem;
+    background: var(--surface);
+    font-size: 0.88rem;
+  }
+
+  .box h4 { margin-top: 0; }
+
+  /* ── Hero ────────────────────────────────────────────── */
+  .hero {
+    background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+    color: #fff;
+    border-radius: 12px;
+    padding: 2rem 2.25rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .hero h1 { color: #fff; font-size: 2.2rem; }
+  .hero p { color: #94a3b8; max-width: 65ch; margin-top: 0.4rem; font-size: 0.95rem; }
+  .hero .tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 1rem; }
+  .hero .tag {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.65rem;
+    border-radius: 100px;
+    background: rgba(255,255,255,0.1);
+    color: #cbd5e1;
+    font-weight: 500;
+  }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+</style>
+</head>
+<body>
+
+<!-- ─── Sidebar ──────────────────────────────────────────────────────────── -->
+<nav id="sidebar">
+  <div class="site-title">
+    Lectoria
+    <span>Developer Onboarding</span>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-group-label">Getting Started</div>
+    <a href="#overview">Overview</a>
+    <a href="#quickstart">Quick Start</a>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-group-label">Architecture</div>
+    <a href="#architecture">Architecture Overview</a>
+    <a href="#ncm">NCM — Central Artifact</a>
+    <a href="#pipeline">The Pipeline</a>
+    <a href="#music">Music Matching</a>
+    <a href="#images">Image Generation</a>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-group-label">Codebase</div>
+    <a href="#backend">Backend Package</a>
+    <a href="#frontend">Frontend</a>
+    <a href="#data-layout">Data Directory</a>
+    <a href="#config">Configuration</a>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-group-label">Development</div>
+    <a href="#workflow">Dev Workflow</a>
+    <a href="#testing">Testing</a>
+    <a href="#byok">BYOK Flow</a>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-group-label">Reference</div>
+    <a href="#decisions">Design Decisions</a>
+    <a href="#api-reference">API Reference</a>
+    <a href="#debt">Known Debt</a>
+  </div>
+</nav>
+
+<!-- ─── Main ─────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Lectoria</h1>
+    <p>Multimodal EPUB reader with AI-driven narrative enrichment. A two-stage LLM pipeline produces a Narrative Context Map (NCM) that drives contextual music selection and image generation. Academic thesis — CEIA, FIUBA.</p>
+    <div class="tags">
+      <span class="tag">Python 3.14</span>
+      <span class="tag">FastAPI</span>
+      <span class="tag">Google Gemini</span>
+      <span class="tag">React + TypeScript</span>
+      <span class="tag">Vite</span>
+      <span class="tag">uv</span>
+      <span class="tag">MTG-Jamendo</span>
+    </div>
+  </div>
+
+  <!-- ── Overview ────────────────────────────────────────────────────── -->
+  <section id="overview">
+    <h2>Overview</h2>
+
+    <p>Lectoria enriches the EPUB reading experience with <strong>contextually matched music</strong> and <strong>AI-generated images</strong> that respond to the narrative. Every scene in a book gets classified by emotion, pacing, and scene type — that classification then drives which Jamendo track plays and which image appears.</p>
+
+    <p>The <strong>academic bet</strong>: LLM prompting alone (no fine-tuning) can extract narrative attributes rich enough that users perceive the enrichment as meaningfully better than random selection.</p>
+
+    <div class="two-col">
+      <div class="box">
+        <h4>What it does</h4>
+        <ul>
+          <li>Parses EPUB files into numbered paragraphs</li>
+          <li>Runs a two-stage LLM pipeline to produce a <strong>Narrative Context Map (NCM)</strong></li>
+          <li>Matches each scene to a music track from a curated Jamendo library</li>
+          <li>Generates or serves AI images per scene / chapter cover</li>
+          <li>Presents a paginated, scene-synchronized reader UI</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h4>What it does not do</h4>
+        <ul>
+          <li>No local model inference — all AI is BYOK (Bring Your Own Key)</li>
+          <li>No user accounts or cross-device sync</li>
+          <li>No audio generation (music is pre-recorded Jamendo tracks)</li>
+          <li>No PDF support</li>
+          <li>No mobile native app</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Quick Start ──────────────────────────────────────────────────── -->
+  <section id="quickstart">
+    <h2>Quick Start</h2>
+
+    <h3>Prerequisites</h3>
+    <ul>
+      <li>Python 3.14 (see <code>.python-version</code>)</li>
+      <li><a href="https://docs.astral.sh/uv/">uv</a> for Python dependency management</li>
+      <li>Node.js 20+ for the frontend</li>
+      <li>A <a href="https://aistudio.google.com/">Google Gemini API key</a> (enter in Settings once running)</li>
+    </ul>
+
+    <h3>Install &amp; Run</h3>
+    <pre><code># Install all dependencies (backend + pre-commit hooks + frontend npm deps)
+just install
+
+# Terminal 1: backend API on http://localhost:8000
+just dev
+
+# Terminal 2: frontend dev server on http://localhost:5173
+just dev-frontend</code></pre>
+
+    <p>Open <strong>http://localhost:5173</strong>, go to <strong>Settings</strong>, enter your Gemini API key, then upload an EPUB.</p>
+
+    <h3>All Commands</h3>
+    <table>
+      <tr><th>Command</th><th>What it does</th></tr>
+      <tr><td><code>just install</code></td><td>uv sync + pre-commit install + npm install</td></tr>
+      <tr><td><code>just dev</code></td><td>Backend dev server (http://localhost:8000)</td></tr>
+      <tr><td><code>just dev-frontend</code></td><td>Frontend dev server (http://localhost:5173)</td></tr>
+      <tr><td><code>just test</code></td><td>Run all pytest tests</td></tr>
+      <tr><td><code>just check</code></td><td>Lint + format check (no auto-fix)</td></tr>
+      <tr><td><code>just fmt</code></td><td>Auto-fix lint and format</td></tr>
+      <tr><td><code>just typecheck</code></td><td>pyright (opt-in, not in CI)</td></tr>
+    </table>
+  </section>
+
+  <!-- ── Architecture ────────────────────────────────────────────────── -->
+  <section id="architecture">
+    <h2>Architecture Overview</h2>
+
+    <p>Two processes, two ports, one shared data directory:</p>
+
+    <table>
+      <tr><th>Process</th><th>Port</th><th>Tech</th><th>Entry point</th></tr>
+      <tr><td>Backend API</td><td>8000</td><td>FastAPI + Uvicorn</td><td><code>main.py</code> → <code>lectoria/app.py</code></td></tr>
+      <tr><td>Frontend</td><td>5173</td><td>React + Vite</td><td><code>frontend/src/main.tsx</code></td></tr>
+    </table>
+
+    <p>The frontend communicates with the API over HTTP (CORS enabled). API keys are stored in <code>localStorage</code> and sent per-request as headers — never stored server-side (BYOK model).</p>
+
+    <div class="diagram"><span class="dim">┌──────────────┐         ┌───────────────────────────────────────────┐</span>
+<span class="dim">│</span>   <span class="blue">Browser</span>     <span class="dim">│         │</span>                <span class="yellow">FastAPI Backend</span>                  <span class="dim">│</span>
+<span class="dim">│</span>              <span class="dim">│         │</span>                                           <span class="dim">│</span>
+<span class="dim">│</span>  <span class="green">React SPA</span>   <span class="dim">├────────▶│  /api/books</span>  <span class="dim">──▶</span> <span class="green">pipeline</span> <span class="dim">──▶</span> <span class="pink">LLM</span>            <span class="dim">│</span>
+<span class="dim">│</span>  <span class="dim">port 5173</span>   <span class="dim">│  REST   │  /api/books</span>  <span class="dim">──▶</span> <span class="green">NCM</span> <span class="dim">serve</span>               <span class="dim">│</span>
+<span class="dim">│</span>              <span class="dim">│  + SSE  │  /api/music</span>  <span class="dim">──▶</span> <span class="green">music</span> <span class="dim">match</span>              <span class="dim">│</span>
+<span class="dim">│</span>  <span class="dim">localStorage│         │  /api/books  ──▶ image gen ──▶</span> <span class="pink">Image API</span>     <span class="dim">│</span>
+<span class="dim">│</span>  <span class="dim">API keys    │         │</span>                                           <span class="dim">│</span>
+<span class="dim">└──────────────┘         └───────────────────┬───────────────────────┘</span>
+                                              <span class="dim">│ reads/writes</span>
+                                   <span class="dim">┌──────────▼──────────┐</span>
+                                   <span class="dim">│</span>   <span class="yellow">data/</span>               <span class="dim">│</span>
+                                   <span class="dim">│  books/&lt;id&gt;/ncm.json │</span>
+                                   <span class="dim">│  music/music_index   │</span>
+                                   <span class="dim">└─────────────────────┘</span></div>
+
+    <h3>Repo Layout</h3>
+    <pre><code>lectoria/              ← Python package (api, models, services, providers)
+  api/
+    routes/            ← Route handlers: books.py, music.py, images.py
+    deps.py            ← FastAPI dependency injection for BYOK providers
+  models/
+    ncm.py             ← NCM schema — central contract between all modules
+  services/
+    ingestion.py       ← EPUB → ChaptersData
+    narrative.py       ← LLM 1 + LLM 2 orchestration + prompts
+    music.py           ← Tag vocabulary, matching, hysteresis, style presets
+    image.py           ← Image generation + character memory
+    pipeline.py        ← Full pipeline orchestration + NCM persistence
+  providers/
+    base.py            ← LLMProvider / ImageProvider protocols
+    llm/google.py      ← Google Gemini LLM adapter
+    image/google.py    ← Google Gemini image adapter
+  core/
+    config.py          ← Settings (LECTORIA_* env vars)
+
+frontend/src/
+  pages/
+    UploadPage.tsx     ← Upload + cost estimate + processing SSE
+    ReaderPage.tsx     ← Paginated scene reader + music + dev panel
+    SettingsPage.tsx   ← BYOK key management + style preset selection
+  components/
+    PageView.tsx       ← Renders one page of text with scene header
+    SceneView.tsx      ← Scene display (images, cover)
+    ChapterNav.tsx     ← Chapter navigation overlay
+    MusicPlayer.tsx    ← Web Audio playback + crossfade
+    DevPanel.tsx       ← Developer view (music debug, LLM metadata)
+  api/client.ts        ← All API calls + SSE handling
+  utils/paginate.ts    ← Scene → pages splitting logic
+
+data/                  ← Runtime (gitignored)
+  books/&lt;book-id&gt;/     ← Per-book artifacts (ncm.json, chapters.json, images/)
+  music/               ← Curated tracks + music_index.json
+
+tests/                 ← pytest tests
+notebooks/             ← Exploration (never production code)
+scripts/               ← CLI utilities (build_music_index.py, download_music.py)</code></pre>
+  </section>
+
+  <!-- ── NCM ─────────────────────────────────────────────────────────── -->
+  <section id="ncm">
+    <h2>NCM — The Central Artifact</h2>
+
+    <p>The <strong>Narrative Context Map (NCM)</strong> is the JSON document produced by the pipeline and consumed by every other part of the system. It merges the outputs of two LLM stages into one file per book. Schema: <span class="file-ref">lectoria/models/ncm.py</span>.</p>
+
+    <div class="callout">
+      <p>NCM is the contract between modules. The pipeline <em>writes</em> it. The music service, image service, and reader UI all <em>read</em> it. Never derive narrative attributes at runtime — they are in the NCM.</p>
+    </div>
+
+    <h3>Structure</h3>
+
+    <pre><code>NCM
+├── book_map: BookMap          ← LLM 1 output (book-level)
+│   ├── book_id, title, genre
+│   ├── setting: { time_period, world, description }
+│   ├── characters: Character[]
+│   │   └── id (slug), name, aliases, physical_description, role, relationships
+│   └── chapters: ChapterSummary[]
+│       └── chapter_index, title, summary
+│
+└── chapters: ChapterAnalysis[]   ← LLM 2 output (per narrative chapter)
+    ├── chapter_index
+    ├── cover_description         ← image prompt for chapter cover art
+    ├── llm_model, attempt_count, is_fallback   ← dev metadata
+    └── scenes: Scene[]
+        ├── scene_index
+        ├── start_paragraph, end_paragraph    ← integer ranges, no gaps
+        ├── characters_present: [character-id-slug]
+        ├── emotion         ← primary music axis
+        ├── pacing          ← secondary music axis
+        ├── scene_type      ← tertiary music axis
+        ├── setting: { location, time_of_day, weather }
+        ├── image_prompt    ← ready-to-use prompt for image generation
+        ├── transition_type
+        ├── key_phrases, key_objects
+        └── raw_emotion, raw_pacing, ...   ← original LLM values pre-coercion</code></pre>
+
+    <h3>Emotion Taxonomy</h3>
+    <p>9 categories, designed for musical distinguishability (not Plutchik, not GoEmotions):</p>
+
+    <div class="pills">
+      <span class="pill joy">joy</span>
+      <span class="pill sorrow">sorrow</span>
+      <span class="pill tension">tension</span>
+      <span class="pill anger">anger</span>
+      <span class="pill peace">peace</span>
+      <span class="pill romance">romance</span>
+      <span class="pill mystery">mystery</span>
+      <span class="pill excitement">excitement</span>
+      <span class="pill wonder">wonder</span>
+    </div>
+
+    <table>
+      <tr><th>Emotion</th><th>Sonic Character</th><th>Jamendo Tags</th></tr>
+      <tr><td><span class="pill joy">joy</span></td><td>Happy, uplifting</td><td>happy, fun, positive, uplifting, upbeat</td></tr>
+      <tr><td><span class="pill sorrow">sorrow</span></td><td>Sad, melancholic</td><td>sad, melancholic, emotional, ballad, drama</td></tr>
+      <tr><td><span class="pill tension">tension</span></td><td>Dark, suspenseful</td><td>dark, heavy, dramatic, trailer, horror</td></tr>
+      <tr><td><span class="pill anger">anger</span></td><td>Aggressive, intense</td><td>dark, heavy, powerful, epic, action</td></tr>
+      <tr><td><span class="pill peace">peace</span></td><td>Calm, ambient</td><td>calm, relaxing, ambiental, meditative</td></tr>
+      <tr><td><span class="pill romance">romance</span></td><td>Warm, romantic</td><td>romantic, love, sexy, emotional, ballad</td></tr>
+      <tr><td><span class="pill mystery">mystery</span></td><td>Mysterious, ethereal</td><td>deep, dark, space, soundscape, dream</td></tr>
+      <tr><td><span class="pill excitement">excitement</span></td><td>Energetic, epic</td><td>energetic, epic, action, adventure, fast</td></tr>
+      <tr><td><span class="pill wonder">wonder</span></td><td>Dreamy, atmospheric</td><td>dream, space, soundscape, melodic, nature</td></tr>
+    </table>
+
+    <h3>Disk Storage</h3>
+    <p>One directory per book under <code>data/books/&lt;book-id&gt;/</code>. <code>book-id</code> is a slug derived from title + author.</p>
+
+    <pre><code>data/books/the-lord-of-the-rings/
+├── source.epub           ← original upload
+├── chapters.json         ← ingestion output (paragraphs + is_narrative flag)
+├── bookmap.json          ← LLM 1 intermediate (for inspection/debug)
+├── ncm.json              ← complete NCM (main artifact)
+└── images/
+    ├── covers/           ← chapter cover art (ch{N}.png)
+    ├── scenes/           ← automatic scene images (ch{N}_sc{M}.png)
+    └── characters/       ← character memory reference images</code></pre>
+  </section>
+
+  <!-- ── Pipeline ─────────────────────────────────────────────────────── -->
+  <section id="pipeline">
+    <h2>The Pipeline</h2>
+
+    <p>Triggered by <code>POST /api/books/{book_id}/process</code>. Streams progress via SSE. Takes 3–10 minutes per book. Implemented in <span class="file-ref">lectoria/services/pipeline.py</span>.</p>
+
+    <div class="diagram"><span class="green">EPUB</span>
+  │
+  ▼
+<span class="yellow">1. Ingestion</span>  <span class="dim">(lectoria/services/ingestion.py)</span>
+  │  Parse HTML from EPUB spine items
+  │  Extract paragraphs (≥10 chars), chapter titles from headings
+  │  Flag non-narrative chapters (table of contents, copyright, etc.)
+  │
+  ▼  ChaptersData: chapters[] with numbered Paragraph[]
+  │
+  ▼
+<span class="yellow">2. LLM 1 — Book Analysis</span>  <span class="dim">(narrative.py: analyze_book)</span>
+  │  Full book text → single Gemini call
+  │  Prompt: extract title, genre, setting, characters, chapter summaries
+  │  Output validated as BookMap (Pydantic). Up to 3 retries.
+  │  Intermediate saved: bookmap.json
+  │
+  ▼  BookMap
+  │
+  ▼
+<span class="yellow">3. LLM 2 — Chapter Analysis</span>  <span class="dim">(narrative.py: analyze_chapter)</span>
+  │  Per narrative chapter — runs concurrently (semaphore=2)
+  │  Each call: chapter text (numbered paragraphs) + BookMap context
+  │  Prompt: segment into scenes with emotion, pacing, type, image_prompt, ...
+  │  Coercion layer maps hallucinated enum values before Pydantic validation
+  │  Up to 3 retries; fallback = single-scene covering all paragraphs
+  │
+  ▼  ChapterAnalysis[] (one per chapter)
+  │
+  ▼
+<span class="yellow">4. Assembly</span>
+  │  Reconcile characters discovered by LLM 2 but missing from BookMap
+  │  Merge → NCM
+  │
+  ▼
+<span class="green">ncm.json saved to data/books/&lt;book-id&gt;/</span></div>
+
+    <h3>Upload Flow (before pipeline)</h3>
+    <p><code>POST /api/books/upload</code> — the upload step runs ingestion, returns a cost estimate (chapter count + ~token count), and saves the EPUB and <code>chapters.json</code> to disk. Processing is a separate call so the user can review cost before committing API quota.</p>
+
+    <h3>LLM Retry Strategy</h3>
+    <ul>
+      <li><strong>Content retries</strong> (up to 3): handled in <span class="file-ref">narrative.py</span> — triggered by JSON parse failures, Pydantic validation errors, or missing required fields.</li>
+      <li><strong>Rate-limit retries</strong> (up to 3): handled inside the provider in <span class="file-ref">providers/llm/google.py</span> — triggered by 429/RESOURCE_EXHAUSTED. Uses the API's <code>retryDelay</code> or exponential backoff starting at 30s.</li>
+      <li><strong>Coercion layer</strong>: before Pydantic validation, ~40 common LLM-invented enum values are mapped to valid ones (e.g. <code>"frustration"</code> → <code>"anger"</code>). Original values preserved in <code>raw_*</code> fields.</li>
+    </ul>
+
+    <h3>Provider Protocol</h3>
+    <p>All AI calls go through <span class="file-ref">lectoria/providers/base.py</span> protocols. Services never import provider SDKs directly.</p>
+    <pre><code>class LLMProvider(Protocol):
+    async def complete(prompt, *, system=None) -> CompletionResult
+    def max_context_tokens() -> int
+
+class ImageProvider(Protocol):
+    async def generate(prompt, *, reference_image=None) -> bytes
+    def supports_reference_image() -> bool</code></pre>
+
+    <p>Current adapters: <span class="file-ref">providers/llm/google.py</span> (GeminiLLMProvider), <span class="file-ref">providers/image/google.py</span> (GeminiImageProvider). New providers = new module + call to <code>register_llm_provider()</code> or <code>register_image_provider()</code> in <span class="file-ref">providers/registry.py</span>.</p>
+  </section>
+
+  <!-- ── Music ────────────────────────────────────────────────────────── -->
+  <section id="music">
+    <h2>Music Matching</h2>
+
+    <p>Music selection is fully deterministic — no ML inference at read time. Implemented in <span class="file-ref">lectoria/services/music.py</span>. Source: <a href="https://mtg.github.io/mtg-jamendo-dataset/">MTG-Jamendo dataset</a>.</p>
+
+    <h3>Three-Phase Matching Pipeline</h3>
+    <pre><code>match_scene_to_track(scene, index, style="cinematic")
+  │
+  ├─ 1. Emotion filter
+  │      candidates = [t for t in index if t.emotion_primary == scene.emotion]
+  │
+  ├─ 2. Style filter  (skip if style is None / "auto")
+  │      candidates = [t for t in candidates if matches_preset(t, "cinematic")]
+  │
+  ├─ 3. Cosine ranking
+  │      scene_vec  = one-hot encoding of scene emotion+pacing+scene_type tags
+  │      track_vecs = pre-stacked matrix (N tracks × 59 tag dimensions)
+  │      scores     = vectorized cosine similarity (numpy matmul)
+  │
+  └─ 4. Variety: skip if same as previous track (return ranked[1])</code></pre>
+
+    <h3>Fallback Chain</h3>
+    <p>Ensures music always plays, even with sparse style coverage:</p>
+    <pre><code>emotion + style → [empty?] → style only (all emotions) → [empty?] → emotion only</code></pre>
+
+    <h3>Hysteresis — When Does the Track Change?</h3>
+    <p>Not every scene transition triggers a music change. Four emotion clusters determine "distance":</p>
+
+    <table>
+      <tr><th>Cluster</th><th>Emotions</th></tr>
+      <tr><td>Positive</td><td>joy, excitement, peace, wonder, romance</td></tr>
+      <tr><td>Dark</td><td>tension, anger</td></tr>
+      <tr><td>Melancholic</td><td>sorrow</td></tr>
+      <tr><td>Neutral</td><td>mystery</td></tr>
+    </table>
+
+    <ul>
+      <li><strong>Same emotion</strong> → no change</li>
+      <li><strong>Same cluster</strong> (e.g. peace→wonder) → crossfade only on long scenes (&gt;20 paragraphs)</li>
+      <li><strong>Different cluster</strong> (e.g. peace→tension) → always crossfade</li>
+    </ul>
+
+    <h3>Style Presets</h3>
+    <p>Defined in <span class="file-ref">lectoria/services/music.py:STYLE_PRESETS</span>. Each preset is <code>{include: set, exclude: set}</code> of instrument/genre tags. A track must have ≥1 included tag AND 0 excluded tags to match.</p>
+
+    <table>
+      <tr><th>Preset</th><th>Characteristic</th></tr>
+      <tr><td><code>auto</code></td><td>No filtering (default)</td></tr>
+      <tr><td><code>cinematic</code></td><td>Orchestral, strings, soundtrack — excludes electric guitar, drums</td></tr>
+      <tr><td><code>piano_only</code></td><td>Piano/keyboard — excludes most other instruments</td></tr>
+      <tr><td><code>ambient</code></td><td>Synthesizer, pads, electronic — excludes drums, vocals</td></tr>
+      <tr><td><code>synthwave</code></td><td>Electronic, 80s, drum machine — excludes acoustic/classical</td></tr>
+      <tr><td><code>noir_jazz</code></td><td>Saxophone, trumpet, jazz — excludes electronic/rock</td></tr>
+    </table>
+
+    <h3>Tag Vector Encoding</h3>
+    <p>59-dimensional one-hot vector over the MTG-Jamendo mood/theme tag vocabulary. Scene vectors are built from mapping tables (<code>EMOTION_TO_TAGS</code>, <code>PACING_TO_TAGS</code>, <code>SCENE_TYPE_TO_TAGS</code>). Track vectors are pre-computed from their Jamendo tags. Ranking = vectorized cosine similarity (single numpy matmul over all candidates).</p>
+  </section>
+
+  <!-- ── Images ───────────────────────────────────────────────────────── -->
+  <section id="images">
+    <h2>Image Generation</h2>
+
+    <p>Implemented in <span class="file-ref">lectoria/services/image.py</span>. Provider: <span class="file-ref">providers/image/google.py</span> (Gemini Flash Image — uses <code>gemini-2.5-flash-image</code>, not Imagen).</p>
+
+    <h3>Two Modes</h3>
+
+    <div class="two-col">
+      <div class="box">
+        <h4>Automatic (pipeline)</h4>
+        <ul>
+          <li>Chapter covers — from <code>ChapterAnalysis.cover_description</code></li>
+          <li>Scene images — from <code>Scene.image_prompt</code> (written by LLM 2)</li>
+          <li>Saved to <code>images/covers/ch{N}.png</code> and <code>images/scenes/ch{N}_sc{M}.png</code></li>
+        </ul>
+      </div>
+      <div class="box">
+        <h4>On-demand (reader)</h4>
+        <ul>
+          <li>"Picture scene" button in the reader triggers <code>POST /api/books/{id}/images/scene</code></li>
+          <li>Checks disk cache first; generates if absent</li>
+          <li>Reuses automatic path — so it loads automatically on revisit</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Character Memory</h3>
+    <p>When a scene includes a known character, the character's <code>physical_description</code> from LLM 1 is injected into the image prompt. If a previously generated character image exists under <code>images/characters/</code>, it is passed as a reference image — but only if <code>provider.supports_reference_image()</code> is true. Best-effort consistency, not guaranteed.</p>
+  </section>
+
+  <!-- ── Backend ──────────────────────────────────────────────────────── -->
+  <section id="backend">
+    <h2>Backend Package</h2>
+
+    <h3>Layers</h3>
+    <table>
+      <tr><th>Layer</th><th>Location</th><th>Rule</th></tr>
+      <tr><td>Routes</td><td><code>lectoria/api/routes/</code></td><td>Thin: validate input, delegate to service, return response. Never raise HTTPException from service/provider layers — only from routes.</td></tr>
+      <tr><td>Services</td><td><code>lectoria/services/</code></td><td>Domain logic. No HTTP concerns. No provider SDK imports.</td></tr>
+      <tr><td>Providers</td><td><code>lectoria/providers/</code></td><td>AI API adapters. Each implements LLMProvider or ImageProvider protocol. No route imports.</td></tr>
+      <tr><td>Models</td><td><code>lectoria/models/ncm.py</code></td><td>NCM schema as Pydantic models. Central contract.</td></tr>
+      <tr><td>Core</td><td><code>lectoria/core/config.py</code></td><td>Settings via pydantic-settings. Cached with lru_cache.</td></tr>
+    </table>
+
+    <h3>API Routes Summary</h3>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td>GET</td><td><code>/health</code></td><td>Liveness check</td></tr>
+      <tr><td>GET</td><td><code>/api/books/</code></td><td>List all uploaded books</td></tr>
+      <tr><td>POST</td><td><code>/api/books/upload</code></td><td>Upload EPUB, return cost estimate</td></tr>
+      <tr><td>POST</td><td><code>/api/books/{id}/process</code></td><td>Start pipeline; streams progress via SSE</td></tr>
+      <tr><td>GET</td><td><code>/api/books/{id}</code></td><td>Book metadata + NCM status</td></tr>
+      <tr><td>GET</td><td><code>/api/books/{id}/ncm</code></td><td>Complete NCM JSON</td></tr>
+      <tr><td>GET</td><td><code>/api/books/{id}/chapters</code></td><td>Ingested chapters with paragraph text</td></tr>
+      <tr><td>GET</td><td><code>/api/books/{id}/chapters/{ch}/scenes/{sc}/track</code></td><td>Match scene to music track (<code>?style=</code>, <code>?detailed=</code>)</td></tr>
+      <tr><td>GET</td><td><code>/api/books/{id}/chapters/{ch}/scenes/{sc}/crossfade</code></td><td>Should a crossfade occur between two scenes?</td></tr>
+      <tr><td>GET</td><td><code>/api/music/presets</code></td><td>List style presets with descriptions</td></tr>
+      <tr><td>POST</td><td><code>/api/books/{id}/images/generate</code></td><td>On-demand image from selected text (D5, D8, D9)</td></tr>
+      <tr><td>POST</td><td><code>/api/books/{id}/images/scene</code></td><td>Scene image from NCM <code>image_prompt</code> (cached)</td></tr>
+      <tr><td>GET</td><td><code>/api/music/**</code></td><td>Static — serve MP3 files from <code>data/music/</code></td></tr>
+      <tr><td>GET</td><td><code>/api/data/books/**</code></td><td>Static — serve book images from <code>data/books/</code></td></tr>
+    </table>
+
+    <p>Interactive docs: <a href="http://localhost:8000/docs">http://localhost:8000/docs</a> (when running locally).</p>
+
+    <h3>BYOK Provider Injection</h3>
+    <p>Routes that need AI capabilities declare a dependency on <span class="file-ref">lectoria/api/deps.py:llm_provider_dep</span> or <code>image_provider_dep</code>. FastAPI reads the <code>X-Provider-LLM</code> and <code>X-API-Key-LLM</code> headers from the request and instantiates the appropriate adapter. The provider instance is scoped to the request.</p>
+  </section>
+
+  <!-- ── Frontend ─────────────────────────────────────────────────────── -->
+  <section id="frontend">
+    <h2>Frontend</h2>
+
+    <p>React + TypeScript + Vite. Source in <code>frontend/src/</code>. No UI component library — custom CSS only.</p>
+
+    <h3>Pages</h3>
+    <table>
+      <tr><th>Page</th><th>Route</th><th>Key responsibilities</th></tr>
+      <tr>
+        <td><span class="file-ref">pages/UploadPage.tsx</span></td>
+        <td><code>/</code></td>
+        <td>Upload EPUB → cost estimate → trigger pipeline via SSE → navigate to reader</td>
+      </tr>
+      <tr>
+        <td><span class="file-ref">pages/ReaderPage.tsx</span></td>
+        <td><code>/reader/:bookId</code></td>
+        <td>Load NCM + chapters; paginate scenes; keyboard nav; music sync; dev panel toggle (Ctrl+D)</td>
+      </tr>
+      <tr>
+        <td><span class="file-ref">pages/SettingsPage.tsx</span></td>
+        <td><code>/settings</code></td>
+        <td>LLM/image API key input; music style preset selection; all stored in localStorage</td>
+      </tr>
+    </table>
+
+    <h3>Reader Architecture</h3>
+    <p>The reader paginates scenes into ~250-word pages at paragraph boundaries (<span class="file-ref">utils/paginate.ts</span>). Navigation is page-by-page with a horizontal slide animation. <code>MusicPlayer</code> receives <code>chapterIndex + sceneIndex</code> as props and fetches the appropriate track when the scene changes.</p>
+
+    <pre><code>ReaderPage
+├── loads ncm.json + chapters.json on mount
+├── paginateChapter(scenes, paragraphs) → Page[]
+│
+├── PageView         ← renders current page text + scene header
+├── ChapterNav       ← overlay with chapter list (click title to open)
+├── MusicPlayer      ← SSE-connected, crossfades on scene change
+└── DevPanel         ← shows scene attributes, LLM metadata, music debug (Ctrl+D)</code></pre>
+
+    <h3>API Client</h3>
+    <p>All API calls are in <span class="file-ref">frontend/src/api/client.ts</span>. API keys are read from <code>localStorage</code> on each call and injected as headers. The client uses the native <code>EventSource</code> API for SSE (pipeline progress). <code>EventSource</code> connections are closed on component unmount.</p>
+
+    <h3>Strict TypeScript</h3>
+    <p>Strict mode is enabled. No <code>any</code> types. Prefer <code>interface</code> over <code>type</code> for object shapes. The NCM type definitions in <code>client.ts</code> mirror the Pydantic models in <span class="file-ref">lectoria/models/ncm.py</span> — if the schema changes, both must be updated.</p>
+  </section>
+
+  <!-- ── Data Layout ──────────────────────────────────────────────────── -->
+  <section id="data-layout">
+    <h2>Data Directory Layout</h2>
+
+    <p>All runtime data lives in <code>data/</code> (gitignored except for committed music files).</p>
+
+    <pre><code>data/
+├── music/
+│   ├── music_index.json       ← curated track index (generated by scripts/build_music_index.py)
+│   └── {shard}/{track_id}.mp3 ← actual audio files (download via scripts/download_music.py)
+│
+└── books/
+    └── {book-id}/             ← one dir per processed book
+        ├── source.epub
+        ├── chapters.json      ← ingestion output
+        ├── bookmap.json       ← LLM 1 intermediate
+        ├── ncm.json           ← complete NCM
+        └── images/
+            ├── covers/        ← ch1.png, ch2.png, ...
+            ├── scenes/        ← ch1_sc1.png, ch1_sc2.png, ...
+            └── characters/    ← {character-id}.png</code></pre>
+
+    <h3>Music Index Setup</h3>
+    <pre><code># Download MTG-Jamendo TSV files (mood/theme + instrument + genre)
+python scripts/download_music.py
+
+# Build the curated index (default: 300 tracks, emotion-balanced)
+python scripts/build_music_index.py \
+  --moodtheme autotagging_moodtheme.tsv \
+  --instrument autotagging_instrument.tsv \
+  --genre autotagging_genre.tsv \
+  --max-tracks 500</code></pre>
+  </section>
+
+  <!-- ── Config ───────────────────────────────────────────────────────── -->
+  <section id="config">
+    <h2>Configuration</h2>
+
+    <p>All env vars use the <code>LECTORIA_</code> prefix. Parsed by <span class="file-ref">lectoria/core/config.py</span> via pydantic-settings. Cached with <code>lru_cache</code>.</p>
+
+    <table>
+      <tr><th>Variable</th><th>Default</th><th>Purpose</th></tr>
+      <tr><td><code>LECTORIA_DATA_DIR</code></td><td><code>&lt;repo&gt;/data</code></td><td>Root data directory</td></tr>
+      <tr><td><code>LECTORIA_BOOKS_DIR</code></td><td><code>data/books</code></td><td>Uploaded EPUBs and NCM artifacts</td></tr>
+      <tr><td><code>LECTORIA_MUSIC_DIR</code></td><td><code>data/music</code></td><td>Curated tracks + music_index.json</td></tr>
+      <tr><td><code>LECTORIA_LOG_LEVEL</code></td><td><code>INFO</code></td><td>Python logging level</td></tr>
+    </table>
+
+    <p>API keys are <strong>not</strong> server-side config — they are sent per-request from the browser (BYOK). See <a href="#byok">BYOK Flow</a>.</p>
+  </section>
+
+  <!-- ── Workflow ─────────────────────────────────────────────────────── -->
+  <section id="workflow">
+    <h2>Dev Workflow</h2>
+
+    <p>See <code>CLAUDE.md</code> for agent boundaries. See <code>.claude/rules/workflow.md</code> for the full change classification process (S/M/L).</p>
+
+    <h3>Change Classification</h3>
+    <table>
+      <tr><th>Level</th><th>When</th><th>Process</th></tr>
+      <tr><td><strong>S</strong></td><td>Approach obvious, no ambiguity</td><td>Implement → test → PR</td></tr>
+      <tr><td><strong>M</strong></td><td>Multiple approaches, trade-offs</td><td>Brainstorm → choose → implement → PR</td></tr>
+      <tr><td><strong>L</strong></td><td>High uncertainty, cross-cutting</td><td>Research → plan in <code>docs/plans/</code> → implement</td></tr>
+    </table>
+
+    <h3>Before Every PR</h3>
+    <pre><code>just test       # all tests must pass
+just check      # lint + format (no auto-fix — just reports)
+# If fmt needed:
+just fmt        # auto-fix, then re-run check</code></pre>
+
+    <h3>Branch Convention</h3>
+    <pre><code>feat/add-music-style-presets
+fix/null-handling-ingestion
+chore/update-dependencies
+docs/onboarding-guide</code></pre>
+
+    <h3>Commit Convention</h3>
+    <p>Conventional commits — release-please generates <code>CHANGELOG.md</code> automatically. Do not edit <code>CHANGELOG.md</code> by hand.</p>
+    <pre><code>feat(music): add synthwave style preset
+fix(pipeline): handle empty chapters gracefully
+chore(deps): bump google-genai to 2.4.0
+docs: add CONTEXT.md and onboarding guide</code></pre>
+
+    <h3>README Maintenance</h3>
+    <p>Any change to dev commands, project layout, env vars, API routes, or stack must update <code>README.md</code> in the same commit.</p>
+  </section>
+
+  <!-- ── Testing ──────────────────────────────────────────────────────── -->
+  <section id="testing">
+    <h2>Testing</h2>
+
+    <p>Tests live in <code>tests/</code>. Framework: pytest + pytest-asyncio. AI providers are always mocked — never call real APIs in tests.</p>
+
+    <pre><code>just test                          # all tests
+uv run pytest tests/test_music.py  # specific file
+uv run pytest -k "test_ncm"        # filter by name</code></pre>
+
+    <h3>Key Test Files</h3>
+    <table>
+      <tr><th>File</th><th>Covers</th></tr>
+      <tr><td><code>tests/test_ncm.py</code></td><td>NCM schema validation, scene coverage rules</td></tr>
+      <tr><td><code>tests/test_music.py</code></td><td>Tag vectors, cosine matching, hysteresis, style presets</td></tr>
+      <tr><td><code>tests/test_narrative.py</code></td><td>LLM output coercion, JSON extraction, fallback</td></tr>
+      <tr><td><code>tests/test_image.py</code></td><td>Character identification, prompt building</td></tr>
+      <tr><td><code>tests/test_build_index.py</code></td><td>Music index building script</td></tr>
+      <tr><td><code>tests/test_api_music.py</code></td><td>Music API endpoints (AsyncClient)</td></tr>
+    </table>
+
+    <h3>Async Route Testing Pattern</h3>
+    <pre><code>import pytest
+from httpx import AsyncClient, ASGITransport
+from lectoria.app import app
+
+@pytest.mark.asyncio
+async def test_health():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/health")
+    assert response.status_code == 200</code></pre>
+
+    <div class="callout">
+      <p><strong>Never skip, delete, or disable failing tests.</strong> Fix the test or the implementation. Never mock the filesystem for service logic — tests use real temp dirs.</p>
+    </div>
+  </section>
+
+  <!-- ── BYOK ─────────────────────────────────────────────────────────── -->
+  <section id="byok">
+    <h2>BYOK Flow</h2>
+
+    <p>Lectoria has no server-side key storage. The complete flow:</p>
+
+    <pre><code>User → Settings page → enters LLM API key
+          → stored in localStorage under "llm_api_key"
+
+User → Process Book
+          → UploadPage.tsx reads localStorage["llm_api_key"]
+          → sent as header: X-API-Key-LLM + X-Provider-LLM: "google"
+
+Backend → deps.py:llm_provider_dep()
+          → reads headers → calls registry.get_llm_provider("google", api_key)
+          → returns GeminiLLMProvider instance (scoped to request)
+          → api_key discarded after request completes</code></pre>
+
+    <p>Same pattern for image generation: <code>X-Provider-Image</code> + <code>X-API-Key-Image</code>.</p>
+
+    <div class="callout">
+      <p><strong>Security note:</strong> localStorage is vulnerable to XSS. Acceptable for an academic demo. For production: httpOnly cookies or a secrets manager. Documented limitation in thesis.</p>
+    </div>
+  </section>
+
+  <!-- ── Design Decisions ─────────────────────────────────────────────── -->
+  <section id="decisions">
+    <h2>Design Decisions</h2>
+
+    <p>These decisions appear as <code>(Decision N)</code> comments in the code. Full rationale in <code>.openspec-archive/changes/multimodal-reader-system/design.md</code>.</p>
+
+    <div class="decision-grid">
+      <div class="decision-card">
+        <div class="d-num">D1</div>
+        <h4>Two-stage LLM pipeline (sequential)</h4>
+        <p>LLM 1 first (full book → BookMap), then LLM 2 per chapter with BookMap context. One-directional — no iterative feedback loop. Post-processing reconciles characters discovered by LLM 2.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D2</div>
+        <h4>LLM 1 receives full book in one shot</h4>
+        <p>Assumes 200K+ token context window. Simpler pipeline, better character extraction. Books &gt;700 pages are an edge case deferred.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D3</div>
+        <h4>Scene boundaries via numbered paragraphs</h4>
+        <p>LLM 2 returns <code>{start_paragraph, end_paragraph}</code> integer ranges. Validated for no gaps, no overlaps. Robust — paragraph boundaries come from EPUB HTML structure.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D4</div>
+        <h4>9-category emotion taxonomy</h4>
+        <p>Designed backwards from musical distinguishability, not from psychology. Categorical (not valence-arousal) because LLMs produce it reliably and it maps cleanly to Jamendo tags.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D5</div>
+        <h4>LLM 2 produces image_prompt directly</h4>
+        <p>No separate prompt-rewriter module. LLM 2 has full context (character descriptions, setting, scene text) to write a ready-to-use visual prompt.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D6</div>
+        <h4>Music: tag filtering + cosine similarity</h4>
+        <p>No ML models at read time. Emotion filter → style filter → cosine ranking of tag vectors. Fully deterministic, no CLAP, no audio embeddings.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D7</div>
+        <h4>Scene-based reader (not epub.js)</h4>
+        <p>Custom pagination by scene, not arbitrary visual breakpoints. Scene transitions synchronize with music changes. Loses the "book page" feel; mitigated by paginated view (D19).</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D12</div>
+        <h4>Music hysteresis with emotion clusters</h4>
+        <p>Track changes only on meaningful emotional shifts. Four clusters (Positive/Dark/Melancholic/Neutral). Cross-cluster = always crossfade. Same-cluster = crossfade only on long scenes.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D13</div>
+        <h4>BYOK provider abstraction</h4>
+        <p>Python Protocol interfaces for LLM and image providers. Services never import SDK directly. New provider = new module + register call. Keys injected per-request via FastAPI dependencies.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D15</div>
+        <h4>File-based JSON storage</h4>
+        <p>One directory per book. No database. SQLite rejected as unnecessary for single-user, no concurrent access. NCM loaded in one read — natural access pattern.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D17</div>
+        <h4>BYOK via localStorage + per-request headers</h4>
+        <p>Keys stored in browser localStorage, sent as <code>X-API-Key-*</code> headers. Discarded server-side after use. Known XSS limitation documented in thesis.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D18</div>
+        <h4>LLM output coercion + dev metadata</h4>
+        <p>~40 coercion rules for hallucinated enum values. Original values in <code>raw_*</code> fields. ChapterAnalysis carries <code>llm_model</code>, <code>attempt_count</code>, <code>is_fallback</code>. Coercion is faster and cheaper than retrying for the common case.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D19</div>
+        <h4>Paginated e-reader + horizontal slide</h4>
+        <p>~250 words/page at paragraph boundaries. Keyboard: arrow keys. Progressive reveal forward only. Scene header only on first page; dev info on last page of scene.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D21–D23</div>
+        <h4>Music style presets</h4>
+        <p>Instrument/genre tags stored separately from mood tags (not merged into tag_vector). Presets = declarative <code>{include, exclude}</code> rules. Applied between emotion filter and cosine ranking.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D28</div>
+        <h4>Gemini Flash Image (not Imagen)</h4>
+        <p>Imagen 3 via <code>generate_images</code> requires paid billing and uses deprecated IDs. Gemini Flash Image via <code>generate_content</code> aligns with typical Gemini API keys.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D31–D32</div>
+        <h4>CompletionResult + 429 backoff in provider</h4>
+        <p>Provider returns <code>CompletionResult(text, prompt_tokens, completion_tokens)</code> — not plain string. Rate-limit retries (up to 3) handled at provider layer to preserve service retry budget for content failures.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── API Reference ────────────────────────────────────────────────── -->
+  <section id="api-reference">
+    <h2>API Reference</h2>
+    <p>Full interactive docs at <a href="http://localhost:8000/docs">http://localhost:8000/docs</a> (FastAPI/Swagger UI) when running locally.</p>
+
+    <h3>SSE Progress Events</h3>
+    <p><code>POST /api/books/{id}/process</code> returns an SSE stream. Events:</p>
+    <pre><code>event: progress
+data: ingestion: Done: 22 narrative chapters
+
+event: progress
+data: llm1: Done: 'The Name of the Wind', 14 characters | tokens: prompt=48230 completion=1840 total=50070
+
+event: progress
+data: llm2: Chapter 3/22: The Bonfire
+
+event: progress
+data: complete: NCM saved to data/books/the-name-of-the-wind | total tokens: ...
+
+event: progress
+data: done: the-name-of-the-wind</code></pre>
+
+    <h3>Track Request Headers (BYOK)</h3>
+    <pre><code>X-Provider-LLM:    google
+X-API-Key-LLM:     AIza...
+X-Provider-Image:  google   (optional, for image endpoints only)
+X-API-Key-Image:   AIza...  (optional)</code></pre>
+  </section>
+
+  <!-- ── Known Debt ───────────────────────────────────────────────────── -->
+  <section id="debt">
+    <h2>Known Debt</h2>
+
+    <table>
+      <tr><th>Item</th><th>Status</th><th>Where</th></tr>
+      <tr>
+        <td>No pyright in CI</td>
+        <td>Opt-in via <code>just typecheck</code>. Not enforced until codebase is clean.</td>
+        <td><code>CLAUDE.md</code></td>
+      </tr>
+      <tr>
+        <td>No docs/adr/ directory</td>
+        <td>ADRs not yet written. <code>docs/agents/domain.md</code> describes the expected structure for future grilling sessions.</td>
+        <td><code>docs/agents/domain.md</code></td>
+      </tr>
+      <tr>
+        <td>CORS allows all origins</td>
+        <td><code>allow_origins=["*"]</code> in <code>app.py</code>. Acceptable for academic demo, not production.</td>
+        <td><span class="file-ref">lectoria/app.py:21</span></td>
+      </tr>
+      <tr>
+        <td>Character memory limited</td>
+        <td>Gemini Flash Image does not support reference images (<code>supports_reference_image() = False</code>). Character consistency is prompt-only.</td>
+        <td><span class="file-ref">providers/image/google.py</span></td>
+      </tr>
+    </table>
+  </section>
+
+</main>
+
+<script>
+  // Highlight active sidebar link on scroll
+  const links = document.querySelectorAll('#sidebar a[href^="#"]');
+  const sections = [];
+  links.forEach(l => {
+    const id = l.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) sections.push({ el, link: l });
+  });
+
+  function updateActive() {
+    let current = null;
+    for (const { el } of sections) {
+      if (el.getBoundingClientRect().top <= 80) current = el.id;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (current) {
+      const active = document.querySelector(`#sidebar a[href="#${current}"]`);
+      if (active) active.classList.add('active');
+    }
+  }
+
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+</script>
+</body>
+</html>
