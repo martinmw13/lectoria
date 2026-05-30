@@ -18,7 +18,12 @@ from lectoria.models.ncm import (
     TransitionType,
 )
 from lectoria.providers.base import LLMProvider
-from lectoria.services.llm_json import StructuredCallError, TokenUsage, complete_to_model
+from lectoria.services.llm_json import (
+    StructuredCallError,
+    StructuredCompletion,
+    TokenUsage,
+    complete_to_model,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -371,18 +376,37 @@ async def analyze_chapter(
             label=label,
         )
     except StructuredCallError as e:
-        logger.error(
-            "%s failed after %d attempts, using fallback. Last error: %s",
-            label,
-            e.attempts,
-            e.last_error,
-        )
-        fallback = _fallback_chapter_analysis(chapter)
-        fallback.llm_model = provider.model
-        fallback.attempt_count = e.attempts
-        fallback.is_fallback = True
-        return fallback, e.usage
+        return _chapter_fallback(chapter, provider, label, e)
 
+    return _finalize_chapter_analysis(completion, provider, label)
+
+
+def _chapter_fallback(
+    chapter: Chapter,
+    provider: LLMProvider,
+    label: str,
+    error: StructuredCallError,
+) -> tuple[ChapterAnalysis, TokenUsage]:
+    """Log exhausted retries and build a stamped single-scene fallback (Decision 18)."""
+    logger.error(
+        "%s failed after %d attempts, using fallback. Last error: %s",
+        label,
+        error.attempts,
+        error.last_error,
+    )
+    fallback = _fallback_chapter_analysis(chapter)
+    fallback.llm_model = provider.model
+    fallback.attempt_count = error.attempts
+    fallback.is_fallback = True
+    return fallback, error.usage
+
+
+def _finalize_chapter_analysis(
+    completion: StructuredCompletion[ChapterAnalysis],
+    provider: LLMProvider,
+    label: str,
+) -> tuple[ChapterAnalysis, TokenUsage]:
+    """Stamp dev metadata on a successful analysis and log the result (Decision 18)."""
     analysis = completion.value
     analysis.llm_model = provider.model
     analysis.attempt_count = completion.attempts

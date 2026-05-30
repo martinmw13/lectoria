@@ -16,6 +16,11 @@ class _Doc(BaseModel):
     value: int
 
 
+def _raw_to_value_hook(data: dict) -> dict:
+    """Test preprocess hook: map {"raw": "5"} -> {"value": 5}."""
+    return {"value": int(data["raw"])}
+
+
 class TestExtractJson:
     def test_plain_json(self):
         raw = '{"chapter_index": 1, "scenes": []}'
@@ -65,12 +70,14 @@ class TestCompleteToModel:
     @pytest.mark.asyncio
     async def test_preprocess_hook_runs_before_validation(self):
         # The model wants {"value": int}; the LLM emits {"raw": "5"} and the hook maps it.
-        def hook(data: dict) -> dict:
-            return {"value": int(data["raw"])}
-
         provider = FakeLLMProvider(['{"raw": "5"}'])
         result = await complete_to_model(
-            provider, prompt="p", system="s", model_type=_Doc, max_retries=3, preprocess=hook
+            provider,
+            prompt="p",
+            system="s",
+            model_type=_Doc,
+            max_retries=3,
+            preprocess=_raw_to_value_hook,
         )
         assert result.value.value == 5
 
