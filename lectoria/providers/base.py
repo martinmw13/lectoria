@@ -21,6 +21,9 @@ class CompletionResult:
 class LLMProvider(Protocol):
     """Protocol for LLM text completion providers."""
 
+    # Model identifier, recorded as dev metadata on analysis output (Decision 18).
+    model: str
+
     async def complete(self, prompt: str, *, system: str | None = None) -> CompletionResult:
         """Send a prompt and return completion text with token usage."""
         ...

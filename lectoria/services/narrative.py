@@ -4,12 +4,7 @@ LLM 1: full book → BookMap (characters, setting, genre, chapter summaries)
 LLM 2: per-chapter with BookMap context → ChapterAnalysis (scenes with attributes)
 """
 
-import json
 import logging
-import re
-from dataclasses import dataclass
-
-from pydantic import ValidationError
 
 from lectoria.models.ncm import (
     BookMap,
@@ -18,20 +13,25 @@ from lectoria.models.ncm import (
     ChaptersData,
     Emotion,
     Pacing,
+    Scene,
     SceneType,
     TransitionType,
 )
 from lectoria.providers.base import LLMProvider
+from lectoria.services.llm_json import (
+    StructuredCallError,
+    StructuredCompletion,
+    TokenUsage,
+    complete_to_model,
+)
 
 logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
 
 # ---------------------------------------------------------------------------
-# JSON extraction helper
+# Scene enum coercion (Decision 18)
 # ---------------------------------------------------------------------------
-
-_JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*\n(.*?)\n\s*```", re.DOTALL)
 
 # Maps LLM-invented values to valid enum members.
 # Keys are lowercased. If a value isn't in the map, it's left as-is for Pydantic to reject.
@@ -149,18 +149,6 @@ def _coerce_scene_enums(data: dict) -> dict:
     return data
 
 
-def _extract_json(text: str) -> str:
-    """Extract JSON from LLM response, handling markdown code blocks."""
-    match = _JSON_BLOCK_RE.search(text)
-    if match:
-        return match.group(1).strip()
-    # Try the raw text — maybe the LLM returned plain JSON
-    text = text.strip()
-    if text.startswith("{"):
-        return text
-    raise ValueError(f"No JSON found in LLM response (first 200 chars): {text[:200]}")
-
-
 # ---------------------------------------------------------------------------
 # LLM 1 — Book-level analysis
 # ---------------------------------------------------------------------------
@@ -217,24 +205,6 @@ Rules:
 """
 
 
-@dataclass
-class TokenUsage:
-    """Accumulated token counts from one or more LLM calls."""
-
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    calls: int = 0
-
-    @property
-    def total(self) -> int:
-        return self.prompt_tokens + self.completion_tokens
-
-    def add(self, prompt: int | None, completion: int | None) -> None:
-        self.calls += 1
-        self.prompt_tokens += prompt or 0
-        self.completion_tokens += completion or 0
-
-
 async def analyze_book(
     provider: LLMProvider,
     chapters_data: ChaptersData,
@@ -245,9 +215,8 @@ async def analyze_book(
         Tuple of (BookMap, TokenUsage) with cumulative token counts.
 
     Raises:
-        RuntimeError: If all retries fail.
+        StructuredCallError: If all retries fail (a RuntimeError subclass).
     """
-    usage = TokenUsage()
     book_text = _format_book_text(chapters_data)
 
     token_estimate = len(book_text) // 4  # rough estimate
@@ -260,31 +229,23 @@ async def analyze_book(
         )
 
     prompt = _LLM1_PROMPT_TEMPLATE.format(book_text=book_text)
-
-    last_error: Exception | None = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            logger.info("LLM 1 attempt %d/%d", attempt, MAX_RETRIES)
-            result = await provider.complete(prompt, system=_LLM1_SYSTEM)
-            usage.add(result.prompt_tokens, result.completion_tokens)
-            json_str = _extract_json(result.text)
-            data = json.loads(json_str)
-            book_map = BookMap.model_validate(data)
-            logger.info(
-                "LLM 1 success: %d characters, %d chapter summaries "
-                "(tokens: prompt=%d, completion=%d)",
-                len(book_map.characters),
-                len(book_map.chapters),
-                usage.prompt_tokens,
-                usage.completion_tokens,
-            )
-            return book_map, usage
-
-        except (json.JSONDecodeError, ValidationError, ValueError, RuntimeError) as e:
-            last_error = e
-            logger.warning("LLM 1 attempt %d failed: %s", attempt, e)
-
-    raise RuntimeError(f"LLM 1 failed after {MAX_RETRIES} attempts. Last error: {last_error}")
+    completion = await complete_to_model(
+        provider,
+        prompt=prompt,
+        system=_LLM1_SYSTEM,
+        model_type=BookMap,
+        max_retries=MAX_RETRIES,
+        label="LLM 1",
+    )
+    book_map = completion.value
+    logger.info(
+        "LLM 1 success: %d characters, %d chapter summaries (tokens: prompt=%d, completion=%d)",
+        len(book_map.characters),
+        len(book_map.chapters),
+        completion.usage.prompt_tokens,
+        completion.usage.completion_tokens,
+    )
+    return book_map, completion.usage
 
 
 def _format_book_text(chapters_data: ChaptersData) -> str:
@@ -392,66 +353,72 @@ async def analyze_chapter(
 ) -> tuple[ChapterAnalysis, TokenUsage]:
     """Run LLM 2: analyze a single chapter and produce scene segmentation.
 
+    On exhausted retries this falls back to a single-scene analysis rather than
+    raising (Decision 18), stamping dev metadata (llm_model, attempt_count,
+    is_fallback) either way.
+
     Returns:
         Tuple of (ChapterAnalysis, TokenUsage) with per-chapter token counts.
-
-    Raises:
-        RuntimeError: If all retries fail.
     """
-    usage = TokenUsage()
     if not chapter.paragraphs:
-        return ChapterAnalysis(chapter_index=chapter.chapter_index, scenes=[]), usage
+        return ChapterAnalysis(chapter_index=chapter.chapter_index, scenes=[]), TokenUsage()
 
     prompt = _format_llm2_prompt(chapter, book_map)
-    model_name = getattr(provider, "model", "unknown")
+    label = f"LLM 2 chapter {chapter.chapter_index}"
+    try:
+        completion = await complete_to_model(
+            provider,
+            prompt=prompt,
+            system=_LLM2_SYSTEM,
+            model_type=ChapterAnalysis,
+            max_retries=MAX_RETRIES,
+            preprocess=_coerce_scene_enums,
+            label=label,
+        )
+    except StructuredCallError as e:
+        return _chapter_fallback(chapter, provider, label, e)
 
-    last_error: Exception | None = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            logger.info(
-                "LLM 2 chapter %d attempt %d/%d",
-                chapter.chapter_index,
-                attempt,
-                MAX_RETRIES,
-            )
-            result = await provider.complete(prompt, system=_LLM2_SYSTEM)
-            usage.add(result.prompt_tokens, result.completion_tokens)
-            json_str = _extract_json(result.text)
-            data = json.loads(json_str)
-            _coerce_scene_enums(data)
-            analysis = ChapterAnalysis.model_validate(data)
-            analysis.llm_model = str(model_name)
-            analysis.attempt_count = attempt
-            logger.info(
-                "LLM 2 chapter %d success: %d scenes (attempt %d, tokens: prompt=%d, completion=%d)",
-                chapter.chapter_index,
-                len(analysis.scenes),
-                attempt,
-                usage.prompt_tokens,
-                usage.completion_tokens,
-            )
-            return analysis, usage
+    return _finalize_chapter_analysis(completion, provider, label)
 
-        except (json.JSONDecodeError, ValidationError, ValueError, RuntimeError) as e:
-            last_error = e
-            logger.warning(
-                "LLM 2 chapter %d attempt %d failed: %s",
-                chapter.chapter_index,
-                attempt,
-                e,
-            )
 
+def _chapter_fallback(
+    chapter: Chapter,
+    provider: LLMProvider,
+    label: str,
+    error: StructuredCallError,
+) -> tuple[ChapterAnalysis, TokenUsage]:
+    """Log exhausted retries and build a stamped single-scene fallback (Decision 18)."""
     logger.error(
-        "LLM 2 chapter %d failed after %d attempts, using fallback. Last error: %s",
-        chapter.chapter_index,
-        MAX_RETRIES,
-        last_error,
+        "%s failed after %d attempts, using fallback. Last error: %s",
+        label,
+        error.attempts,
+        error.last_error,
     )
     fallback = _fallback_chapter_analysis(chapter)
-    fallback.llm_model = str(model_name)
-    fallback.attempt_count = MAX_RETRIES
+    fallback.llm_model = provider.model
+    fallback.attempt_count = error.attempts
     fallback.is_fallback = True
-    return fallback, usage
+    return fallback, error.usage
+
+
+def _finalize_chapter_analysis(
+    completion: StructuredCompletion[ChapterAnalysis],
+    provider: LLMProvider,
+    label: str,
+) -> tuple[ChapterAnalysis, TokenUsage]:
+    """Stamp dev metadata on a successful analysis and log the result (Decision 18)."""
+    analysis = completion.value
+    analysis.llm_model = provider.model
+    analysis.attempt_count = completion.attempts
+    logger.info(
+        "%s success: %d scenes (attempt %d, tokens: prompt=%d, completion=%d)",
+        label,
+        len(analysis.scenes),
+        completion.attempts,
+        completion.usage.prompt_tokens,
+        completion.usage.completion_tokens,
+    )
+    return analysis, completion.usage
 
 
 def _format_llm2_prompt(chapter: Chapter, book_map: BookMap) -> str:
@@ -486,8 +453,6 @@ def _format_llm2_prompt(chapter: Chapter, book_map: BookMap) -> str:
 
 def _fallback_chapter_analysis(chapter: Chapter) -> ChapterAnalysis:
     """Produce a single-scene fallback when LLM 2 fails for a chapter."""
-    from lectoria.models.ncm import Emotion, Scene
-
     if not chapter.paragraphs:
         return ChapterAnalysis(chapter_index=chapter.chapter_index, scenes=[])
 
