@@ -184,6 +184,24 @@ class NCM(BaseModel):
     book_map: BookMap
     chapters: list[ChapterAnalysis] = Field(default_factory=list)
 
+    def find_scene(self, chapter_idx: int, scene_idx: int) -> tuple[ChapterAnalysis, Scene]:
+        """Look up a chapter and scene by index. Raises ``ValueError`` if not found."""
+        chapter = next((ch for ch in self.chapters if ch.chapter_index == chapter_idx), None)
+        if chapter is None:
+            raise ValueError(f"Chapter {chapter_idx} not found")
+        scene = next((s for s in chapter.scenes if s.scene_index == scene_idx), None)
+        if scene is None:
+            raise ValueError(f"Scene {scene_idx} not found in chapter {chapter_idx}")
+        return chapter, scene
+
+    def get_scene(self, chapter_idx: int, scene_idx: int) -> Scene | None:
+        """Look up a scene by index, returning ``None`` if the chapter or scene is absent."""
+        try:
+            _, scene = self.find_scene(chapter_idx, scene_idx)
+            return scene
+        except ValueError:
+            return None
+
 
 # ---------------------------------------------------------------------------
 # Ingestion output — intermediate artifact before LLM processing

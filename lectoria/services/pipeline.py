@@ -95,14 +95,13 @@ def load_ncm(book_dir: Path) -> NCM:
 
 
 def find_scene(ncm: NCM, chapter_idx: int, scene_idx: int) -> tuple[ChapterAnalysis, Scene]:
-    """Look up a chapter and scene by index. Raises ValueError if not found."""
-    chapter = next((ch for ch in ncm.chapters if ch.chapter_index == chapter_idx), None)
-    if chapter is None:
-        raise ValueError(f"Chapter {chapter_idx} not found")
-    scene = next((s for s in chapter.scenes if s.scene_index == scene_idx), None)
-    if scene is None:
-        raise ValueError(f"Scene {scene_idx} not found in chapter {chapter_idx}")
-    return chapter, scene
+    """Look up a chapter and scene by index. Raises ValueError if not found.
+
+    Thin delegator to ``NCM.find_scene`` — the lookup logic lives on the model
+    where the data lives. Kept here so the image routes keep importing it until
+    their slice migrates them onto the store + model methods.
+    """
+    return ncm.find_scene(chapter_idx, scene_idx)
 
 
 def reconcile_characters(book_map: BookMap, chapter_analyses: list[ChapterAnalysis]) -> BookMap:
