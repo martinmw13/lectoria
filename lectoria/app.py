@@ -9,6 +9,15 @@ from lectoria.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+# CORS: restrict to the local dev frontend origins (Vite serves on :5173).
+# Under BYOK (Decision D17/D34) API keys travel in custom request headers, never
+# cookies, so credentialed CORS is unnecessary — and `allow_origins=["*"]` with
+# `allow_credentials=True` would make Starlette reflect any caller's origin.
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -19,8 +28,8 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )

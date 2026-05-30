@@ -23,7 +23,7 @@ Architecture, testing, and workflow patterns are in `.claude/rules/` with glob-b
 
 ## Domain Language
 
-Read `CONTEXT.md` at the repo root before working in the codebase. It defines the canonical vocabulary (NCM, BookMap, ChapterAnalysis, Scene, emotion taxonomy) and records the load-bearing design decisions (numbered D1–D33) that appear as `(Decision N)` comments throughout the code.
+Read `CONTEXT.md` at the repo root before working in the codebase. It defines the canonical vocabulary (NCM, BookMap, ChapterAnalysis, Scene, emotion taxonomy) and records the load-bearing design decisions (numbered D1–D34) that appear as `(Decision N)` comments throughout the code.
 
 ## Known Technical Debt
 
