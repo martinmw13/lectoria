@@ -21,7 +21,14 @@ logger.error("Processing failed", extra={"job_id": job_id, "error": str(e)})
 
 ## Error Handling
 
-- Errors MUST be logged with context before re-raising or returning error responses
+- Errors MUST be logged with context before re-raising or returning error responses.
+  This covers **unexpected / server-side failures** (5xx) and swallowed exceptions —
+  the failures you would not otherwise see.
+- **Expected client errors (4xx) are control flow, not failures.** A `404` for a
+  not-found book/scene, a `400` for a bad style, or a `409` for an already-processed
+  book is communicated to the caller via the status code — that *is* the observable
+  signal. Do NOT log these at `info`/`error` (it adds noise and a log-flood vector).
+  If a specific case needs traceability, use `logger.debug`.
 - No bare `except: pass` — always log or re-raise
 - External API calls MUST have timeout and failure handling
 - Background tasks MUST log failures visibly (not silently swallow)
