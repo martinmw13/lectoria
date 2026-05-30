@@ -1,0 +1,66 @@
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui, -apple-system, sans-serif','fontSize':'14px','lineColor':'#94a3b8','primaryColor':'#f1f5f9','primaryBorderColor':'#94a3b8','primaryTextColor':'#0f172a','clusterBkg':'#ffffff','clusterBorder':'#e2e8f0'}}}%%
+flowchart TB
+  subgraph BROWSER["Browser — React SPA (:5173)"]
+    Pages["Upload · Reader · Settings"]
+    Keys[("localStorage<br/>BYOK API keys")]
+  end
+
+  subgraph BACKEND["FastAPI Backend (:8000)"]
+    Routes["Routes — thin<br/>books · music · images"]
+    Deps["deps.py — dependency injection"]
+    Store["BookStore<br/>read seam over data/"]
+    subgraph SERVICES["Domain services"]
+      Pipeline["pipeline<br/>orchestration + NCM write"]
+      Narrative["narrative + llm_json"]
+      MusicSvc["music<br/>tag match + hysteresis"]
+      ImageSvc["image"]
+    end
+  end
+
+  subgraph PROVIDERS["providers/ — BYOK adapters"]
+    LLM["LLMProvider"]
+    IMG["ImageProvider"]
+  end
+
+  Gemini["Google Gemini API"]
+
+  subgraph DATA["data/ — filesystem"]
+    NCM[("books/&lt;id&gt;/ncm.json")]
+    MusicIdx[("music/ tracks + index")]
+  end
+
+  Pages -->|"REST + SSE · X-API-Key-* headers"| Routes
+  Keys -.-> Pages
+  Routes --> Deps
+  Routes --> SERVICES
+  Deps --> Store
+  Deps --> PROVIDERS
+  Pipeline --> Narrative --> LLM
+  ImageSvc --> IMG
+  LLM --> Gemini
+  IMG --> Gemini
+  Pipeline ==>|writes| NCM
+  Store -->|reads| NCM
+  MusicSvc --> MusicIdx
+
+  classDef frontend fill:#eff6ff,stroke:#2563eb,stroke-width:1.5px,color:#1e3a5f;
+  classDef route fill:#ffffff,stroke:#475569,stroke-width:1.5px,color:#0f172a;
+  classDef service fill:#f1f5f9,stroke:#94a3b8,color:#0f172a;
+  classDef seam fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#7c2d12;
+  classDef provider fill:#ede9fe,stroke:#7c3aed,stroke-width:1.5px,color:#4c1d95;
+  classDef external fill:#1e3a5f,stroke:#0f172a,stroke-width:1.5px,color:#ffffff;
+  classDef store fill:#d1fae5,stroke:#059669,stroke-width:1.5px,color:#064e3b;
+
+  class Pages,Keys frontend;
+  class Routes route;
+  class Deps,Pipeline,Narrative,MusicSvc,ImageSvc service;
+  class Store seam;
+  class LLM,IMG provider;
+  class Gemini external;
+  class NCM,MusicIdx store;
+
+  style BROWSER fill:#f5f9ff,stroke:#bfdbfe;
+  style BACKEND fill:#fcfdff,stroke:#e2e8f0;
+  style SERVICES fill:#f8fafc,stroke:#e2e8f0;
+  style PROVIDERS fill:#faf8ff,stroke:#ddd6fe;
+  style DATA fill:#f2fdf8,stroke:#bbf7d0;

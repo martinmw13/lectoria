@@ -1,0 +1,26 @@
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui, -apple-system, sans-serif','fontSize':'14px','actorBkg':'#eff6ff','actorBorder':'#2563eb','actorTextColor':'#1e3a5f','actorLineColor':'#cbd5e1','signalColor':'#475569','signalTextColor':'#0f172a','noteBkgColor':'#fef3c7','noteBorderColor':'#d97706','noteTextColor':'#7c2d12','sequenceNumberColor':'#ffffff'}}}%%
+sequenceDiagram
+  autonumber
+  box rgb(239,246,255) Frontend
+    participant B as Browser (SPA)
+  end
+  box rgb(248,250,252) Backend
+    participant R as Route handler
+    participant D as deps.py
+    participant Reg as provider registry
+  end
+  box rgb(237,233,254) External boundary
+    participant G as Google Gemini
+  end
+
+  Note over B: key in localStorage
+  B->>R: request + headers X-Provider-LLM, X-API-Key-LLM
+  R->>D: resolve llm_provider_dep
+  D->>D: read X-Provider / X-API-Key headers
+  D->>Reg: get_llm_provider("google", api_key)
+  Reg-->>D: GeminiLLMProvider (request-scoped)
+  D-->>R: provider instance
+  R->>G: complete(prompt) — key in memory only
+  G-->>R: CompletionResult
+  R-->>B: SSE progress / JSON response
+  Note over D,R: key discarded when request ends
