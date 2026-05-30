@@ -15,6 +15,7 @@ Multimodal EPUB reader with AI-driven narrative enrichment: a two-stage LLM pipe
 - **Python 3.14** (see `.python-version`)
 - **[uv](https://docs.astral.sh/uv/)** for the backend venv and dependencies
 - **Node.js** (e.g. 20+) for the frontend
+- **[just](https://github.com/casey/just)** task runner — install with `uv tool install rust-just`
 
 ## Setup
 
@@ -39,6 +40,12 @@ Development runs two processes: the **FastAPI backend** and the **Vite dev serve
 |---------|--------------|----------|
 | API (FastAPI / Uvicorn) | 8000 | http://localhost:8000 |
 | Client (Vite) | 5173 | http://localhost:5173 |
+
+**Both (recommended)** — start the API and client together; `Ctrl-C` stops both:
+
+```bash
+just dev-all
+```
 
 **API only** — REST endpoints and OpenAPI UI at http://localhost:8000/docs:
 

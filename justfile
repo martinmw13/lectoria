@@ -40,6 +40,15 @@ dev:
 dev-frontend:
     cd frontend && npm run dev
 
+# Run backend + frontend dev servers together (Ctrl-C stops both)
+dev-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'kill 0' EXIT
+    uv run python main.py &
+    (cd frontend && npm run dev) &
+    wait
+
 # Run pre-commit on all files
 pre-commit:
     uv run pre-commit run --all-files
