@@ -36,6 +36,8 @@
 
 **book-id** — A filesystem-safe slug derived from `title + author` (e.g. `the-lord-of-the-rings-j-r-r-tolkien`). Used as the directory name under `data/books/`.
 
+**BookStore** — The module that owns the on-disk artifact layout for a book: it maps a `book-id` to its directory and resolves/loads the artifacts under it (`ncm.json`, `bookmap.json`, `chapters.json`, `source.epub`, `images/{scenes,covers,characters,on_demand}/`). Encapsulates D15 (file-based storage) behind one seam so routes and services never build paths or run existence checks inline. The read side is injected into routes via FastAPI `Depends`. _Avoid_: book repository, book service.
+
 **Ingestion** — The EPUB parsing step that produces `ChaptersData`: chapters with numbered paragraphs and a `is_narrative` flag. Runs before any LLM call.
 
 **Offline Pipeline** — The full processing flow: ingestion → LLM 1 → LLM 2 (concurrent, per chapter) → NCM assembly → save to disk. Triggered by the user after upload. Takes 3–10 minutes depending on book length and provider.
@@ -97,7 +99,7 @@ Scenes longer than ~250 words are split into pages at paragraph boundaries. Navi
 `LLMProvider` and `ImageProvider` Python protocols in `lectoria/providers/base.py`. All AI calls go through providers, never directly from services or routes. New providers = new module in `lectoria/providers/llm/` or `providers/image/`.
 
 **D15 — File-based JSON storage**
-One directory per book under `data/books/<book-id>/`. `ncm.json` is the primary artifact. No database. Appropriate for a single-user application.
+One directory per book under `data/books/<book-id>/`. `ncm.json` is the primary artifact. No database. Appropriate for a single-user application. The layout is encapsulated behind the **BookStore** module (see Glossary) — callers ask the store for paths and artifacts rather than building `books_dir / book_id / …` themselves.
 
 **D17 — BYOK via localStorage + per-request headers**
 Keys stored in browser localStorage, sent as `X-Provider-LLM`, `X-API-Key-LLM`, `X-Provider-Image`, `X-API-Key-Image` headers. Discarded server-side after use. Security limitation documented in thesis.
