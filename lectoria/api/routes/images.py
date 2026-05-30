@@ -28,13 +28,25 @@ class SceneImageRequest(BaseModel):
     scene_index: int
 
 
+class OnDemandImageResponse(BaseModel):
+    image_base64: str
+    content_type: str
+    # None when the image is not tied to a scene (no on-disk cache location).
+    cache_url: str | None = None
+
+
+class SceneImageResponse(BaseModel):
+    cache_url: str
+    generated: bool
+
+
 @router.post("/{book_id}/images/generate")
 async def generate_image(
     book_id: str,
     request: ImageGenerateRequest,
     store: Annotated[BookStore, Depends(get_book_store)],
     image_provider: ImageProvider = Depends(image_provider_dep),
-) -> dict:
+) -> OnDemandImageResponse:
     """Generate an on-demand image from selected text (Decision 5).
 
     Injects character physical descriptions via string matching (Decision 9).
@@ -78,11 +90,11 @@ async def generate_image(
             f"/ch{request.chapter_index}_sc{request.scene_index}.png"
         )
 
-    return {
-        "image_base64": base64.b64encode(image_bytes).decode(),
-        "content_type": "image/png",
-        "cache_url": cache_url,
-    }
+    return OnDemandImageResponse(
+        image_base64=base64.b64encode(image_bytes).decode(),
+        content_type="image/png",
+        cache_url=cache_url,
+    )
 
 
 @router.post("/{book_id}/images/scene")
@@ -91,7 +103,7 @@ async def generate_scene(
     request: SceneImageRequest,
     store: Annotated[BookStore, Depends(get_book_store)],
     image_provider: ImageProvider = Depends(image_provider_dep),
-) -> dict:
+) -> SceneImageResponse:
     """Generate (or return cached) scene image from the LLM-produced image_prompt (Decision 33)."""
     try:
         ncm = store.load_ncm(book_id)
@@ -115,7 +127,7 @@ async def generate_scene(
     )
 
     if store.scene_image_path(book_id, request.chapter_index, request.scene_index).exists():
-        return {"cache_url": cache_url, "generated": False}
+        return SceneImageResponse(cache_url=cache_url, generated=False)
 
     try:
         result_path = await generate_scene_image(
@@ -128,4 +140,4 @@ async def generate_scene(
     if result_path is None:
         raise HTTPException(status_code=502, detail="Scene image generation returned no result")
 
-    return {"cache_url": cache_url, "generated": True}
+    return SceneImageResponse(cache_url=cache_url, generated=True)

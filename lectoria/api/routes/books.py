@@ -4,10 +4,10 @@ import asyncio
 import logging
 import shutil
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 from sse_starlette.sse import EventSourceResponse
 
 from lectoria.api.deps import get_book_store, llm_provider_dep
@@ -46,6 +46,25 @@ class CostEstimate(BaseModel):
     total_paragraphs: int
     estimated_tokens: int
     message: str
+
+
+class BookResponse(BaseModel):
+    """The NCM-derived fields are present only once a book has been processed;
+    they are set/unset together and dropped via response_model_exclude_unset."""
+
+    book_id: str
+    has_ncm: bool
+    title: str | None = None
+    genre: str | None = None
+    character_count: int | None = None
+    chapter_count: int | None = None
+    scene_count: int | None = None
+
+
+class ChaptersResponse(RootModel[dict[str, Any]]):
+    """Passthrough of the on-disk chapters JSON. The store is intentionally
+    data-faithful (no model round-trip), so this stays a permissive wrapper
+    rather than the strict ChaptersData schema."""
 
 
 # ---------------------------------------------------------------------------
@@ -184,31 +203,36 @@ async def process_book(
     return EventSourceResponse(event_generator())
 
 
-@router.get("/{book_id}")
-async def get_book(book_id: str, store: Annotated[BookStore, Depends(get_book_store)]) -> dict:
+@router.get("/{book_id}", response_model_exclude_unset=True)
+async def get_book(
+    book_id: str, store: Annotated[BookStore, Depends(get_book_store)]
+) -> BookResponse:
     """Get book metadata and NCM status."""
     if not store.exists(book_id):
         raise HTTPException(status_code=404, detail=f"Book '{book_id}' not found")
 
-    result: dict = {"book_id": book_id, "has_ncm": False}
+    if not store.has_ncm(book_id):
+        return BookResponse(book_id=book_id, has_ncm=False)
 
-    if store.has_ncm(book_id):
-        ncm = store.load_ncm(book_id)
-        result["has_ncm"] = True
-        result["title"] = ncm.book_map.title
-        result["genre"] = ncm.book_map.genre
-        result["character_count"] = len(ncm.book_map.characters)
-        result["chapter_count"] = len(ncm.chapters)
-        result["scene_count"] = sum(len(ch.scenes) for ch in ncm.chapters)
-
-    return result
+    ncm = store.load_ncm(book_id)
+    return BookResponse(
+        book_id=book_id,
+        has_ncm=True,
+        title=ncm.book_map.title,
+        genre=ncm.book_map.genre,
+        character_count=len(ncm.book_map.characters),
+        chapter_count=len(ncm.chapters),
+        scene_count=sum(len(ch.scenes) for ch in ncm.chapters),
+    )
 
 
 @router.get("/{book_id}/chapters")
-async def get_chapters(book_id: str, store: Annotated[BookStore, Depends(get_book_store)]) -> dict:
+async def get_chapters(
+    book_id: str, store: Annotated[BookStore, Depends(get_book_store)]
+) -> ChaptersResponse:
     """Get the ingested chapters with paragraph text."""
     try:
-        return store.load_chapters_json(book_id)
+        return ChaptersResponse(store.load_chapters_json(book_id))
     except ArtifactNotFound:
         raise HTTPException(
             status_code=404, detail=f"Chapters not found for book '{book_id}'"
