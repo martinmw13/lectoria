@@ -73,6 +73,7 @@ async def get_scene_track(
             scene,
             index,
             previous_track_id=previous_track_id,
+            exclude_track_ids=exclude_ids or None,
             style=style,
         )
 

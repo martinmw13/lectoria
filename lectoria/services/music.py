@@ -10,6 +10,7 @@ Contains:
 
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -539,37 +540,42 @@ def _apply_style_filter(
     return [t for t in candidates if matches_preset(t, style)]
 
 
-def match_scene_to_track(
+@dataclass
+class MatchResult:
+    """Rich result of matching a scene to a track (Decisions 6, 23).
+
+    ``match_scene_to_track`` reads ``.selected``; the dev view projects the whole
+    object. ``ranked`` is the full candidate pool ranked best-first (so the dev view
+    can show skipped tracks), while ``selected`` already honours ``exclude_track_ids``
+    and the variety rule — exactly the track that will play.
+    """
+
+    selected: MusicIndexEntry | None
+    score: float
+    scene_vector: np.ndarray | None
+    ranked: list[tuple[MusicIndexEntry, float]]
+    fallback: str
+    style_applied: str | None
+
+
+def _build_candidate_pool(
     scene: Scene,
     index: list[MusicIndexEntry],
-    *,
-    previous_track_id: str | None = None,
-    exclude_track_ids: set[str] | None = None,
-    style: str | None = None,
-) -> MusicIndexEntry | None:
-    """Three-phase matching: filter by emotion, filter by style, rank by cosine similarity.
+    style: str | None,
+) -> tuple[list[MusicIndexEntry], str]:
+    """Apply the Decision 23 fallback chain. Returns (candidates, fallback_label).
 
-    Fallback chain (Decision 23):
-      emotion + style -> style only (all emotions) -> emotion only (no style)
-
-    Args:
-        scene: The scene to match.
-        index: Full music index.
-        previous_track_id: Track playing in the previous scene (for variety).
-        exclude_track_ids: Tracks to skip entirely (e.g., user-skipped tracks).
-        style: Style preset name (None or "auto" = no style filtering).
-
-    Returns:
-        Best matching track, or None if no candidates.
+    Fallback chain: emotion + style -> style only (all emotions) -> emotion only (no style).
     """
-    exclude = exclude_track_ids or set()
-
+    styled = bool(style and style != "auto")
     emotion_filtered = [t for t in index if t.emotion_primary == scene.emotion]
     candidates = _apply_style_filter(emotion_filtered, style)
+    fallback = "none"
 
-    if not candidates and style and style != "auto":
+    if not candidates and styled:
         # Fallback 1: style only, ignoring emotion
         candidates = _apply_style_filter(list(index), style)
+        fallback = "style_only"
         if candidates:
             logger.info(
                 "emotion+style yielded 0 candidates for emotion=%s style=%s, "
@@ -582,29 +588,103 @@ def match_scene_to_track(
     if not candidates:
         # Fallback 2: emotion only, ignoring style
         candidates = emotion_filtered if emotion_filtered else list(index)
-        if style and style != "auto":
+        if styled:
+            fallback = "emotion_only"
             logger.info(
                 "style-only also yielded 0 for style=%s, "
                 "falling back to emotion-only (%d candidates)",
                 style,
                 len(candidates),
             )
+        else:
+            fallback = "full_index" if not emotion_filtered else "none"
+
+    return candidates, fallback
+
+
+def _select_with_variety(
+    scored: list[tuple[MusicIndexEntry, float]],
+    previous_track_id: str | None,
+) -> tuple[MusicIndexEntry | None, float]:
+    """Pick the top-ranked track, bumping to the runner-up if it equals the previous track."""
+    if not scored:
+        return None, 0.0
+    if previous_track_id and len(scored) > 1 and scored[0][0].track_id == previous_track_id:
+        return scored[1]
+    return scored[0]
+
+
+def _match_scene_core(
+    scene: Scene,
+    index: list[MusicIndexEntry],
+    *,
+    previous_track_id: str | None = None,
+    exclude_track_ids: set[str] | None = None,
+    style: str | None = None,
+) -> MatchResult:
+    """Single source of truth for scene-to-track matching (Decisions 6, 23).
+
+    Three-phase matching: filter by emotion, filter by style, rank by cosine similarity.
+    ``exclude_track_ids`` are removed before ranking and the variety rule, so the
+    selected track is never an excluded one unless every candidate is excluded.
+    """
+    exclude = exclude_track_ids or set()
+    candidates, fallback = _build_candidate_pool(scene, index, style)
 
     if not candidates:
-        return None
+        return MatchResult(
+            selected=None,
+            score=0.0,
+            scene_vector=None,
+            ranked=[],
+            fallback=fallback,
+            style_applied=style,
+        )
 
     scene_vec = np.array(scene_to_vector(scene))
-    non_excluded = [t for t in candidates if t.track_id not in exclude]
-    scored = _rank_candidates(scene_vec, non_excluded)
+    ranked = _rank_candidates(scene_vec, candidates)  # full pool, for the dev view
 
-    if not scored:
-        scored = _rank_candidates(scene_vec, candidates)
+    if exclude:
+        non_excluded = [t for t in candidates if t.track_id not in exclude]
+        scored = _rank_candidates(scene_vec, non_excluded) or ranked
+    else:
+        scored = ranked  # no exclusion: selection ranks the same pool as the dev view
 
-    if previous_track_id and len(scored) > 1:
-        if scored[0][0].track_id == previous_track_id:
-            return scored[1][0]
+    selected, score = _select_with_variety(scored, previous_track_id)
+    return MatchResult(
+        selected=selected,
+        score=score,
+        scene_vector=scene_vec,
+        ranked=ranked,
+        fallback=fallback,
+        style_applied=style,
+    )
 
-    return scored[0][0] if scored else None
+
+def match_scene_to_track(
+    scene: Scene,
+    index: list[MusicIndexEntry],
+    *,
+    previous_track_id: str | None = None,
+    exclude_track_ids: set[str] | None = None,
+    style: str | None = None,
+) -> MusicIndexEntry | None:
+    """Best matching track for a scene, or None if no candidates (Decisions 6, 23).
+
+    Args:
+        scene: The scene to match.
+        index: Full music index.
+        previous_track_id: Track playing in the previous scene (for variety).
+        exclude_track_ids: Tracks to skip entirely (e.g., user-skipped tracks).
+        style: Style preset name (None or "auto" = no style filtering).
+    """
+    return _match_scene_core(
+        scene,
+        index,
+        previous_track_id=previous_track_id,
+        exclude_track_ids=exclude_track_ids,
+        style=style,
+    ).selected
 
 
 def match_scene_to_track_detailed(
@@ -612,60 +692,41 @@ def match_scene_to_track_detailed(
     index: list[MusicIndexEntry],
     *,
     previous_track_id: str | None = None,
+    exclude_track_ids: set[str] | None = None,
     top_n: int = 5,
     style: str | None = None,
 ) -> dict:
-    """Like match_scene_to_track but returns detailed matching info for dev view.
+    """Dev-view projection of ``match_scene_to_track`` (same selection, plus ranking).
 
-    Returns dict with: selected_track, score, scene_vector, candidates (top N with scores),
-    and fallback information.
+    Returns a dict with: selected_track, score, scene_vector, candidates (the top N of the
+    full ranking, including any excluded tracks), fallback, and style_applied.
     """
-    fallback = "none"
+    result = _match_scene_core(
+        scene,
+        index,
+        previous_track_id=previous_track_id,
+        exclude_track_ids=exclude_track_ids,
+        style=style,
+    )
 
-    emotion_filtered = [t for t in index if t.emotion_primary == scene.emotion]
-    candidates = _apply_style_filter(emotion_filtered, style)
-
-    if not candidates and style and style != "auto":
-        candidates = _apply_style_filter(list(index), style)
-        fallback = "style_only"
-
-    if not candidates:
-        candidates = emotion_filtered if emotion_filtered else list(index)
-        fallback = (
-            "emotion_only"
-            if (style and style != "auto")
-            else ("full_index" if not emotion_filtered else "none")
-        )
-
-    if not candidates:
+    if result.selected is None:
+        # No candidate pool: preserve the historical no-scene_vector shape.
         return {
             "selected_track": None,
             "score": 0.0,
             "candidates": [],
-            "fallback": fallback,
-            "style_applied": style,
+            "fallback": result.fallback,
+            "style_applied": result.style_applied,
         }
 
-    scene_vec = np.array(scene_to_vector(scene))
-    scored = _rank_candidates(scene_vec, candidates)
-
-    candidate_dicts = [{"track_id": t.track_id, "tags": t.tags, "score": s} for t, s in scored]
-
-    selected_idx = 0
-    if (
-        previous_track_id
-        and len(candidate_dicts) > 1
-        and candidate_dicts[0]["track_id"] == previous_track_id
-    ):
-        selected_idx = 1
-
+    candidates = [{"track_id": t.track_id, "tags": t.tags, "score": s} for t, s in result.ranked]
     return {
-        "selected_track": candidate_dicts[selected_idx]["track_id"],
-        "score": candidate_dicts[selected_idx]["score"],
-        "scene_vector": scene_vec.tolist(),
-        "fallback": fallback,
-        "style_applied": style,
-        "candidates": candidate_dicts[:top_n],
+        "selected_track": result.selected.track_id,
+        "score": result.score,
+        "scene_vector": result.scene_vector.tolist(),  # type: ignore[union-attr]
+        "fallback": result.fallback,
+        "style_applied": result.style_applied,
+        "candidates": candidates[:top_n],
     }
 
 
