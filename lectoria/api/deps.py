@@ -1,14 +1,28 @@
-"""FastAPI dependencies for provider injection from request headers (Decision 17)."""
+"""FastAPI dependency providers.
+
+Provider injection from request headers (Decision 17) plus the BookStore read
+seam, constructed from settings and injected into routes via ``Depends``.
+"""
 
 import logging
 from typing import Annotated
 
 from fastapi import Header, HTTPException
 
+from lectoria.core.config import get_settings
 from lectoria.providers.base import ImageProvider, LLMProvider
 from lectoria.providers.registry import get_image_provider, get_llm_provider
+from lectoria.services.bookstore import BookStore, FileSystemBookStore
 
 logger = logging.getLogger(__name__)
+
+
+def get_book_store() -> BookStore:
+    """Construct the filesystem-backed BookStore from settings.
+
+    Tests override this provider with a temp-directory-backed store.
+    """
+    return FileSystemBookStore(get_settings().books_dir)
 
 
 async def llm_provider_dep(
