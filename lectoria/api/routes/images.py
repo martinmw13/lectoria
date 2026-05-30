@@ -11,7 +11,6 @@ from lectoria.api.deps import get_book_store, image_provider_dep
 from lectoria.providers.base import ImageProvider
 from lectoria.services.bookstore import ArtifactNotFound, BookStore
 from lectoria.services.image import generate_on_demand, generate_scene_image
-from lectoria.services.pipeline import find_scene
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +48,14 @@ async def generate_image(
     scene = None
     if request.chapter_index is not None and request.scene_index is not None:
         try:
-            _, scene = find_scene(ncm, request.chapter_index, request.scene_index)
+            _, scene = ncm.find_scene(request.chapter_index, request.scene_index)
         except ValueError:
-            pass
+            logger.debug(
+                "No scene at ch=%s sc=%s for book '%s'; generating without scene context",
+                request.chapter_index,
+                request.scene_index,
+                book_id,
+            )
 
     try:
         image_bytes = await generate_on_demand(
@@ -95,7 +99,7 @@ async def generate_scene(
         raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
 
     try:
-        _, scene = find_scene(ncm, request.chapter_index, request.scene_index)
+        _, scene = ncm.find_scene(request.chapter_index, request.scene_index)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
