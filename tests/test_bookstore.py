@@ -87,6 +87,18 @@ class TestListBooks:
         ids = {r.book_id for r in store.list_books()}
         assert ids == {book_on_disk.book_id}
 
+    def test_corrupt_ncm_falls_back_to_dir_name(self, book_on_disk):
+        # A present-but-unparseable NCM is still has_ncm=True, but the title
+        # falls back to the directory name rather than failing the listing.
+        books_dir = book_on_disk.book_dir.parent
+        corrupt = books_dir / "corrupt"
+        corrupt.mkdir()
+        (corrupt / "ncm.json").write_text("{not valid json")
+        store = FileSystemBookStore(books_dir)
+        record = next(r for r in store.list_books() if r.book_id == "corrupt")
+        assert record.title == "corrupt"
+        assert record.has_ncm is True
+
 
 class TestLoadChaptersJson:
     def test_returns_raw_chapters_dict(self, book_on_disk):

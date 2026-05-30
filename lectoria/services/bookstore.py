@@ -11,11 +11,14 @@ resolvers and the write side land in later slices of PRD #30.
 """
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from lectoria.models.ncm import NCM
+
+logger = logging.getLogger(__name__)
 
 
 class ArtifactNotFound(Exception):
@@ -104,7 +107,11 @@ class FileSystemBookStore:
                 except Exception:
                     # A present-but-corrupt NCM falls back to the directory name
                     # rather than failing the whole listing.
-                    pass
+                    logger.warning(
+                        "Corrupt NCM for book '%s'; falling back to directory name",
+                        book_id,
+                        exc_info=True,
+                    )
             records.append(BookRecord(book_id=book_id, title=title, has_ncm=has_ncm))
         return records
 
