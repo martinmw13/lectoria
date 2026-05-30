@@ -42,3 +42,7 @@ Default label vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-h
 ### Domain Docs
 
 Single-context repo — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Picking Work
+
+How to choose the next issue and which issues can run in parallel (issues are parallel-safe when their `Touches:` sets are disjoint). See `docs/agents/picking-work.md`.
