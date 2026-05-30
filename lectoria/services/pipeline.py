@@ -16,12 +16,14 @@ from lectoria.models.ncm import (
     Chapter,
     ChapterAnalysis,
     ChaptersData,
+    Character,
+    CharacterRole,
     NCM,
     Scene,
 )
 from lectoria.providers.base import LLMProvider
 from lectoria.services.ingestion import ingest_epub
-from lectoria.services.narrative import analyze_book, analyze_chapter
+from lectoria.services.narrative import TokenUsage, analyze_book, analyze_chapter
 
 logger = logging.getLogger(__name__)
 
@@ -121,8 +123,6 @@ def reconcile_characters(book_map: BookMap, chapter_analyses: list[ChapterAnalys
     if not discovered:
         return book_map
 
-    from lectoria.models.ncm import Character, CharacterRole
-
     new_characters = list(book_map.characters)
     for char_id in sorted(discovered):
         logger.info("Reconciling character discovered by LLM 2: %s", char_id)
@@ -138,7 +138,7 @@ def reconcile_characters(book_map: BookMap, chapter_analyses: list[ChapterAnalys
     return book_map.model_copy(update={"characters": new_characters})
 
 
-async def assemble_ncm(
+def assemble_ncm(
     book_map: BookMap,
     chapter_analyses: list[ChapterAnalysis],
 ) -> NCM:
@@ -213,8 +213,6 @@ async def run_pipeline(
     sem = asyncio.Semaphore(llm2_concurrency)
     total = len(narrative_chapters)
 
-    from lectoria.services.narrative import TokenUsage
-
     async def _analyze_one(idx: int, chapter: Chapter) -> tuple[ChapterAnalysis, TokenUsage]:
         async with sem:
             _progress("llm2", f"Chapter {idx}/{total}: {chapter.title or '(untitled)'}")
@@ -239,7 +237,7 @@ async def run_pipeline(
 
     # 5. Assemble and save NCM
     _progress("assembly", "Merging LLM 1 + LLM 2 outputs")
-    ncm = await assemble_ncm(book_map, chapter_analyses)
+    ncm = assemble_ncm(book_map, chapter_analyses)
     save_ncm(book_dir, ncm)
 
     total_prompt = llm1_usage.prompt_tokens + llm2_usage.prompt_tokens
