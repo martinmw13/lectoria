@@ -1,7 +1,6 @@
 """Book upload, processing, and retrieval endpoints."""
 
 import asyncio
-import json
 import logging
 import shutil
 from pathlib import Path
@@ -19,7 +18,6 @@ from lectoria.services.bookstore import ArtifactNotFound, BookStore
 from lectoria.services.ingestion import ingest_epub
 from lectoria.services.pipeline import (
     get_book_dir,
-    load_ncm,
     make_book_id,
     run_pipeline,
     save_chapters,
@@ -56,34 +54,14 @@ class CostEstimate(BaseModel):
 
 
 @router.get("/")
-async def list_books() -> dict[str, list[BookSummary]]:
+async def list_books(
+    store: Annotated[BookStore, Depends(get_book_store)],
+) -> dict[str, list[BookSummary]]:
     """List all books that have been uploaded."""
-    settings = get_settings()
-    books: list[BookSummary] = []
-
-    if not settings.books_dir.exists():
-        return {"books": books}
-
-    for book_dir in sorted(settings.books_dir.iterdir()):
-        if not book_dir.is_dir() or book_dir.name.startswith("."):
-            continue
-        ncm_path = book_dir / "ncm.json"
-        # Try to get the title from NCM, fall back to directory name
-        title = book_dir.name
-        if ncm_path.exists():
-            try:
-                ncm = load_ncm(book_dir)
-                title = ncm.book_map.title or title
-            except Exception:
-                pass
-        books.append(
-            BookSummary(
-                book_id=book_dir.name,
-                title=title,
-                has_ncm=ncm_path.exists(),
-            )
-        )
-
+    books = [
+        BookSummary(book_id=record.book_id, title=record.title, has_ncm=record.has_ncm)
+        for record in store.list_books()
+    ]
     return {"books": books}
 
 
@@ -227,16 +205,14 @@ async def get_book(book_id: str, store: Annotated[BookStore, Depends(get_book_st
 
 
 @router.get("/{book_id}/chapters")
-async def get_chapters(book_id: str) -> dict:
+async def get_chapters(book_id: str, store: Annotated[BookStore, Depends(get_book_store)]) -> dict:
     """Get the ingested chapters with paragraph text."""
-    settings = get_settings()
-    book_dir = settings.books_dir / book_id
-    chapters_path = book_dir / "chapters.json"
-
-    if not chapters_path.exists():
-        raise HTTPException(status_code=404, detail=f"Chapters not found for book '{book_id}'")
-
-    return json.loads(chapters_path.read_text())
+    try:
+        return store.load_chapters_json(book_id)
+    except ArtifactNotFound:
+        raise HTTPException(
+            status_code=404, detail=f"Chapters not found for book '{book_id}'"
+        ) from None
 
 
 @router.get("/{book_id}/ncm")

@@ -1,9 +1,11 @@
-"""Tests for the book retrieval routes (get_ncm, get_book).
+"""Tests for the book retrieval routes (list_books, get_book, get_chapters, get_ncm).
 
-These are the first route-layer tests: the BookStore provider is overridden
-with a temp-directory-backed store (the ``book_on_disk`` fixture), so the
-happy paths run without touching the real ``data/books/`` directory.
+The BookStore provider is overridden with a temp-directory-backed store (the
+``book_on_disk`` fixture), so the happy paths run without touching the real
+``data/books/`` directory.
 """
+
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -61,3 +63,40 @@ class TestGetBook:
         res = client.get("/api/books/nonexistent")
         assert res.status_code == 404
         assert res.json()["detail"] == "Book 'nonexistent' not found"
+
+
+class TestListBooks:
+    def test_populated_lists_books(self, client, book_on_disk):
+        res = client.get("/api/books/")
+        assert res.status_code == 200
+        assert res.json()["books"] == [
+            {"book_id": book_on_disk.book_id, "title": "Test Book", "has_ncm": True}
+        ]
+
+    def test_empty_returns_empty_list(self, tmp_path):
+        app = create_app()
+        empty_books = tmp_path / "books"
+        empty_books.mkdir()
+        app.dependency_overrides[get_book_store] = lambda: FileSystemBookStore(empty_books)
+        try:
+            res = TestClient(app).get("/api/books/")
+        finally:
+            app.dependency_overrides.clear()
+        assert res.status_code == 200
+        assert res.json() == {"books": []}
+
+
+class TestGetChapters:
+    def test_returns_chapters_byte_faithful(self, client, book_on_disk):
+        chapters = {"chapters": [{"index": 1, "paragraphs": [{"text": "hello"}]}]}
+        chapters_path = book_on_disk.book_dir / "chapters.json"
+        chapters_path.write_text(json.dumps(chapters))
+        res = client.get(f"/api/books/{book_on_disk.book_id}/chapters")
+        assert res.status_code == 200
+        # Data-faithful to the on-disk JSON (no model round-trip in the store).
+        assert res.json() == json.loads(chapters_path.read_text())
+
+    def test_missing_returns_404(self, client, book_on_disk):
+        res = client.get(f"/api/books/{book_on_disk.book_id}/chapters")
+        assert res.status_code == 404
+        assert res.json()["detail"] == f"Chapters not found for book '{book_on_disk.book_id}'"
