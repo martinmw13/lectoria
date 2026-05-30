@@ -158,6 +158,7 @@ class TestGenerateSceneImage:
         existing.write_bytes(b"already-here")
         provider = FakeImageProvider([FAKE_PNG])
         out = await generate_scene_image(provider, scene, book_on_disk.book_dir, 1)
+        assert out is not None
         assert out == existing
         assert out.read_bytes() == b"already-here"
         assert provider.calls == 0
