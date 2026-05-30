@@ -104,6 +104,9 @@ One directory per book under `data/books/<book-id>/`. `ncm.json` is the primary 
 **D17 — BYOK via localStorage + per-request headers**
 Keys stored in browser localStorage, sent as `X-Provider-LLM`, `X-API-Key-LLM`, `X-Provider-Image`, `X-API-Key-Image` headers. Discarded server-side after use. Security limitation documented in thesis.
 
+**D34 — CORS restricted to the local dev frontend, no credentials**
+`CORSMiddleware` allows only `http://localhost:5173` / `http://127.0.0.1:5173` (the Vite dev origin) with `allow_credentials=False`. Because BYOK keys ride in custom request headers rather than cookies (D17), credentialed CORS is never needed. The previous `allow_origins=["*"]` + `allow_credentials=True` was self-contradictory: Starlette reflects the caller's origin instead of sending `*` once credentials are enabled, so it effectively trusted every origin. Allowed origins live in `ALLOWED_ORIGINS` in `lectoria/app.py`.
+
 **D18 — LLM output coercion + dev metadata**
 ~40-entry coercion tables for enum values LLMs commonly hallucinate. Original values preserved in `raw_*` fields. `ChapterAnalysis` carries `llm_model`, `attempt_count`, `is_fallback` for observability.
 
