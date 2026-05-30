@@ -1,0 +1,44 @@
+%%{init: {'theme':'neutral','themeVariables':{'fontFamily':'system-ui, -apple-system, sans-serif','fontSize':'14px'}}}%%
+flowchart TB
+  subgraph BROWSER["Browser — React SPA (:5173)"]
+    Pages["Upload · Reader · Settings"]
+    Keys[("localStorage<br/>BYOK API keys")]
+  end
+
+  subgraph BACKEND["FastAPI Backend (:8000)"]
+    Routes["Routes — thin<br/>books · music · images"]
+    Deps["deps.py — dependency injection"]
+    Store["BookStore<br/>read seam over data/"]
+    subgraph SERVICES["Domain services"]
+      Pipeline["pipeline<br/>orchestration + NCM write"]
+      Narrative["narrative + llm_json"]
+      MusicSvc["music<br/>tag match + hysteresis"]
+      ImageSvc["image"]
+    end
+  end
+
+  subgraph PROVIDERS["providers/ — BYOK adapters"]
+    LLM["LLMProvider"]
+    IMG["ImageProvider"]
+  end
+
+  Gemini["Google Gemini API"]
+
+  subgraph DATA["data/ — filesystem"]
+    NCM[("books/&lt;id&gt;/ncm.json")]
+    MusicIdx[("music/ tracks + index")]
+  end
+
+  Pages -->|"REST + SSE · X-API-Key-* headers"| Routes
+  Keys -.-> Pages
+  Routes --> Deps
+  Routes --> SERVICES
+  Deps --> Store
+  Deps --> PROVIDERS
+  Pipeline --> Narrative --> LLM
+  ImageSvc --> IMG
+  LLM --> Gemini
+  IMG --> Gemini
+  Pipeline ==>|writes| NCM
+  Store -->|reads| NCM
+  MusicSvc --> MusicIdx

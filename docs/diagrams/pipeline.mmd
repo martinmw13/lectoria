@@ -1,0 +1,18 @@
+%%{init: {'theme':'neutral','themeVariables':{'fontFamily':'system-ui, -apple-system, sans-serif','fontSize':'14px'}}}%%
+flowchart TB
+  EPUB(["EPUB upload"]) --> ING["1 · Ingestion<br/>parse spine → numbered paragraphs<br/>flag non-narrative chapters"]
+  ING --> CD["ChaptersData<br/>chapters[] with Paragraph[]"]
+
+  CD --> LLM1["2 · LLM 1 — Book Analysis<br/>full book → one Gemini call"]
+  LLM1 --> BM[("BookMap<br/>title · genre · setting<br/>characters · chapter summaries")]
+
+  CD --> LLM2["3 · LLM 2 — Chapter Analysis<br/>per narrative chapter (semaphore = 2)<br/>scenes + emotion / pacing / type + image_prompt"]
+  BM -->|context| LLM2
+  LLM2 --> CA["ChapterAnalysis[]<br/>one per chapter"]
+
+  BM --> ASM["4 · Assembly<br/>reconcile characters · merge"]
+  CA --> ASM
+  ASM ==> NCM[("ncm.json<br/>data/books/&lt;id&gt;/")]
+
+  LLMJSON["llm_json.complete_to_model<br/>extract → validate → retry"] -.->|both stages| LLM1
+  LLMJSON -.-> LLM2
