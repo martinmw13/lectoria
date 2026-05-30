@@ -1,7 +1,17 @@
-"""Tests for image service — character identification and prompt building."""
+"""Tests for image service — character identification, prompt building, and the
+provider-backed generation paths (via the FakeImageProvider seam)."""
+
+import pytest
 
 from lectoria.models.ncm import Character, CharacterRole, Emotion, Scene
-from lectoria.services.image import build_on_demand_prompt, identify_characters
+from lectoria.providers.base import ImageProvider
+from lectoria.services.image import (
+    build_on_demand_prompt,
+    generate_on_demand,
+    generate_scene_image,
+    identify_characters,
+)
+from tests.fakes import FAKE_PNG, FakeImageProvider
 
 
 def _char(name: str, char_id: str, aliases: list[str] | None = None, desc: str = "") -> Character:
@@ -109,3 +119,82 @@ class TestBuildOnDemandPrompt:
         no_desc = _char("Dobby", "dobby", desc="")
         prompt = build_on_demand_prompt("Dobby appeared.", [no_desc])
         assert "Character appearances" not in prompt
+
+
+def test_fake_provider_satisfies_protocol():
+    assert isinstance(FakeImageProvider(), ImageProvider)
+
+
+class TestGenerateSceneImage:
+    @pytest.mark.asyncio
+    async def test_writes_image_to_scenes_dir(self, book_on_disk):
+        scene = book_on_disk.ncm.chapters[0].scenes[0]
+        provider = FakeImageProvider([FAKE_PNG])
+        out = await generate_scene_image(provider, scene, book_on_disk.book_dir, 1)
+        assert out is not None
+        assert out == book_on_disk.book_dir / "images" / "scenes" / "ch1_sc1.png"
+        assert out.read_bytes() == FAKE_PNG
+        assert provider.calls == 1
+        assert provider.prompts == [scene.image_prompt]
+
+    @pytest.mark.asyncio
+    async def test_skips_when_no_image_prompt(self, book_on_disk):
+        scene = Scene(
+            scene_index=2,
+            start_paragraph=1,
+            end_paragraph=1,
+            emotion=Emotion.PEACE,
+            image_prompt="",
+        )
+        provider = FakeImageProvider([FAKE_PNG])
+        out = await generate_scene_image(provider, scene, book_on_disk.book_dir, 1)
+        assert out is None
+        assert provider.calls == 0
+
+    @pytest.mark.asyncio
+    async def test_returns_existing_without_regenerating(self, book_on_disk):
+        scene = book_on_disk.ncm.chapters[0].scenes[0]
+        existing = book_on_disk.book_dir / "images" / "scenes" / "ch1_sc1.png"
+        existing.write_bytes(b"already-here")
+        provider = FakeImageProvider([FAKE_PNG])
+        out = await generate_scene_image(provider, scene, book_on_disk.book_dir, 1)
+        assert out == existing
+        assert out.read_bytes() == b"already-here"
+        assert provider.calls == 0
+
+    @pytest.mark.asyncio
+    async def test_provider_failure_returns_none(self, book_on_disk):
+        scene = book_on_disk.ncm.chapters[0].scenes[0]
+        provider = FakeImageProvider([RuntimeError("image API down")])
+        out = await generate_scene_image(provider, scene, book_on_disk.book_dir, 1)
+        assert out is None
+        assert provider.calls == 1
+
+
+class TestGenerateOnDemand:
+    @pytest.mark.asyncio
+    async def test_returns_bytes_and_stores_character_memory(self, book_on_disk):
+        provider = FakeImageProvider([FAKE_PNG])
+        image = await generate_on_demand(
+            provider,
+            "Hero draws a sword.",
+            book_on_disk.ncm.book_map,
+            book_on_disk.book_dir,
+        )
+        assert image == FAKE_PNG
+        # A single identified character is persisted as character memory (Decision 8).
+        char_path = book_on_disk.book_dir / "images" / "characters" / "hero.png"
+        assert char_path.exists()
+        assert char_path.read_bytes() == FAKE_PNG
+
+    @pytest.mark.asyncio
+    async def test_no_character_memory_when_none_identified(self, book_on_disk):
+        provider = FakeImageProvider([FAKE_PNG])
+        await generate_on_demand(
+            provider,
+            "An empty corridor stretched into darkness.",
+            book_on_disk.ncm.book_map,
+            book_on_disk.book_dir,
+        )
+        chars_dir = book_on_disk.book_dir / "images" / "characters"
+        assert list(chars_dir.iterdir()) == []
