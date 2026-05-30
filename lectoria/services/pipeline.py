@@ -19,7 +19,6 @@ from lectoria.models.ncm import (
     Character,
     CharacterRole,
     NCM,
-    Scene,
 )
 from lectoria.providers.base import LLMProvider
 from lectoria.services.ingestion import ingest_epub
@@ -86,22 +85,6 @@ def save_ncm(book_dir: Path, ncm: NCM) -> Path:
         len(ncm.chapters),
     )
     return path
-
-
-def load_ncm(book_dir: Path) -> NCM:
-    """Load an NCM from disk."""
-    path = book_dir / "ncm.json"
-    return NCM.model_validate_json(path.read_text())
-
-
-def find_scene(ncm: NCM, chapter_idx: int, scene_idx: int) -> tuple[ChapterAnalysis, Scene]:
-    """Look up a chapter and scene by index. Raises ValueError if not found.
-
-    Thin delegator to ``NCM.find_scene`` — the lookup logic lives on the model
-    where the data lives. Kept here so the image routes keep importing it until
-    their slice migrates them onto the store + model methods.
-    """
-    return ncm.find_scene(chapter_idx, scene_idx)
 
 
 def reconcile_characters(book_map: BookMap, chapter_analyses: list[ChapterAnalysis]) -> BookMap:
