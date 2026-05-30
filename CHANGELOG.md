@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Project is pre-1.0 — minor versions may include breaking changes until the first
 tagged release.
 
+## [0.2.1](https://github.com/martinmw13/lectoria/compare/v0.2.0...v0.2.1) (2026-05-30)
+
+
+### Documentation
+
+* add BookStore term to CONTEXT.md glossary ([#39](https://github.com/martinmw13/lectoria/issues/39)) ([1540d5e](https://github.com/martinmw13/lectoria/commit/1540d5e3ab2475d50aab959887229f6d20fa49b2))
+* add CONTEXT.md, onboarding walkthrough, update CLAUDE.md ([#23](https://github.com/martinmw13/lectoria/issues/23)) ([034f849](https://github.com/martinmw13/lectoria/commit/034f8497d3119e3e4fa8911f9bd943d8679c6d27))
+
 ## [0.2.0](https://github.com/martinmw13/lectoria/compare/v0.1.0...v0.2.0) (2026-05-16)
 
 
