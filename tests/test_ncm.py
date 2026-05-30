@@ -122,3 +122,36 @@ class TestDevMetadata:
         assert analysis.llm_model == ""
         assert analysis.attempt_count == 0
         assert analysis.is_fallback is False
+
+
+class TestFindScene:
+    """``NCM.find_scene`` — the strict navigation used for the requested scene."""
+
+    def test_returns_matching_chapter_and_scene(self, book_on_disk):
+        chapter, scene = book_on_disk.ncm.find_scene(1, 1)
+        assert chapter.chapter_index == 1
+        assert scene.scene_index == 1
+        assert scene.image_prompt
+
+    def test_missing_chapter_raises(self, book_on_disk):
+        with pytest.raises(ValueError, match="Chapter 99 not found"):
+            book_on_disk.ncm.find_scene(99, 1)
+
+    def test_missing_scene_raises(self, book_on_disk):
+        with pytest.raises(ValueError, match="Scene 99 not found in chapter 1"):
+            book_on_disk.ncm.find_scene(1, 99)
+
+
+class TestGetScene:
+    """``NCM.get_scene`` — the lenient navigation used for the previous scene."""
+
+    def test_returns_matching_scene(self, book_on_disk):
+        scene = book_on_disk.ncm.get_scene(1, 1)
+        assert scene is not None
+        assert scene.scene_index == 1
+
+    def test_missing_chapter_returns_none(self, book_on_disk):
+        assert book_on_disk.ncm.get_scene(99, 1) is None
+
+    def test_missing_scene_returns_none(self, book_on_disk):
+        assert book_on_disk.ncm.get_scene(1, 99) is None
