@@ -5,15 +5,17 @@ import json
 import logging
 import shutil
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from lectoria.api.deps import llm_provider_dep
+from lectoria.api.deps import get_book_store, llm_provider_dep
 from lectoria.core.config import get_settings
 from lectoria.models.ncm import NCM
 from lectoria.providers.base import LLMProvider
+from lectoria.services.bookstore import ArtifactNotFound, BookStore
 from lectoria.services.ingestion import ingest_epub
 from lectoria.services.pipeline import (
     get_book_dir,
@@ -205,18 +207,15 @@ async def process_book(
 
 
 @router.get("/{book_id}")
-async def get_book(book_id: str) -> dict:
+async def get_book(book_id: str, store: Annotated[BookStore, Depends(get_book_store)]) -> dict:
     """Get book metadata and NCM status."""
-    settings = get_settings()
-    book_dir = settings.books_dir / book_id
-
-    if not book_dir.exists():
+    if not store.exists(book_id):
         raise HTTPException(status_code=404, detail=f"Book '{book_id}' not found")
 
     result: dict = {"book_id": book_id, "has_ncm": False}
 
-    if (book_dir / "ncm.json").exists():
-        ncm = load_ncm(book_dir)
+    if store.has_ncm(book_id):
+        ncm = store.load_ncm(book_id)
         result["has_ncm"] = True
         result["title"] = ncm.book_map.title
         result["genre"] = ncm.book_map.genre
@@ -241,13 +240,9 @@ async def get_chapters(book_id: str) -> dict:
 
 
 @router.get("/{book_id}/ncm")
-async def get_ncm(book_id: str) -> NCM:
+async def get_ncm(book_id: str, store: Annotated[BookStore, Depends(get_book_store)]) -> NCM:
     """Get the complete NCM for a book."""
-    settings = get_settings()
-    book_dir = settings.books_dir / book_id
-    ncm_path = book_dir / "ncm.json"
-
-    if not ncm_path.exists():
-        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'")
-
-    return load_ncm(book_dir)
+    try:
+        return store.load_ncm(book_id)
+    except ArtifactNotFound:
+        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
