@@ -419,6 +419,7 @@
   <div class="toc-section">
     <div class="toc-group-label">Codebase</div>
     <a href="#backend">Backend Package</a>
+    <a href="#bookstore">BookStore</a>
     <a href="#frontend">Frontend</a>
     <a href="#data-layout">Data Directory</a>
     <a href="#config">Configuration</a>
@@ -509,7 +510,10 @@ just install
 just dev
 
 # Terminal 2: frontend dev server on http://localhost:5173
-just dev-frontend</code></pre>
+just dev-frontend
+
+# …or run both in one terminal (Ctrl-C stops both)
+just dev-all</code></pre>
 
     <p>Open <strong>http://localhost:5173</strong>, go to <strong>Settings</strong>, enter your Gemini API key, then upload an EPUB.</p>
 
@@ -519,6 +523,7 @@ just dev-frontend</code></pre>
       <tr><td><code>just install</code></td><td>uv sync + pre-commit install + npm install</td></tr>
       <tr><td><code>just dev</code></td><td>Backend dev server (http://localhost:8000)</td></tr>
       <tr><td><code>just dev-frontend</code></td><td>Frontend dev server (http://localhost:5173)</td></tr>
+      <tr><td><code>just dev-all</code></td><td>Backend + frontend together in one terminal (Ctrl-C stops both)</td></tr>
       <tr><td><code>just test</code></td><td>Run all pytest tests</td></tr>
       <tr><td><code>just check</code></td><td>Lint + format check (no auto-fix)</td></tr>
       <tr><td><code>just fmt</code></td><td>Auto-fix lint and format</td></tr>
@@ -538,7 +543,7 @@ just dev-frontend</code></pre>
       <tr><td>Frontend</td><td>5173</td><td>React + Vite</td><td><code>frontend/src/main.tsx</code></td></tr>
     </table>
 
-    <p>The frontend communicates with the API over HTTP (CORS enabled). API keys are stored in <code>localStorage</code> and sent per-request as headers — never stored server-side (BYOK model).</p>
+    <p>The frontend communicates with the API over HTTP. CORS is restricted to the local dev frontend origin (<code>localhost:5173</code> / <code>127.0.0.1:5173</code>) with credentials disabled — see <a href="#decisions">Decision 34</a>. API keys are stored in <code>localStorage</code> and sent per-request as headers — never stored server-side (BYOK model).</p>
 
     <div class="diagram"><span class="dim">┌──────────────┐         ┌───────────────────────────────────────────┐</span>
 <span class="dim">│</span>   <span class="blue">Browser</span>     <span class="dim">│         │</span>                <span class="yellow">FastAPI Backend</span>                  <span class="dim">│</span>
@@ -560,15 +565,17 @@ just dev-frontend</code></pre>
     <pre><code>lectoria/              ← Python package (api, models, services, providers)
   api/
     routes/            ← Route handlers: books.py, music.py, images.py
-    deps.py            ← FastAPI dependency injection for BYOK providers
+    deps.py            ← FastAPI DI: BYOK providers + BookStore
   models/
-    ncm.py             ← NCM schema — central contract between all modules
+    ncm.py             ← NCM schema — central contract; find_scene/get_scene navigation
   services/
     ingestion.py       ← EPUB → ChaptersData
     narrative.py       ← LLM 1 + LLM 2 orchestration + prompts
+    llm_json.py        ← LLM-to-JSON deep module (complete_to_model + retries)
     music.py           ← Tag vocabulary, matching, hysteresis, style presets
     image.py           ← Image generation + character memory
-    pipeline.py        ← Full pipeline orchestration + NCM persistence
+    bookstore.py       ← BookStore: owns book-id → on-disk artifact layout (read seam)
+    pipeline.py        ← Pipeline orchestration + NCM write/persistence
   providers/
     base.py            ← LLMProvider / ImageProvider protocols
     llm/google.py      ← Google Gemini LLM adapter
@@ -606,7 +613,7 @@ scripts/               ← CLI utilities (build_music_index.py, download_music.p
     <p>The <strong>Narrative Context Map (NCM)</strong> is the JSON document produced by the pipeline and consumed by every other part of the system. It merges the outputs of two LLM stages into one file per book. Schema: <span class="file-ref">lectoria/models/ncm.py</span>.</p>
 
     <div class="callout">
-      <p>NCM is the contract between modules. The pipeline <em>writes</em> it. The music service, image service, and reader UI all <em>read</em> it. Never derive narrative attributes at runtime — they are in the NCM.</p>
+      <p>NCM is the contract between modules. The pipeline <em>writes</em> it. The music service, image service, and reader UI all <em>read</em> it — through the <a href="#bookstore">BookStore</a>, which owns the <code>book-id → file</code> mapping. Never derive narrative attributes at runtime — they are in the NCM.</p>
     </div>
 
     <h3>Structure</h3>
@@ -676,7 +683,8 @@ scripts/               ← CLI utilities (build_music_index.py, download_music.p
 └── images/
     ├── covers/           ← chapter cover art (ch{N}.png)
     ├── scenes/           ← automatic scene images (ch{N}_sc{M}.png)
-    └── characters/       ← character memory reference images</code></pre>
+    ├── characters/       ← character memory reference images
+    └── on_demand/        ← reader-requested images from selected text</code></pre>
   </section>
 
   <!-- ── Pipeline ─────────────────────────────────────────────────────── -->
@@ -726,6 +734,7 @@ scripts/               ← CLI utilities (build_music_index.py, download_music.p
     <p><code>POST /api/books/upload</code> — the upload step runs ingestion, returns a cost estimate (chapter count + ~token count), and saves the EPUB and <code>chapters.json</code> to disk. Processing is a separate call so the user can review cost before committing API quota.</p>
 
     <h3>LLM Retry Strategy</h3>
+    <p>Both LLM stages route through a shared deep module — <code>complete_to_model()</code> in <span class="file-ref">lectoria/services/llm_json.py</span> — which wraps a provider call: extract JSON from the response (strip markdown fences), parse, validate against the target Pydantic model, and retry on failure. It returns a <code>StructuredCompletion</code> (parsed model + aggregated <code>TokenUsage</code>) and raises <code>StructuredCallError</code> once retries are exhausted. It sits <em>above</em> the provider's <code>CompletionResult</code> and 429 backoff (Decisions 31–32), which still apply underneath.</p>
     <ul>
       <li><strong>Content retries</strong> (up to 3): handled in <span class="file-ref">narrative.py</span> — triggered by JSON parse failures, Pydantic validation errors, or missing required fields.</li>
       <li><strong>Rate-limit retries</strong> (up to 3): handled inside the provider in <span class="file-ref">providers/llm/google.py</span> — triggered by 429/RESOURCE_EXHAUSTED. Uses the API's <code>retryDelay</code> or exponential backoff starting at 30s.</li>
@@ -845,6 +854,7 @@ class ImageProvider(Protocol):
       <tr><th>Layer</th><th>Location</th><th>Rule</th></tr>
       <tr><td>Routes</td><td><code>lectoria/api/routes/</code></td><td>Thin: validate input, delegate to service, return response. Never raise HTTPException from service/provider layers — only from routes.</td></tr>
       <tr><td>Services</td><td><code>lectoria/services/</code></td><td>Domain logic. No HTTP concerns. No provider SDK imports.</td></tr>
+      <tr><td>Store</td><td><code>lectoria/services/bookstore.py</code></td><td>Owns the <code>book-id → on-disk artifact</code> layout. Injected into routes via <code>Depends</code>. Raises <code>ArtifactNotFound</code>, never <code>HTTPException</code>.</td></tr>
       <tr><td>Providers</td><td><code>lectoria/providers/</code></td><td>AI API adapters. Each implements LLMProvider or ImageProvider protocol. No route imports.</td></tr>
       <tr><td>Models</td><td><code>lectoria/models/ncm.py</code></td><td>NCM schema as Pydantic models. Central contract.</td></tr>
       <tr><td>Core</td><td><code>lectoria/core/config.py</code></td><td>Settings via pydantic-settings. Cached with lru_cache.</td></tr>
@@ -869,10 +879,43 @@ class ImageProvider(Protocol):
       <tr><td>GET</td><td><code>/api/data/books/**</code></td><td>Static — serve book images from <code>data/books/</code></td></tr>
     </table>
 
-    <p>Interactive docs: <a href="http://localhost:8000/docs">http://localhost:8000/docs</a> (when running locally).</p>
+    <p>Every handler declares a Pydantic <code>response_model</code> (book/music/image routes), so responses are schema-validated and surfaced in the OpenAPI schema. Interactive docs: <a href="http://localhost:8000/docs">http://localhost:8000/docs</a> (when running locally).</p>
 
     <h3>BYOK Provider Injection</h3>
-    <p>Routes that need AI capabilities declare a dependency on <span class="file-ref">lectoria/api/deps.py:llm_provider_dep</span> or <code>image_provider_dep</code>. FastAPI reads the <code>X-Provider-LLM</code> and <code>X-API-Key-LLM</code> headers from the request and instantiates the appropriate adapter. The provider instance is scoped to the request.</p>
+    <p>Routes that need AI capabilities declare a dependency on <span class="file-ref">lectoria/api/deps.py:llm_provider_dep</span> or <code>image_provider_dep</code>. FastAPI reads the <code>X-Provider-LLM</code> and <code>X-API-Key-LLM</code> headers from the request and instantiates the appropriate adapter. The provider instance is scoped to the request. The same <code>deps.py</code> wires the <a href="#bookstore">BookStore</a> via <code>get_book_store()</code>.</p>
+  </section>
+
+  <!-- ── BookStore ────────────────────────────────────────────────────── -->
+  <section id="bookstore">
+    <h2>BookStore — The Artifact Seam</h2>
+
+    <p>The <strong>BookStore</strong> owns the <code>book-id → on-disk layout</code> mapping. Before it existed, the convention "join the books directory with the <code>book-id</code> and an artifact name, then check it exists" was copy-pasted across the books, music, and image routes plus the pipeline — changing the directory shape meant six edits, and the route layer had no seam to inject a test directory. The store encapsulates <a href="#decisions">Decision 15</a> (file-based storage) behind one interface. Defined in <span class="file-ref">lectoria/services/bookstore.py</span>.</p>
+
+    <div class="callout">
+      <p>Callers ask the store <em>where</em> an artifact lives, or ask it to <em>load</em> a validated artifact — they never build a <code>books-dir / book-id / artifact</code> path themselves. Behaviour-preserving: no response and no on-disk format changed. It is not a database — D15 stands; the store encapsulates it.</p>
+    </div>
+
+    <h3>Interface (read side)</h3>
+    <p><code>BookStore</code> is a <code>Protocol</code>; <code>FileSystemBookStore</code> is the filesystem-backed adapter.</p>
+    <table>
+      <tr><th>Method</th><th>Returns</th></tr>
+      <tr><td><code>exists(book_id)</code></td><td>Does the book directory exist</td></tr>
+      <tr><td><code>has_ncm(book_id)</code></td><td>Is the book processed</td></tr>
+      <tr><td><code>load_ncm(book_id)</code></td><td>Loaded + validated <code>NCM</code> (raises <code>ArtifactNotFound</code>)</td></tr>
+      <tr><td><code>list_books()</code></td><td>Book records (title from NCM, else directory name)</td></tr>
+      <tr><td><code>load_chapters_json(book_id)</code></td><td>Raw chapters JSON, byte-faithful (no model round-trip)</td></tr>
+      <tr><td><code>source_epub_path(book_id)</code></td><td>Path to the uploaded EPUB</td></tr>
+      <tr><td><code>{scene,cover,character,on_demand}_image_path(...)</code></td><td>Resolve image file paths (no I/O — callers read/write bytes)</td></tr>
+    </table>
+
+    <h3>Error &amp; HTTP contract</h3>
+    <p>The store raises a single domain error, <code>ArtifactNotFound</code>, when a requested artifact is absent — whether the book directory or just the file is missing. Routes catch it and translate to a <code>404</code>; the store never raises <code>HTTPException</code> (only routes do). <code>get_book</code> is the one route that branches on directory-vs-artifact: it uses <code>exists()</code> + <code>has_ncm()</code> to distinguish "book absent" (404) from "present but not yet processed" (200 with <code>has_ncm=false</code>).</p>
+
+    <h3>Scene navigation lives on the NCM model</h3>
+    <p><code>find_scene(chapter_idx, scene_idx)</code> (raises on miss) and <code>get_scene(...)</code> (lenient — returns <code>None</code>) are pure navigation over a loaded NCM, so they live on <span class="file-ref">lectoria/models/ncm.py</span>, not the store — and no longer on the offline pipeline module. The crossfade endpoint uses lenient <code>get_scene</code> for the <em>previous</em> scene (missing → "should crossfade", not 404) and <code>find_scene</code> for the current one.</p>
+
+    <h3>Dependency wiring &amp; testability</h3>
+    <p><code>get_book_store()</code> in <span class="file-ref">lectoria/api/deps.py</span> constructs a <code>FileSystemBookStore</code> from settings; routes depend on it via <code>Annotated[BookStore, Depends(get_book_store)]</code>. Because the directory root is now injected, tests override the dependency with a temp-directory-backed store and finally exercise the route happy paths (matched track, scene-image cache hit, NCM retrieval) — the route layer was previously untestable.</p>
   </section>
 
   <!-- ── Frontend ─────────────────────────────────────────────────────── -->
@@ -940,7 +983,8 @@ class ImageProvider(Protocol):
         └── images/
             ├── covers/        ← ch1.png, ch2.png, ...
             ├── scenes/        ← ch1_sc1.png, ch1_sc2.png, ...
-            └── characters/    ← {character-id}.png</code></pre>
+            ├── characters/    ← {character-id}.png
+            └── on_demand/     ← reader-requested images (selected text)</code></pre>
 
     <h3>Music Index Setup</h3>
     <pre><code># Download MTG-Jamendo TSV files (mood/theme + instrument + genre)
@@ -1021,13 +1065,18 @@ uv run pytest -k "test_ncm"        # filter by name</code></pre>
     <h3>Key Test Files</h3>
     <table>
       <tr><th>File</th><th>Covers</th></tr>
-      <tr><td><code>tests/test_ncm.py</code></td><td>NCM schema validation, scene coverage rules</td></tr>
-      <tr><td><code>tests/test_music.py</code></td><td>Tag vectors, cosine matching, hysteresis, style presets</td></tr>
-      <tr><td><code>tests/test_narrative.py</code></td><td>LLM output coercion, JSON extraction, fallback</td></tr>
-      <tr><td><code>tests/test_image.py</code></td><td>Character identification, prompt building</td></tr>
-      <tr><td><code>tests/test_build_index.py</code></td><td>Music index building script</td></tr>
-      <tr><td><code>tests/test_api_music.py</code></td><td>Music API endpoints (AsyncClient)</td></tr>
+      <tr><td><code>test_ncm.py</code></td><td>NCM schema validation, scene coverage, <code>find_scene</code>/<code>get_scene</code></td></tr>
+      <tr><td><code>test_music.py</code></td><td>Tag vectors, cosine matching, hysteresis, style presets</td></tr>
+      <tr><td><code>test_narrative.py</code></td><td>LLM output coercion + fallback</td></tr>
+      <tr><td><code>test_llm_json.py</code></td><td>JSON extraction, <code>complete_to_model</code> retries, <code>StructuredCallError</code></td></tr>
+      <tr><td><code>test_image.py</code></td><td>Character identification, prompt building</td></tr>
+      <tr><td><code>test_bookstore.py</code></td><td>BookStore adapter over a temp dir (paths, load, <code>ArtifactNotFound</code>)</td></tr>
+      <tr><td><code>test_api_books.py</code> · <code>test_api_music.py</code> · <code>test_api_images.py</code></td><td>Route happy paths via dependency-overridden BookStore (AsyncClient)</td></tr>
+      <tr><td><code>test_api_cors.py</code></td><td>CORS policy — allowed origin, credentials disabled</td></tr>
+      <tr><td><code>test_build_index.py</code></td><td>Music index building script</td></tr>
     </table>
+
+    <p>Route tests inject a temp-directory-backed BookStore through FastAPI's dependency override (fakes live in <code>tests/fakes.py</code>), so they drive real handlers without ever touching <code>data/</code>.</p>
 
     <h3>Async Route Testing Pattern</h3>
     <pre><code>import pytest
@@ -1125,7 +1174,7 @@ Backend → deps.py:llm_provider_dep()
       <div class="decision-card">
         <div class="d-num">D15</div>
         <h4>File-based JSON storage</h4>
-        <p>One directory per book. No database. SQLite rejected as unnecessary for single-user, no concurrent access. NCM loaded in one read — natural access pattern.</p>
+        <p>One directory per book. No database. SQLite rejected as unnecessary for single-user, no concurrent access. NCM loaded in one read — natural access pattern. Encapsulated behind the <a href="#bookstore">BookStore</a> seam — callers never build paths inline.</p>
       </div>
       <div class="decision-card">
         <div class="d-num">D17</div>
@@ -1156,6 +1205,11 @@ Backend → deps.py:llm_provider_dep()
         <div class="d-num">D31–D32</div>
         <h4>CompletionResult + 429 backoff in provider</h4>
         <p>Provider returns <code>CompletionResult(text, prompt_tokens, completion_tokens)</code> — not plain string. Rate-limit retries (up to 3) handled at provider layer to preserve service retry budget for content failures.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">D34</div>
+        <h4>CORS restricted to the dev frontend</h4>
+        <p>Replaces the earlier <code>allow_origins=["*"]</code>. Only <code>localhost:5173</code> / <code>127.0.0.1:5173</code> are allowed, and <code>allow_credentials=False</code> (BYOK keys ride in headers, not cookies). Origins live in <code>ALLOWED_ORIGINS</code> in <span class="file-ref">lectoria/app.py</span>.</p>
       </div>
     </div>
   </section>
@@ -1204,11 +1258,6 @@ X-API-Key-Image:   AIza...  (optional)</code></pre>
         <td>No docs/adr/ directory</td>
         <td>ADRs not yet written. <code>docs/agents/domain.md</code> describes the expected structure for future grilling sessions.</td>
         <td><code>docs/agents/domain.md</code></td>
-      </tr>
-      <tr>
-        <td>CORS allows all origins</td>
-        <td><code>allow_origins=["*"]</code> in <code>app.py</code>. Acceptable for academic demo, not production.</td>
-        <td><span class="file-ref">lectoria/app.py:21</span></td>
       </tr>
       <tr>
         <td>Character memory limited</td>
