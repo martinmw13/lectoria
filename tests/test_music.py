@@ -9,6 +9,7 @@ from lectoria.services.music import (
     TAG_TO_INDEX,
     assign_emotion_primary,
     match_scene_to_track,
+    match_scene_to_track_detailed,
     matches_preset,
     scene_to_vector,
     should_crossfade,
@@ -155,6 +156,128 @@ class TestMatchSceneToTrack:
         scene = _scene(Emotion.JOY)
         result = match_scene_to_track(scene, index, exclude_track_ids={"t1", "t2"})
         assert result is not None
+
+    def test_exclude_applied_before_variety_rule(self):
+        """Exclusion happens before the variety rule, not after.
+
+        Ranking is t1 > t2 > t3. With t1 excluded, the top non-excluded track is t2;
+        because t2 == previous_track_id, the variety rule bumps to the next
+        non-excluded track (t3). A naive rank-then-filter would return t2 or t1.
+        """
+        index = [
+            _track("t1", Emotion.JOY, ["happy", "fun", "upbeat"]),
+            _track("t2", Emotion.JOY, ["happy", "positive"]),
+            _track("t3", Emotion.JOY, ["happy"]),
+        ]
+        scene = _scene(Emotion.JOY)
+        result = match_scene_to_track(
+            scene, index, exclude_track_ids={"t1"}, previous_track_id="t2"
+        )
+        assert result is not None
+        assert result.track_id == "t3"
+
+
+class TestMatchSceneToTrackDetailed:
+    """Dev-view projection of the matcher: same selection, plus ranked candidates."""
+
+    @pytest.fixture()
+    def index(self):
+        return [
+            _track("t1", Emotion.JOY, ["happy", "fun", "upbeat"]),
+            _track("t2", Emotion.JOY, ["happy", "positive"]),
+            _track("t3", Emotion.JOY, ["happy"]),
+            _track("s1", Emotion.SORROW, ["sad", "melancholic"]),
+        ]
+
+    def test_returns_full_result_shape(self, index):
+        scene = _scene(Emotion.JOY)
+        result = match_scene_to_track_detailed(scene, index)
+        assert result["selected_track"] == "t1"
+        assert result["fallback"] == "none"
+        assert result["style_applied"] is None
+        assert "scene_vector" in result
+        assert {c["track_id"] for c in result["candidates"]} == {"t1", "t2", "t3"}
+        assert set(result["candidates"][0].keys()) == {"track_id", "tags", "score"}
+        assert result["candidates"][0]["track_id"] == "t1"  # ranked best-first
+
+    def test_top_n_limits_candidates(self, index):
+        scene = _scene(Emotion.JOY)
+        result = match_scene_to_track_detailed(scene, index, top_n=2)
+        assert len(result["candidates"]) == 2
+
+    def test_avoids_previous_track(self, index):
+        scene = _scene(Emotion.JOY)
+        result = match_scene_to_track_detailed(scene, index, previous_track_id="t1")
+        assert result["selected_track"] == "t2"  # t1 is top but == previous, bumped
+
+    def test_fallback_full_index_when_no_emotion_match(self, index):
+        scene = _scene(Emotion.WONDER)
+        result = match_scene_to_track_detailed(scene, index)
+        assert result["fallback"] == "full_index"
+
+    def test_fallback_style_only(self):
+        index = [
+            _track("jp", Emotion.JOY, ["happy"], instrument_tags=["piano"]),
+            _track("orc", Emotion.SORROW, ["sad"], instrument_tags=["strings", "orchestra"]),
+        ]
+        scene = _scene(Emotion.SORROW)
+        result = match_scene_to_track_detailed(scene, index, style="piano_only")
+        assert result["fallback"] == "style_only"
+        assert result["selected_track"] == "jp"
+        assert result["style_applied"] == "piano_only"
+
+    def test_fallback_emotion_only(self):
+        index = [
+            _track(
+                "rk",
+                Emotion.TENSION,
+                ["dark", "heavy"],
+                instrument_tags=["electricguitar", "drums"],
+            ),
+        ]
+        scene = _scene(Emotion.TENSION)
+        result = match_scene_to_track_detailed(scene, index, style="noir_jazz")
+        assert result["fallback"] == "emotion_only"
+        assert result["selected_track"] == "rk"
+
+    def test_empty_index_returns_no_selection(self):
+        scene = _scene(Emotion.JOY)
+        result = match_scene_to_track_detailed(scene, [])
+        assert result["selected_track"] is None
+        assert result["candidates"] == []
+        # Behavior-preserving: the no-candidate result omits scene_vector.
+        assert "scene_vector" not in result
+
+    def test_exclude_honored_in_selection_but_not_in_candidates(self, index):
+        """Converged behavior: selected_track honors exclude (matching the played track),
+        while the candidates list keeps the full ranking so the dev view can still see
+        skipped tracks.
+
+        Ranking is t1 > t2 > t3. With t1 excluded and t2 == previous_track_id, selection
+        bumps to t3 — identical to match_scene_to_track's behavior.
+        """
+        scene = _scene(Emotion.JOY)
+        result = match_scene_to_track_detailed(
+            scene, index, exclude_track_ids={"t1"}, previous_track_id="t2"
+        )
+        assert result["selected_track"] == "t3"
+        # The excluded track is still shown in the full ranking.
+        assert "t1" in {c["track_id"] for c in result["candidates"]}
+
+    def test_selection_matches_non_detailed_path(self, index):
+        """The dev view is a projection: its selected_track equals match_scene_to_track."""
+        scene = _scene(Emotion.JOY)
+        for kwargs in (
+            {},
+            {"previous_track_id": "t1"},
+            {"exclude_track_ids": {"t1"}},
+            {"exclude_track_ids": {"t1"}, "previous_track_id": "t2"},
+            {"style": "piano_only"},
+        ):
+            plain = match_scene_to_track(scene, index, **kwargs)
+            detailed = match_scene_to_track_detailed(scene, index, **kwargs)
+            expected = plain.track_id if plain else None
+            assert detailed["selected_track"] == expected, kwargs
 
 
 class TestShouldCrossfade:
