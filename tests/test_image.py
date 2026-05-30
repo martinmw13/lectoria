@@ -130,7 +130,9 @@ class TestGenerateSceneImage:
     async def test_writes_image_to_scenes_dir(self, book_on_disk):
         scene = book_on_disk.ncm.chapters[0].scenes[0]
         provider = FakeImageProvider([FAKE_PNG])
-        out = await generate_scene_image(provider, scene, book_on_disk.book_dir, 1)
+        out = await generate_scene_image(
+            provider, book_on_disk.store, book_on_disk.book_id, scene, 1
+        )
         assert out is not None
         assert out == book_on_disk.book_dir / "images" / "scenes" / "ch1_sc1.png"
         assert out.read_bytes() == FAKE_PNG
@@ -147,7 +149,9 @@ class TestGenerateSceneImage:
             image_prompt="",
         )
         provider = FakeImageProvider([FAKE_PNG])
-        out = await generate_scene_image(provider, scene, book_on_disk.book_dir, 1)
+        out = await generate_scene_image(
+            provider, book_on_disk.store, book_on_disk.book_id, scene, 1
+        )
         assert out is None
         assert provider.calls == 0
 
@@ -157,7 +161,9 @@ class TestGenerateSceneImage:
         existing = book_on_disk.book_dir / "images" / "scenes" / "ch1_sc1.png"
         existing.write_bytes(b"already-here")
         provider = FakeImageProvider([FAKE_PNG])
-        out = await generate_scene_image(provider, scene, book_on_disk.book_dir, 1)
+        out = await generate_scene_image(
+            provider, book_on_disk.store, book_on_disk.book_id, scene, 1
+        )
         assert out is not None
         assert out == existing
         assert out.read_bytes() == b"already-here"
@@ -167,7 +173,9 @@ class TestGenerateSceneImage:
     async def test_provider_failure_returns_none(self, book_on_disk):
         scene = book_on_disk.ncm.chapters[0].scenes[0]
         provider = FakeImageProvider([RuntimeError("image API down")])
-        out = await generate_scene_image(provider, scene, book_on_disk.book_dir, 1)
+        out = await generate_scene_image(
+            provider, book_on_disk.store, book_on_disk.book_id, scene, 1
+        )
         assert out is None
         assert provider.calls == 1
 
@@ -178,9 +186,10 @@ class TestGenerateOnDemand:
         provider = FakeImageProvider([FAKE_PNG])
         image = await generate_on_demand(
             provider,
+            book_on_disk.store,
+            book_on_disk.book_id,
             "Hero draws a sword.",
             book_on_disk.ncm.book_map,
-            book_on_disk.book_dir,
         )
         assert image == FAKE_PNG
         # A single identified character is persisted as character memory (Decision 8).
@@ -193,9 +202,10 @@ class TestGenerateOnDemand:
         provider = FakeImageProvider([FAKE_PNG])
         await generate_on_demand(
             provider,
+            book_on_disk.store,
+            book_on_disk.book_id,
             "An empty corridor stretched into darkness.",
             book_on_disk.ncm.book_map,
-            book_on_disk.book_dir,
         )
         chars_dir = book_on_disk.book_dir / "images" / "characters"
         assert list(chars_dir.iterdir()) == []

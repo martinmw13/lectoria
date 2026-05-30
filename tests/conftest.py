@@ -25,6 +25,7 @@ from lectoria.models.ncm import (
     Emotion,
     Scene,
 )
+from lectoria.services.bookstore import FileSystemBookStore
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ class BookOnDisk:
     book_id: str
     book_dir: Path
     ncm: NCM
+    store: FileSystemBookStore
 
 
 def _sample_ncm() -> NCM:
@@ -86,4 +88,9 @@ def book_on_disk(tmp_path: Path) -> BookOnDisk:
     for sub in ("covers", "scenes", "characters"):
         (book_dir / "images" / sub).mkdir(parents=True, exist_ok=True)
     (book_dir / "ncm.json").write_text(ncm.model_dump_json(indent=2))
-    return BookOnDisk(book_id=book_id, book_dir=book_dir, ncm=ncm)
+    return BookOnDisk(
+        book_id=book_id,
+        book_dir=book_dir,
+        ncm=ncm,
+        store=FileSystemBookStore(book_dir.parent),
+    )

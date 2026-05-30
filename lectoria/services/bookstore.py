@@ -7,7 +7,9 @@ build ``books_dir / book_id / artifact`` paths or run existence checks inline.
 The read side covers the book retrieval routes: ``exists`` / ``has_ncm`` /
 ``load_ncm`` (for ``get_ncm`` / ``get_book``) plus ``list_books`` /
 ``load_chapters_json`` (for the listing and chapters routes). The image-path
-resolvers and the write side land in later slices of PRD #30.
+resolvers (scene / cover / character / on-demand, consumed by the image
+service and the image routes) and the ``source.epub`` resolver complete the
+artifact layout. The write side lands in a later slice of PRD #30.
 """
 
 import json
@@ -69,6 +71,26 @@ class BookStore(Protocol):
         """Load the raw ingested chapters JSON. Raises ``ArtifactNotFound`` if absent."""
         ...
 
+    def source_epub_path(self, book_id: str) -> Path:
+        """Resolve the path to the book's source EPUB (no existence check)."""
+        ...
+
+    def scene_image_path(self, book_id: str, chapter_index: int, scene_index: int) -> Path:
+        """Resolve the cache path for an automatic scene image (no existence check)."""
+        ...
+
+    def cover_image_path(self, book_id: str, chapter_index: int) -> Path:
+        """Resolve the cache path for a chapter cover image (no existence check)."""
+        ...
+
+    def character_image_path(self, book_id: str, character_id: str) -> Path:
+        """Resolve the path for a character reference image (no existence check)."""
+        ...
+
+    def on_demand_image_path(self, book_id: str, chapter_index: int, scene_index: int) -> Path:
+        """Resolve the cache path for an on-demand image (no existence check)."""
+        ...
+
 
 class FileSystemBookStore:
     """``BookStore`` backed by the ``data/books/<book-id>/`` filesystem layout."""
@@ -120,3 +142,21 @@ class FileSystemBookStore:
         if not path.exists():
             raise ArtifactNotFound(f"Chapters not found for book '{book_id}'")
         return json.loads(path.read_text())
+
+    def _image_path(self, book_id: str, kind: str, filename: str) -> Path:
+        return self._book_dir(book_id) / "images" / kind / filename
+
+    def source_epub_path(self, book_id: str) -> Path:
+        return self._book_dir(book_id) / "source.epub"
+
+    def scene_image_path(self, book_id: str, chapter_index: int, scene_index: int) -> Path:
+        return self._image_path(book_id, "scenes", f"ch{chapter_index}_sc{scene_index}.png")
+
+    def cover_image_path(self, book_id: str, chapter_index: int) -> Path:
+        return self._image_path(book_id, "covers", f"ch{chapter_index}.png")
+
+    def character_image_path(self, book_id: str, character_id: str) -> Path:
+        return self._image_path(book_id, "characters", f"{character_id}.png")
+
+    def on_demand_image_path(self, book_id: str, chapter_index: int, scene_index: int) -> Path:
+        return self._image_path(book_id, "on_demand", f"ch{chapter_index}_sc{scene_index}.png")
