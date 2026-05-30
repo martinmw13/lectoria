@@ -1,10 +1,13 @@
 """Music track matching and crossfade endpoints."""
 
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from lectoria.api.deps import get_book_store
 from lectoria.core.config import get_settings
+from lectoria.services.bookstore import ArtifactNotFound, BookStore
 from lectoria.services.music import (
     EMOTION_TO_CLUSTER,
     STYLE_PRESETS,
@@ -14,7 +17,6 @@ from lectoria.services.music import (
     match_scene_to_track_detailed,
     should_crossfade,
 )
-from lectoria.services.pipeline import find_scene, load_ncm
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,7 @@ async def get_scene_track(
     book_id: str,
     chapter_idx: int,
     scene_idx: int,
+    store: Annotated[BookStore, Depends(get_book_store)],
     previous_track_id: str | None = None,
     exclude: str | None = None,
     detailed: bool = False,
@@ -48,17 +51,13 @@ async def get_scene_track(
             detail=f"Invalid style '{style}'. Valid options: {sorted(VALID_STYLE_NAMES)}",
         )
 
-    settings = get_settings()
-    book_dir = settings.books_dir / book_id
-    ncm_path = book_dir / "ncm.json"
-
-    if not ncm_path.exists():
-        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'")
-
-    ncm = load_ncm(book_dir)
+    try:
+        ncm = store.load_ncm(book_id)
+    except ArtifactNotFound:
+        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
 
     try:
-        _, scene = find_scene(ncm, chapter_idx, scene_idx)
+        _, scene = ncm.find_scene(chapter_idx, scene_idx)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -87,6 +86,7 @@ async def get_scene_track(
     if track is None:
         raise HTTPException(status_code=404, detail="No matching track found")
 
+    settings = get_settings()
     numeric_id = str(int(track.track_id.replace("track_", "")))
     local_path = settings.music_dir / track.file_path
     return {
@@ -105,6 +105,7 @@ async def check_crossfade(
     book_id: str,
     chapter_idx: int,
     scene_idx: int,
+    store: Annotated[BookStore, Depends(get_book_store)],
     prev_chapter_idx: int | None = None,
     prev_scene_idx: int | None = None,
 ) -> dict:
@@ -112,27 +113,22 @@ async def check_crossfade(
 
     Returns the hysteresis decision based on emotion clusters (Decision 12).
     """
-    settings = get_settings()
-    book_dir = settings.books_dir / book_id
-    ncm_path = book_dir / "ncm.json"
-
-    if not ncm_path.exists():
-        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'")
-
-    ncm = load_ncm(book_dir)
+    try:
+        ncm = store.load_ncm(book_id)
+    except ArtifactNotFound:
+        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
 
     try:
-        _, scene = find_scene(ncm, chapter_idx, scene_idx)
+        _, scene = ncm.find_scene(chapter_idx, scene_idx)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
     if prev_chapter_idx is None or prev_scene_idx is None:
         return {"should_crossfade": True, "reason": "no previous scene"}
 
-    prev_chapter = next((ch for ch in ncm.chapters if ch.chapter_index == prev_chapter_idx), None)
-    if prev_chapter is None:
-        return {"should_crossfade": True, "reason": "previous chapter not found"}
-    prev_scene = next((s for s in prev_chapter.scenes if s.scene_index == prev_scene_idx), None)
+    # Lenient previous-scene lookup: a missing chapter or scene never 404s — we
+    # default to crossfading rather than blocking the transition.
+    prev_scene = ncm.get_scene(prev_chapter_idx, prev_scene_idx)
     if prev_scene is None:
         return {"should_crossfade": True, "reason": "previous scene not found"}
 
