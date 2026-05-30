@@ -11,29 +11,9 @@ from pathlib import Path
 
 from lectoria.models.ncm import BookMap, Character, ChapterAnalysis, NCM, Scene
 from lectoria.providers.base import ImageProvider
+from lectoria.services.bookstore import BookStore
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Image persistence
-# ---------------------------------------------------------------------------
-
-
-def _scene_image_path(book_dir: Path, chapter_index: int, scene_index: int) -> Path:
-    return book_dir / "images" / "scenes" / f"ch{chapter_index}_sc{scene_index}.png"
-
-
-def _cover_image_path(book_dir: Path, chapter_index: int) -> Path:
-    return book_dir / "images" / "covers" / f"ch{chapter_index}.png"
-
-
-def _character_image_path(book_dir: Path, character_id: str) -> Path:
-    return book_dir / "images" / "characters" / f"{character_id}.png"
-
-
-def _on_demand_image_path(book_dir: Path, chapter_index: int, scene_index: int) -> Path:
-    return book_dir / "images" / "on_demand" / f"ch{chapter_index}_sc{scene_index}.png"
 
 
 # ---------------------------------------------------------------------------
@@ -41,9 +21,9 @@ def _on_demand_image_path(book_dir: Path, chapter_index: int, scene_index: int) 
 # ---------------------------------------------------------------------------
 
 
-def _load_character_ref(book_dir: Path, character_id: str) -> bytes | None:
+def _load_character_ref(store: BookStore, book_id: str, character_id: str) -> bytes | None:
     """Load a single character reference image on demand."""
-    path = _character_image_path(book_dir, character_id)
+    path = store.character_image_path(book_id, character_id)
     if path.exists():
         return path.read_bytes()
     return None
@@ -51,8 +31,9 @@ def _load_character_ref(book_dir: Path, character_id: str) -> bytes | None:
 
 async def generate_scene_image(
     provider: ImageProvider,
+    store: BookStore,
+    book_id: str,
     scene: Scene,
-    book_dir: Path,
     chapter_index: int,
 ) -> Path | None:
     """Generate an image for a scene using its image_prompt.
@@ -66,14 +47,14 @@ async def generate_scene_image(
         logger.debug("No image_prompt for scene %d, skipping", scene.scene_index)
         return None
 
-    out_path = _scene_image_path(book_dir, chapter_index, scene.scene_index)
+    out_path = store.scene_image_path(book_id, chapter_index, scene.scene_index)
     if out_path.exists():
         logger.debug("Scene image already exists: %s", out_path)
         return out_path
 
     reference = None
     if provider.supports_reference_image() and scene.characters_present:
-        reference = _load_character_ref(book_dir, scene.characters_present[0])
+        reference = _load_character_ref(store, book_id, scene.characters_present[0])
 
     try:
         image_bytes = await provider.generate(
@@ -93,14 +74,15 @@ async def generate_scene_image(
 
 async def generate_cover_image(
     provider: ImageProvider,
+    store: BookStore,
+    book_id: str,
     chapter: ChapterAnalysis,
-    book_dir: Path,
 ) -> Path | None:
     """Generate a chapter cover image from cover_description."""
     if not chapter.cover_description:
         return None
 
-    out_path = _cover_image_path(book_dir, chapter.chapter_index)
+    out_path = store.cover_image_path(book_id, chapter.chapter_index)
     if out_path.exists():
         return out_path
 
@@ -117,8 +99,9 @@ async def generate_cover_image(
 
 async def generate_all_images(
     provider: ImageProvider,
+    store: BookStore,
+    book_id: str,
     ncm: NCM,
-    book_dir: Path,
     *,
     scenes: bool = True,
     covers: bool = True,
@@ -132,7 +115,7 @@ async def generate_all_images(
 
     for chapter in ncm.chapters:
         if covers:
-            result = await generate_cover_image(provider, chapter, book_dir)
+            result = await generate_cover_image(provider, store, book_id, chapter)
             if result:
                 stats["covers_generated"] += 1
 
@@ -140,8 +123,9 @@ async def generate_all_images(
             for scene in chapter.scenes:
                 result = await generate_scene_image(
                     provider,
+                    store,
+                    book_id,
                     scene,
-                    book_dir,
                     chapter.chapter_index,
                 )
                 if result:
@@ -225,9 +209,10 @@ def build_on_demand_prompt(
 
 async def generate_on_demand(
     provider: ImageProvider,
+    store: BookStore,
+    book_id: str,
     selected_text: str,
     book_map: BookMap,
-    book_dir: Path,
     *,
     scene: Scene | None = None,
     chapter_index: int | None = None,
@@ -244,7 +229,7 @@ async def generate_on_demand(
 
     reference = None
     if provider.supports_reference_image() and identified:
-        ref_path = _character_image_path(book_dir, identified[0].id)
+        ref_path = store.character_image_path(book_id, identified[0].id)
         if ref_path.exists():
             reference = ref_path.read_bytes()
             logger.info("Using character reference for %s", identified[0].name)
@@ -253,7 +238,7 @@ async def generate_on_demand(
 
     # Store as character memory if a single character was identified (Decision 8)
     if len(identified) == 1:
-        char_path = _character_image_path(book_dir, identified[0].id)
+        char_path = store.character_image_path(book_id, identified[0].id)
         if not char_path.exists():
             char_path.parent.mkdir(parents=True, exist_ok=True)
             char_path.write_bytes(image_bytes)
@@ -261,7 +246,7 @@ async def generate_on_demand(
 
     # Cache to disk so it survives navigation and app restarts
     if chapter_index is not None and scene is not None:
-        cache_path = _on_demand_image_path(book_dir, chapter_index, scene.scene_index)
+        cache_path = store.on_demand_image_path(book_id, chapter_index, scene.scene_index)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_bytes(image_bytes)
         logger.info("Cached on-demand image: %s", cache_path)

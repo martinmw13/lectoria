@@ -2,15 +2,16 @@
 
 import base64
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from lectoria.api.deps import image_provider_dep
-from lectoria.core.config import get_settings
+from lectoria.api.deps import get_book_store, image_provider_dep
 from lectoria.providers.base import ImageProvider
+from lectoria.services.bookstore import ArtifactNotFound, BookStore
 from lectoria.services.image import generate_on_demand, generate_scene_image
-from lectoria.services.pipeline import find_scene, load_ncm
+from lectoria.services.pipeline import find_scene
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ class SceneImageRequest(BaseModel):
 async def generate_image(
     book_id: str,
     request: ImageGenerateRequest,
+    store: Annotated[BookStore, Depends(get_book_store)],
     image_provider: ImageProvider = Depends(image_provider_dep),
 ) -> dict:
     """Generate an on-demand image from selected text (Decision 5).
@@ -39,14 +41,10 @@ async def generate_image(
     Injects character physical descriptions via string matching (Decision 9).
     Stores character memory on single-character images (Decision 8).
     """
-    settings = get_settings()
-    book_dir = settings.books_dir / book_id
-    ncm_path = book_dir / "ncm.json"
-
-    if not ncm_path.exists():
-        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'")
-
-    ncm = load_ncm(book_dir)
+    try:
+        ncm = store.load_ncm(book_id)
+    except ArtifactNotFound:
+        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
 
     scene = None
     if request.chapter_index is not None and request.scene_index is not None:
@@ -58,9 +56,10 @@ async def generate_image(
     try:
         image_bytes = await generate_on_demand(
             image_provider,
+            store,
+            book_id,
             request.selected_text,
             ncm.book_map,
-            book_dir,
             scene=scene,
             chapter_index=request.chapter_index,
         )
@@ -86,17 +85,14 @@ async def generate_image(
 async def generate_scene(
     book_id: str,
     request: SceneImageRequest,
+    store: Annotated[BookStore, Depends(get_book_store)],
     image_provider: ImageProvider = Depends(image_provider_dep),
 ) -> dict:
     """Generate (or return cached) scene image from the LLM-produced image_prompt (Decision 33)."""
-    settings = get_settings()
-    book_dir = settings.books_dir / book_id
-    ncm_path = book_dir / "ncm.json"
-
-    if not ncm_path.exists():
-        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'")
-
-    ncm = load_ncm(book_dir)
+    try:
+        ncm = store.load_ncm(book_id)
+    except ArtifactNotFound:
+        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
 
     try:
         _, scene = find_scene(ncm, request.chapter_index, request.scene_index)
@@ -114,15 +110,12 @@ async def generate_scene(
         f"/ch{request.chapter_index}_sc{request.scene_index}.png"
     )
 
-    scene_path = (
-        book_dir / "images" / "scenes" / f"ch{request.chapter_index}_sc{request.scene_index}.png"
-    )
-    if scene_path.exists():
+    if store.scene_image_path(book_id, request.chapter_index, request.scene_index).exists():
         return {"cache_url": cache_url, "generated": False}
 
     try:
         result_path = await generate_scene_image(
-            image_provider, scene, book_dir, request.chapter_index
+            image_provider, store, book_id, scene, request.chapter_index
         )
     except Exception as e:
         logger.error("Scene image generation failed: %s", e)
