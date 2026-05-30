@@ -1,11 +1,17 @@
-%%{init: {'theme':'neutral','themeVariables':{'fontFamily':'system-ui, -apple-system, sans-serif','fontSize':'14px'}}}%%
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui, -apple-system, sans-serif','fontSize':'14px','actorBkg':'#eff6ff','actorBorder':'#2563eb','actorTextColor':'#1e3a5f','actorLineColor':'#cbd5e1','signalColor':'#475569','signalTextColor':'#0f172a','noteBkgColor':'#fef3c7','noteBorderColor':'#d97706','noteTextColor':'#7c2d12','sequenceNumberColor':'#ffffff'}}}%%
 sequenceDiagram
   autonumber
-  participant B as Browser (SPA)
-  participant R as Route handler
-  participant D as deps.py
-  participant Reg as provider registry
-  participant G as Google Gemini
+  box rgb(239,246,255) Frontend
+    participant B as Browser (SPA)
+  end
+  box rgb(248,250,252) Backend
+    participant R as Route handler
+    participant D as deps.py
+    participant Reg as provider registry
+  end
+  box rgb(237,233,254) External boundary
+    participant G as Google Gemini
+  end
 
   Note over B: key in localStorage
   B->>R: request + headers X-Provider-LLM, X-API-Key-LLM

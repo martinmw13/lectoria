@@ -1,4 +1,4 @@
-%%{init: {'theme':'neutral','themeVariables':{'fontFamily':'system-ui, -apple-system, sans-serif','fontSize':'14px'}}}%%
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui, -apple-system, sans-serif','fontSize':'14px','lineColor':'#94a3b8','primaryColor':'#f1f5f9','primaryBorderColor':'#94a3b8','primaryTextColor':'#0f172a'}}}%%
 flowchart TB
   EPUB(["EPUB upload"]) --> ING["1 · Ingestion<br/>parse spine → numbered paragraphs<br/>flag non-narrative chapters"]
   ING --> CD["ChaptersData<br/>chapters[] with Paragraph[]"]
@@ -16,3 +16,17 @@ flowchart TB
 
   LLMJSON["llm_json.complete_to_model<br/>extract → validate → retry"] -.->|both stages| LLM1
   LLMJSON -.-> LLM2
+
+  classDef input fill:#eff6ff,stroke:#2563eb,stroke-width:1.5px,color:#1e3a5f;
+  classDef stage fill:#e0e7ff,stroke:#4f46e5,stroke-width:1.5px,color:#312e81;
+  classDef data fill:#f1f5f9,stroke:#94a3b8,color:#0f172a;
+  classDef store fill:#d1fae5,stroke:#059669,stroke-width:1.5px,color:#064e3b;
+  classDef output fill:#a7f3d0,stroke:#047857,stroke-width:2.5px,color:#064e3b;
+  classDef helper fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#7c2d12;
+
+  class EPUB input;
+  class ING,LLM1,LLM2,ASM stage;
+  class CD,CA data;
+  class BM store;
+  class NCM output;
+  class LLMJSON helper;
