@@ -223,8 +223,13 @@ def parallel_groups(issues: list[Issue]) -> list[list[int]]:
 # --- gh I/O (edges) --------------------------------------------------------
 
 
+_GH_TIMEOUT = 30  # seconds — bound the network call so `just next` cannot hang
+
+
 def _gh_json(args: list[str]) -> list[dict]:
-    proc = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
+    proc = subprocess.run(
+        ["gh", *args], capture_output=True, text=True, check=True, timeout=_GH_TIMEOUT
+    )
     return json.loads(proc.stdout)
 
 
@@ -277,8 +282,19 @@ def fetch_open_prs() -> list[dict]:
 _RULE = "─" * 64
 
 
+_TOUCHES_WARNING = "       ⚠ no `Touches:` line — add one (picking-work.md)"
+
+
 def _join_refs(nums: list[int]) -> str:
     return ", ".join(f"#{n}" for n in nums)
+
+
+def _flag_missing_touches(iss: Issue, lines: list[str]) -> None:
+    """Append the missing-Touches warning so it surfaces in every bucket, not
+    only Available (an undeclared issue must never be silently un-flagged).
+    """
+    if not iss.has_touches:
+        lines.append(_TOUCHES_WARNING)
 
 
 def render_available(buckets: Buckets, ready: list[Issue]) -> list[str]:
@@ -289,8 +305,7 @@ def render_available(buckets: Buckets, ready: list[Issue]) -> list[str]:
         unb = unblocks(iss.number, ready)
         note = f"  → unblocks {_join_refs(unb)}" if unb else ""
         lines.append(f"  #{iss.number}  {iss.title}{note}")
-        if not iss.has_touches:
-            lines.append("       ⚠ no `Touches:` line — add one (picking-work.md)")
+        _flag_missing_touches(iss, lines)
     return lines
 
 
@@ -300,6 +315,7 @@ def render_in_flight(buckets: Buckets) -> list[str]:
         lines.append("  (none)")
     for iss, prs in buckets.in_flight:
         lines.append(f"  #{iss.number}  {iss.title}  (PR {_join_refs(prs)})")
+        _flag_missing_touches(iss, lines)
     return lines
 
 
@@ -309,6 +325,7 @@ def render_blocked(buckets: Buckets) -> list[str]:
         lines.append("  (none)")
     for iss, blockers in buckets.blocked:
         lines.append(f"  #{iss.number}  {iss.title}  (blocked by {_join_refs(blockers)})")
+        _flag_missing_touches(iss, lines)
     return lines
 
 
@@ -326,7 +343,12 @@ def main() -> int:
         ready = fetch_ready_issues()
         closed = fetch_closed_numbers()
         prs = fetch_open_prs()
-    except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError) as exc:
+    except (
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        FileNotFoundError,
+        json.JSONDecodeError,
+    ) as exc:
         print(f"error: failed to query the tracker via gh: {exc}", file=sys.stderr)
         return 1
     buckets = classify(ready, closed, build_pr_refs(prs))

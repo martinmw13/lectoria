@@ -5,6 +5,8 @@ parse/classify/grouping functions.
 """
 
 from scripts.whats_next import (
+    _TOUCHES_WARNING,
+    Buckets,
     Issue,
     build_pr_refs,
     classify,
@@ -13,6 +15,7 @@ from scripts.whats_next import (
     parse_issue,
     parse_touches,
     pr_issue_refs,
+    render_blocked,
     unblocks,
 )
 
@@ -171,6 +174,15 @@ class TestUnblocks:
         issues = [_issue(10, blocked_by=(5,)), _issue(11, blocked_by=(5,)), _issue(12)]
         assert unblocks(5, issues) == [10, 11]
         assert unblocks(12, issues) == []
+
+
+class TestRender:
+    def test_missing_touches_flagged_outside_available(self):
+        # Criterion 5: an undeclared-Touches issue must be flagged in every
+        # bucket, not only Available.
+        iss = _issue(10, blocked_by=(5,), touches=(), has_touches=False)
+        buckets = Buckets(available=[], in_flight=[], blocked=[(iss, [5])])
+        assert _TOUCHES_WARNING in render_blocked(buckets)
 
 
 class TestParallelGroups:
