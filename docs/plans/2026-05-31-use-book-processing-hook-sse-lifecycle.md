@@ -200,8 +200,15 @@ export function useBookProcessing(): {
   error: ProcessingError | null;
   finalBookId: string | null;
   start: (bookId: string, opts?: ProcessOptions) => void;
+  reset: () => void;   // ← added during implementation (see note below)
 };
 ```
+
+> **Surface addition — `reset()`.** The grilled surface had no `reset`. Implementation
+> required one: because `UploadPage` *derives* the overwrite dialog from `error` (rather than
+> storing it — see Phase 4), analyzing a *new* book after a 409 must clear the stale error, or
+> the dialog would linger. `reset()` returns the hook to idle (abort + clear
+> progress/error/finalBookId). Small, implementation-driven extension; flagged for review.
 
 #### 2. Implementation notes (the landmine: two error paths must NOT be flattened)
 - `useState` for `status`, `progress`, `error`, `finalBookId`; `useRef<AbortController | null>`
@@ -239,38 +246,37 @@ export function useBookProcessing(): {
 
 ## Phase 4: `UploadPage` migration
 
-Consume the hook; move routing + overwrite detection into mount-scoped effects.
+Consume the hook; routing on completion is a mount-scoped effect, and the overwrite dialog is
+**derived** from the error (not stored + set in an effect — this repo's eslint rule
+`react-hooks/set-state-in-effect` forbids `setState` inside `useEffect`).
 
 ### Changes Required
 **File**: `frontend/src/pages/UploadPage.tsx`
-1. Delete the #64 `abortStreamRef` + its cleanup effect and the local `processing`/`progress`
-   stream state; replace with
-   `const { status, progress, error: processingError, finalBookId, start } = useBookProcessing();`
+1. Delete the #64 `abortStreamRef` + its cleanup effect and the local `processing`/`progress`/
+   `confirmOverwrite` stream state; replace the destructure with
+   `const { status, progress, error: processingError, finalBookId, start, reset } = useBookProcessing();`
    Keep local `error` (rename mentally to "form/validation error") for `handleUpload` failures
-   and the missing-key message; keep `estimate`/`maxChapters`/`confirmOverwrite`/`books`.
+   and the missing-key message; keep `estimate`/`maxChapters`/`books`. Derive
+   `const processing = status === 'running';`.
 2. `startProcessing(force)`: keep the BYOK-key guard (sets local `error` + Settings link), then
-   **keep the existing page-local resets** `setError('')` and `setConfirmOverwrite(false)`
-   (`UploadPage.tsx:54-55`) before calling `start(...)` — the hook resets *hook* state only
-   (progress/error/status), not page-local state. Then
-   `start(estimate.book_id, { maxChapters: maxChapters > 0 ? maxChapters : undefined, force });`
-   (no callbacks).
-   > **Why this matters (the other half of the union landmine):** on the **Reprocess** path,
-   > if `setConfirmOverwrite(false)` is dropped, the hook clears `error` and the overwrite
-   > effect no-ops, so `confirmOverwrite` stays `true` — the dialog renders *alongside* the
-   > `status === 'running'` progress panel. Dropping `setError('')` leaves a stale banner.
+   `setError('')` before `start(estimate.book_id, { maxChapters: maxChapters > 0 ? maxChapters : undefined, force })`.
+   No `setConfirmOverwrite` needed: `start()` clears the hook error, and the derived
+   `confirmOverwrite` follows it — so the **Reprocess** path transitions cleanly from dialog to
+   progress panel with no overlap (the other half of the union landmine, now handled by
+   derivation rather than a manual reset).
+   `handleUpload` calls `reset()` (alongside `setError('')`/`setEstimate(null)`) so analyzing a
+   new book clears any stale 409 dialog.
 3. **Routing effect (mount-scoped — structurally prevents the #64 redirect):**
    ```ts
    useEffect(() => {
      if (status === 'done' && finalBookId) navigate(`/reader/${finalBookId}`);
    }, [status, finalBookId, navigate]);
    ```
-4. **Overwrite detection via the typed union (replaces `err.includes('409')`):**
+4. **Overwrite detection via the typed union (replaces `err.includes('409')`), derived — not
+   an effect** (eslint forbids `setState` in `useEffect`; derivation also clears it for free
+   when the error clears):
    ```ts
-   useEffect(() => {
-     if (processingError?.kind === 'http' && processingError.status === 409) {
-       setConfirmOverwrite(true);
-     }
-   }, [processingError]);
+   const confirmOverwrite = processingError?.kind === 'http' && processingError.status === 409;
    ```
 5. **Display error** — show the validation/upload error, else the processing error message,
    *except* the 409-overwrite case (which drives the dialog, not the banner):
