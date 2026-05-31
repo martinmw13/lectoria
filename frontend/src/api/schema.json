@@ -1,0 +1,1663 @@
+{
+  "components": {
+    "schemas": {
+      "Body_upload_and_estimate_api_books_upload_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_and_estimate_api_books_upload_post",
+        "type": "object"
+      },
+      "BookMap": {
+        "description": "LLM 1 output: book-level context.",
+        "properties": {
+          "book_id": {
+            "default": "",
+            "title": "Book Id",
+            "type": "string"
+          },
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/ChapterSummary"
+            },
+            "title": "Chapters",
+            "type": "array"
+          },
+          "characters": {
+            "items": {
+              "$ref": "#/components/schemas/Character"
+            },
+            "title": "Characters",
+            "type": "array"
+          },
+          "genre": {
+            "default": "",
+            "title": "Genre",
+            "type": "string"
+          },
+          "setting": {
+            "$ref": "#/components/schemas/BookSetting"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "title": "BookMap",
+        "type": "object"
+      },
+      "BookResponse": {
+        "description": "The NCM-derived fields are present only once a book has been processed;\nthey are set/unset together and dropped via response_model_exclude_unset.",
+        "properties": {
+          "book_id": {
+            "title": "Book Id",
+            "type": "string"
+          },
+          "chapter_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Count"
+          },
+          "character_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Character Count"
+          },
+          "genre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Genre"
+          },
+          "has_ncm": {
+            "title": "Has Ncm",
+            "type": "boolean"
+          },
+          "scene_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Count"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "book_id",
+          "has_ncm"
+        ],
+        "title": "BookResponse",
+        "type": "object"
+      },
+      "BookSetting": {
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "time_period": {
+            "default": "",
+            "title": "Time Period",
+            "type": "string"
+          },
+          "world": {
+            "default": "",
+            "title": "World",
+            "type": "string"
+          }
+        },
+        "title": "BookSetting",
+        "type": "object"
+      },
+      "BookSummary": {
+        "properties": {
+          "book_id": {
+            "title": "Book Id",
+            "type": "string"
+          },
+          "has_ncm": {
+            "title": "Has Ncm",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "book_id",
+          "title",
+          "has_ncm"
+        ],
+        "title": "BookSummary",
+        "type": "object"
+      },
+      "ChapterAnalysis": {
+        "description": "LLM 2 output: scene-level analysis for one chapter.",
+        "properties": {
+          "attempt_count": {
+            "default": 0,
+            "title": "Attempt Count",
+            "type": "integer"
+          },
+          "chapter_index": {
+            "title": "Chapter Index",
+            "type": "integer"
+          },
+          "cover_description": {
+            "default": "",
+            "title": "Cover Description",
+            "type": "string"
+          },
+          "is_fallback": {
+            "default": false,
+            "title": "Is Fallback",
+            "type": "boolean"
+          },
+          "llm_model": {
+            "default": "",
+            "title": "Llm Model",
+            "type": "string"
+          },
+          "scenes": {
+            "items": {
+              "$ref": "#/components/schemas/Scene"
+            },
+            "title": "Scenes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "chapter_index"
+        ],
+        "title": "ChapterAnalysis",
+        "type": "object"
+      },
+      "ChapterSummary": {
+        "properties": {
+          "chapter_index": {
+            "title": "Chapter Index",
+            "type": "integer"
+          },
+          "summary": {
+            "default": "",
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chapter_index"
+        ],
+        "title": "ChapterSummary",
+        "type": "object"
+      },
+      "ChaptersResponse": {
+        "additionalProperties": true,
+        "description": "Passthrough of the on-disk chapters JSON. The store is intentionally\ndata-faithful (no model round-trip), so this stays a permissive wrapper\nrather than the strict ChaptersData schema.",
+        "title": "ChaptersResponse",
+        "type": "object"
+      },
+      "Character": {
+        "properties": {
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "physical_description": {
+            "default": "",
+            "title": "Physical Description",
+            "type": "string"
+          },
+          "relationships": {
+            "items": {
+              "$ref": "#/components/schemas/Relationship"
+            },
+            "title": "Relationships",
+            "type": "array"
+          },
+          "role": {
+            "$ref": "#/components/schemas/CharacterRole",
+            "default": "minor"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Character",
+        "type": "object"
+      },
+      "CharacterRole": {
+        "enum": [
+          "protagonist",
+          "antagonist",
+          "secondary",
+          "minor"
+        ],
+        "title": "CharacterRole",
+        "type": "string"
+      },
+      "CostEstimate": {
+        "properties": {
+          "book_id": {
+            "title": "Book Id",
+            "type": "string"
+          },
+          "estimated_tokens": {
+            "title": "Estimated Tokens",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "narrative_chapters": {
+            "title": "Narrative Chapters",
+            "type": "integer"
+          },
+          "total_chapters": {
+            "title": "Total Chapters",
+            "type": "integer"
+          },
+          "total_paragraphs": {
+            "title": "Total Paragraphs",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "book_id",
+          "total_chapters",
+          "narrative_chapters",
+          "total_paragraphs",
+          "estimated_tokens",
+          "message"
+        ],
+        "title": "CostEstimate",
+        "type": "object"
+      },
+      "CrossfadeResponse": {
+        "description": "``reason`` is set only on the short-circuit paths; the emotion/cluster\nfields are set only when both scenes are present (mutually exclusive).",
+        "properties": {
+          "current_cluster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Cluster"
+          },
+          "current_emotion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Emotion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previous_cluster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Cluster"
+          },
+          "previous_emotion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Emotion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "should_crossfade": {
+            "title": "Should Crossfade",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "should_crossfade"
+        ],
+        "title": "CrossfadeResponse",
+        "type": "object"
+      },
+      "DetailedSceneTrackResponse": {
+        "description": "Dev-view projection (``detailed=True``). ``scene_vector`` is omitted when\nthere is no candidate pool, preserving the historical no-vector shape.",
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/SceneTrackCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "fallback": {
+            "title": "Fallback",
+            "type": "string"
+          },
+          "scene_vector": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Vector"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "selected_track": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Track"
+          },
+          "style_applied": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style Applied"
+          }
+        },
+        "required": [
+          "selected_track",
+          "score",
+          "fallback",
+          "style_applied",
+          "candidates"
+        ],
+        "title": "DetailedSceneTrackResponse",
+        "type": "object"
+      },
+      "Emotion": {
+        "enum": [
+          "joy",
+          "sorrow",
+          "tension",
+          "anger",
+          "peace",
+          "romance",
+          "mystery",
+          "excitement",
+          "wonder"
+        ],
+        "title": "Emotion",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ImageGenerateRequest": {
+        "properties": {
+          "chapter_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Index"
+          },
+          "scene_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Index"
+          },
+          "selected_text": {
+            "title": "Selected Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "selected_text"
+        ],
+        "title": "ImageGenerateRequest",
+        "type": "object"
+      },
+      "MusicPreset": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "MusicPreset",
+        "type": "object"
+      },
+      "NCM": {
+        "description": "Complete Narrative Context Map for a book.",
+        "properties": {
+          "book_map": {
+            "$ref": "#/components/schemas/BookMap"
+          },
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/ChapterAnalysis"
+            },
+            "title": "Chapters",
+            "type": "array"
+          }
+        },
+        "required": [
+          "book_map"
+        ],
+        "title": "NCM",
+        "type": "object"
+      },
+      "OnDemandImageResponse": {
+        "properties": {
+          "cache_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Url"
+          },
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "image_base64": {
+            "title": "Image Base64",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image_base64",
+          "content_type"
+        ],
+        "title": "OnDemandImageResponse",
+        "type": "object"
+      },
+      "Pacing": {
+        "enum": [
+          "slow",
+          "medium",
+          "fast"
+        ],
+        "title": "Pacing",
+        "type": "string"
+      },
+      "Relationship": {
+        "properties": {
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_id",
+          "type"
+        ],
+        "title": "Relationship",
+        "type": "object"
+      },
+      "Scene": {
+        "properties": {
+          "characters_present": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Characters Present",
+            "type": "array"
+          },
+          "emotion": {
+            "$ref": "#/components/schemas/Emotion"
+          },
+          "end_paragraph": {
+            "title": "End Paragraph",
+            "type": "integer"
+          },
+          "image_prompt": {
+            "default": "",
+            "title": "Image Prompt",
+            "type": "string"
+          },
+          "key_objects": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Key Objects",
+            "type": "array"
+          },
+          "key_phrases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Key Phrases",
+            "type": "array"
+          },
+          "pacing": {
+            "$ref": "#/components/schemas/Pacing",
+            "default": "medium"
+          },
+          "raw_emotion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Emotion"
+          },
+          "raw_pacing": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Pacing"
+          },
+          "raw_scene_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Scene Type"
+          },
+          "raw_transition_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Transition Type"
+          },
+          "scene_index": {
+            "title": "Scene Index",
+            "type": "integer"
+          },
+          "scene_type": {
+            "$ref": "#/components/schemas/SceneType",
+            "default": "description"
+          },
+          "setting": {
+            "$ref": "#/components/schemas/SceneSetting"
+          },
+          "start_paragraph": {
+            "title": "Start Paragraph",
+            "type": "integer"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          },
+          "transition_type": {
+            "$ref": "#/components/schemas/TransitionType",
+            "default": "none"
+          }
+        },
+        "required": [
+          "scene_index",
+          "start_paragraph",
+          "end_paragraph",
+          "emotion"
+        ],
+        "title": "Scene",
+        "type": "object"
+      },
+      "SceneImageRequest": {
+        "properties": {
+          "chapter_index": {
+            "title": "Chapter Index",
+            "type": "integer"
+          },
+          "scene_index": {
+            "title": "Scene Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "chapter_index",
+          "scene_index"
+        ],
+        "title": "SceneImageRequest",
+        "type": "object"
+      },
+      "SceneImageResponse": {
+        "properties": {
+          "cache_url": {
+            "title": "Cache Url",
+            "type": "string"
+          },
+          "generated": {
+            "title": "Generated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cache_url",
+          "generated"
+        ],
+        "title": "SceneImageResponse",
+        "type": "object"
+      },
+      "SceneSetting": {
+        "properties": {
+          "location": {
+            "default": "",
+            "title": "Location",
+            "type": "string"
+          },
+          "time_of_day": {
+            "default": "",
+            "title": "Time Of Day",
+            "type": "string"
+          },
+          "weather": {
+            "default": "",
+            "title": "Weather",
+            "type": "string"
+          }
+        },
+        "title": "SceneSetting",
+        "type": "object"
+      },
+      "SceneTrackCandidate": {
+        "properties": {
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "track_id": {
+            "title": "Track Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "track_id",
+          "tags",
+          "score"
+        ],
+        "title": "SceneTrackCandidate",
+        "type": "object"
+      },
+      "SceneTrackResponse": {
+        "properties": {
+          "cached": {
+            "title": "Cached",
+            "type": "boolean"
+          },
+          "duration_seconds": {
+            "title": "Duration Seconds",
+            "type": "number"
+          },
+          "emotion_primary": {
+            "$ref": "#/components/schemas/Emotion"
+          },
+          "file_path": {
+            "title": "File Path",
+            "type": "string"
+          },
+          "stream_url": {
+            "title": "Stream Url",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "track_id": {
+            "title": "Track Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "track_id",
+          "file_path",
+          "stream_url",
+          "cached",
+          "duration_seconds",
+          "tags",
+          "emotion_primary"
+        ],
+        "title": "SceneTrackResponse",
+        "type": "object"
+      },
+      "SceneType": {
+        "enum": [
+          "action",
+          "dialogue",
+          "description",
+          "introspection",
+          "transition"
+        ],
+        "title": "SceneType",
+        "type": "string"
+      },
+      "TransitionType": {
+        "enum": [
+          "none",
+          "time_jump",
+          "pov_change",
+          "flashback",
+          "location_change"
+        ],
+        "title": "TransitionType",
+        "type": "string"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Multimodal EPUB reader with AI-driven narrative enrichment",
+    "title": "Lectoria",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/books/": {
+      "get": {
+        "description": "List all books that have been uploaded.",
+        "operationId": "list_books_api_books__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "$ref": "#/components/schemas/BookSummary"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response List Books Api Books  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Books",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/books/upload": {
+      "post": {
+        "description": "Upload an EPUB and get a cost estimate before processing.\n\nThe EPUB is saved and ingested. Returns chapter/paragraph counts\nand a token estimate so the user can decide whether to proceed.",
+        "operationId": "upload_and_estimate_api_books_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_and_estimate_api_books_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostEstimate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload And Estimate",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/books/{book_id}": {
+      "get": {
+        "description": "Get book metadata and NCM status.",
+        "operationId": "get_book_api_books__book_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "title": "Book Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Book",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/books/{book_id}/chapters": {
+      "get": {
+        "description": "Get the ingested chapters with paragraph text.",
+        "operationId": "get_chapters_api_books__book_id__chapters_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "title": "Book Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChaptersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Chapters",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/books/{book_id}/chapters/{chapter_idx}/scenes/{scene_idx}/crossfade": {
+      "get": {
+        "description": "Check whether a crossfade should occur when transitioning to this scene.\n\nReturns the hysteresis decision based on emotion clusters (Decision 12).",
+        "operationId": "check_crossfade_api_books__book_id__chapters__chapter_idx__scenes__scene_idx__crossfade_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "title": "Book Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "chapter_idx",
+            "required": true,
+            "schema": {
+              "title": "Chapter Idx",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "scene_idx",
+            "required": true,
+            "schema": {
+              "title": "Scene Idx",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "prev_chapter_idx",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Prev Chapter Idx"
+            }
+          },
+          {
+            "in": "query",
+            "name": "prev_scene_idx",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Prev Scene Idx"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrossfadeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Crossfade",
+        "tags": [
+          "music"
+        ]
+      }
+    },
+    "/api/books/{book_id}/chapters/{chapter_idx}/scenes/{scene_idx}/track": {
+      "get": {
+        "description": "Get the matched music track for a scene.\n\nArgs:\n    book_id: Book identifier.\n    chapter_idx: Chapter index (matches NCM chapter_index).\n    scene_idx: Scene index within the chapter.\n    previous_track_id: Track currently playing (for variety rule).\n    exclude: Comma-separated track IDs to skip (user-skipped tracks).\n    detailed: If true, include dev metadata (candidates, scores, vectors).\n    style: Style preset name (auto, cinematic, piano_only, ambient, synthwave, noir_jazz).",
+        "operationId": "get_scene_track_api_books__book_id__chapters__chapter_idx__scenes__scene_idx__track_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "title": "Book Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "chapter_idx",
+            "required": true,
+            "schema": {
+              "title": "Chapter Idx",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "scene_idx",
+            "required": true,
+            "schema": {
+              "title": "Scene Idx",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "previous_track_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Previous Track Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude"
+            }
+          },
+          {
+            "in": "query",
+            "name": "detailed",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Detailed",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "style",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Style"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SceneTrackResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DetailedSceneTrackResponse"
+                    }
+                  ],
+                  "title": "Response Get Scene Track Api Books  Book Id  Chapters  Chapter Idx  Scenes  Scene Idx  Track Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Scene Track",
+        "tags": [
+          "music"
+        ]
+      }
+    },
+    "/api/books/{book_id}/images/generate": {
+      "post": {
+        "description": "Generate an on-demand image from selected text (Decision 5).\n\nInjects character physical descriptions via string matching (Decision 9).\nStores character memory on single-character images (Decision 8).",
+        "operationId": "generate_image_api_books__book_id__images_generate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "title": "Book Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-provider-image",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Provider-Image"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key-image",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key-Image"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageGenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnDemandImageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Image",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/api/books/{book_id}/images/scene": {
+      "post": {
+        "description": "Generate (or return cached) scene image from the LLM-produced image_prompt (Decision 33).",
+        "operationId": "generate_scene_api_books__book_id__images_scene_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "title": "Book Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-provider-image",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Provider-Image"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key-image",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key-Image"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SceneImageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneImageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Scene",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/api/books/{book_id}/ncm": {
+      "get": {
+        "description": "Get the complete NCM for a book.",
+        "operationId": "get_ncm_api_books__book_id__ncm_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "title": "Book Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NCM"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Ncm",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/books/{book_id}/process": {
+      "post": {
+        "description": "Start processing a previously uploaded book. Streams progress via SSE.\n\nArgs:\n    max_chapters: If set, only process this many narrative chapters (for testing/free-tier).\n    force: If true, delete existing NCM and reprocess.",
+        "operationId": "process_book_api_books__book_id__process_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "title": "Book Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_chapters",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Chapters"
+            }
+          },
+          {
+            "in": "query",
+            "name": "force",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Force",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-provider-llm",
+            "required": true,
+            "schema": {
+              "title": "X-Provider-Llm",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key-llm",
+            "required": true,
+            "schema": {
+              "title": "X-Api-Key-Llm",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Process Book",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/music/presets": {
+      "get": {
+        "description": "Return available music style presets with descriptions.",
+        "operationId": "list_presets_api_music_presets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MusicPreset"
+                  },
+                  "title": "Response List Presets Api Music Presets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Presets",
+        "tags": [
+          "music"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    }
+  }
+}

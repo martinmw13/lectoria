@@ -32,6 +32,11 @@ fmt:
 typecheck:
     uv run pyright lectoria
 
+# Regenerate the frontend API types from the backend OpenAPI schema (commit both files)
+gen-api-types:
+    uv run python -c "import json; from lectoria.app import app; print(json.dumps(app.openapi(), indent=2, sort_keys=True))" > frontend/src/api/schema.json
+    cd frontend && npx openapi-typescript src/api/schema.json -o src/api/schema.d.ts
+
 # Run backend dev server (http://localhost:8000)
 dev:
     uv run python main.py

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getMusicStyle, setMusicStyle, getPresets, type StylePreset } from '../api/client';
+import { getMusicStyle, setMusicStyle, getPresets, type MusicPreset } from '../api/client';
 
 interface Settings {
   llm_provider: string;
@@ -30,7 +30,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [saved, setSaved] = useState(false);
   const [musicStyle, setMusicStyleState] = useState(getMusicStyle);
-  const [presets, setPresets] = useState<StylePreset[]>([]);
+  const [presets, setPresets] = useState<MusicPreset[]>([]);
 
   useEffect(() => {
     getPresets().then(setPresets).catch(() => {
