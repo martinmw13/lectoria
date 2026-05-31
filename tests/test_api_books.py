@@ -7,6 +7,7 @@ run without touching the real ``data/books/`` directory.
 """
 
 import json
+import logging
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -150,3 +151,18 @@ class TestGetChapters:
             res = await client.get(f"/api/books/{book_on_disk.book_id}/chapters")
         assert res.status_code == 404
         assert res.json()["detail"] == f"Chapters not found for book '{book_on_disk.book_id}'"
+
+    @pytest.mark.asyncio
+    async def test_corrupt_chapters_logs_and_returns_500(self, book_app, book_on_disk, caplog):
+        # A chapters.json that does not satisfy ChaptersData (chapter missing the
+        # required ``chapter_index``) is validated in-handler, so the route logs
+        # with ``book_id`` and returns a traceable 500 — rather than letting the
+        # framework raise an unattributed ResponseValidationError with no context.
+        bad = {"chapters": [{"title": "x", "paragraphs": [{"text": "no index"}]}]}
+        (book_on_disk.book_dir / "chapters.json").write_text(json.dumps(bad))
+        with caplog.at_level(logging.ERROR):
+            async with _client(book_app) as client:
+                res = await client.get(f"/api/books/{book_on_disk.book_id}/chapters")
+        assert res.status_code == 500
+        assert res.json()["detail"] == f"Corrupt chapters data for book '{book_on_disk.book_id}'"
+        assert book_on_disk.book_id in caplog.text  # logged with context (observability.md)

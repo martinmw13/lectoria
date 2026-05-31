@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sse_starlette.sse import EventSourceResponse
 
 from lectoria.api.deps import get_book_store, llm_provider_dep
@@ -229,10 +229,15 @@ async def get_chapters(book_id: str, store: Annotated[BookStore, Depends(get_boo
     raw dict, no model round-trip — D15); validation/serialization happens here.
     """
     try:
-        return store.load_chapters_json(book_id)
+        return ChaptersData.model_validate(store.load_chapters_json(book_id))
     except ArtifactNotFound:
         raise HTTPException(
             status_code=404, detail=f"Chapters not found for book '{book_id}'"
+        ) from None
+    except ValidationError:
+        logger.error("Corrupt chapters.json for book '%s'", book_id, exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Corrupt chapters data for book '{book_id}'"
         ) from None
 
 

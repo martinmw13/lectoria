@@ -28,5 +28,9 @@ round-trip), preserving D15.
 
 Route response validation now couples read-time health to `ChaptersData` schema
 stability — a future **required** field would 500 already-processed books.
-Accepted because `ChaptersData` is stable parsed-text, its fields have defaults
-(additive changes are safe), and `data/books/` is regenerable.
+Accepted because the current required fields (`Chapter.chapter_index`,
+`Paragraph.index`, `Paragraph.text`) have been stable since the model was
+introduced and the rest default (so only *optional* additive changes are safe),
+and `data/books/` is regenerable. The route validates in-handler and logs with
+`book_id`, so a corrupt artifact surfaces a traceable 500 rather than an
+unattributed framework error.
