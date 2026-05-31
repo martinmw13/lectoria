@@ -1,3 +1,5 @@
+import { providerHeaders } from './byok';
+import { getMusicStyle } from './prefs';
 import type { MusicPreset } from './types';
 
 // Re-exported so existing import sites (e.g. SettingsPage) resolve `MusicPreset`
@@ -5,20 +7,6 @@ import type { MusicPreset } from './types';
 export type { MusicPreset } from './types';
 
 const BASE = '/api/books';
-
-function providerHeaders(): Record<string, string> {
-  const llmProvider = localStorage.getItem('llm_provider') || '';
-  const llmKey = localStorage.getItem('llm_api_key') || '';
-  const imageProvider = localStorage.getItem('image_provider') || '';
-  const imageKey = localStorage.getItem('image_api_key') || '';
-
-  const headers: Record<string, string> = {};
-  if (llmProvider) headers['X-Provider-LLM'] = llmProvider;
-  if (llmKey) headers['X-API-Key-LLM'] = llmKey;
-  if (imageProvider) headers['X-Provider-Image'] = imageProvider;
-  if (imageKey) headers['X-API-Key-Image'] = imageKey;
-  return headers;
-}
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
@@ -164,14 +152,6 @@ export interface DetailedMatch {
   fallback: string;
   style_applied: string | null;
   candidates: Array<{ track_id: string; tags: string[]; score: number }>;
-}
-
-export function getMusicStyle(): string {
-  return localStorage.getItem('lectoria_music_style') || 'auto';
-}
-
-export function setMusicStyle(style: string): void {
-  localStorage.setItem('lectoria_music_style', style);
 }
 
 export async function getPresets(): Promise<MusicPreset[]> {

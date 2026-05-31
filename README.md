@@ -8,7 +8,7 @@ Multimodal EPUB reader with AI-driven narrative enrichment: a two-stage LLM pipe
 |-------|------------|
 | Backend | Python 3.14, FastAPI, Pydantic, ebooklib |
 | LLM / images | Google Gemini / Gemini image (pluggable providers) |
-| Frontend | React, TypeScript, Vite |
+| Frontend | React, TypeScript, Vite, Vitest |
 
 ## Requirements
 
@@ -93,7 +93,8 @@ OpenAPI: http://localhost:8000/docs
 ## Tests
 
 ```bash
-just test           # all tests
+just test           # backend tests (pytest)
+just test-frontend  # frontend tests (Vitest)
 just check          # lint + format check
 just typecheck      # pyright (opt-in, not yet in CI)
 just gen-api-types  # regenerate the frontend API types from the backend OpenAPI schema
