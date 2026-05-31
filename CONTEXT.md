@@ -32,6 +32,8 @@
 
 **Style Preset** — A named filter (`cinematic`, `piano_only`, `ambient`, `synthwave`, `noir_jazz`, `auto`) that restricts music candidates by instrument/genre tags before cosine ranking. User-selectable. `auto` disables filtering.
 
+**Crossfade** — The audible ~2s transition where one music track ramps down while the next ramps up, at a scene-driven music change. *Whether* a crossfade happens is the decision (D12 hysteresis, backend `should_crossfade`); performing the ramp is the execution, owned client-side by the **CrossfadeAudioPlayer**. _Avoid_: 'fade'/'transition' (ambiguous); 'swap' (the no-crossfade branch — a hard cut).
+
 **Coercion** — When LLM 2 returns an enum value outside the defined taxonomy (e.g. `"frustration"` instead of `"anger"`), the coercion layer maps it to the closest valid value. The original LLM value is preserved in `raw_<field>` on the Scene model for dev inspection.
 
 **BYOK (Bring Your Own Key)** — The API key model: users supply their own LLM and image generation API keys via the frontend Settings page. Keys are stored in `localStorage` and sent per-request via headers. Never persisted server-side.
