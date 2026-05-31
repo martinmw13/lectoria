@@ -98,6 +98,20 @@ just check        # lint + format check
 just typecheck    # pyright (opt-in, not yet in CI)
 ```
 
+## Picking work
+
+```bash
+just next         # what to work next, live from the issue tracker
+```
+
+`just next` (wraps `scripts/whats_next.py`) queries GitHub via `gh` and prints
+four sections derived from the `ready-for-agent` issues' `## Blocked by` /
+`## Touches` fields: **Available now** (unblocked, no open PR), **In flight**
+(an open PR already handles it), **Blocked** (waiting on an open blocker), and
+**Parallel-safe groups** (issues with disjoint `Touches:` that can run
+concurrently). It needs an authenticated `gh`. See `docs/agents/picking-work.md`
+for the underlying method.
+
 ## Project layout
 
 ```
