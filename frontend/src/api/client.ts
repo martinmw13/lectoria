@@ -1,10 +1,18 @@
 import { providerHeaders } from './byok';
 import { getMusicStyle } from './prefs';
-import type { MusicPreset } from './types';
+import type {
+  BookResponse,
+  ChaptersData,
+  CrossfadeResponse,
+  DetailedSceneTrackResponse,
+  MusicPreset,
+  NCM,
+  SceneTrackResponse,
+} from './types';
 
-// Re-exported so existing import sites (e.g. SettingsPage) resolve `MusicPreset`
+// Re-exported so existing `from '../api/client'` import sites resolve these names
 // off the generated schema without reaching into `./types` directly.
-export type { MusicPreset } from './types';
+export type { ChaptersData, MusicPreset, NCM } from './types';
 
 const BASE = '/api/books';
 
@@ -68,59 +76,6 @@ export function openProcessingStream(
 
 // --- NCM ---
 
-export interface NCM {
-  book_map: {
-    book_id: string;
-    title: string;
-    genre: string;
-    setting: { time_period: string; world: string; description: string };
-    characters: Array<{
-      id: string;
-      name: string;
-      aliases: string[];
-      physical_description: string;
-      role: string;
-      relationships: Array<{ target_id: string; type: string }>;
-    }>;
-    chapters: Array<{ chapter_index: number; title: string; summary: string }>;
-  };
-  chapters: Array<{
-    chapter_index: number;
-    cover_description: string;
-    llm_model: string;
-    attempt_count: number;
-    is_fallback: boolean;
-    scenes: Array<{
-      scene_index: number;
-      title: string;
-      start_paragraph: number;
-      end_paragraph: number;
-      characters_present: string[];
-      emotion: string;
-      pacing: string;
-      scene_type: string;
-      setting: { location: string; time_of_day: string; weather: string };
-      image_prompt: string;
-      transition_type: string;
-      key_phrases: string[];
-      key_objects: string[];
-      raw_emotion: string | null;
-      raw_pacing: string | null;
-      raw_scene_type: string | null;
-      raw_transition_type: string | null;
-    }>;
-  }>;
-}
-
-export interface ChaptersData {
-  chapters: Array<{
-    chapter_index: number;
-    title: string;
-    paragraphs: Array<{ index: number; text: string }>;
-    is_narrative: boolean;
-  }>;
-}
-
 export async function getNCM(bookId: string): Promise<NCM> {
   return jsonFetch<NCM>(`${BASE}/${bookId}/ncm`);
 }
@@ -129,30 +84,11 @@ export async function getChapters(bookId: string): Promise<ChaptersData> {
   return jsonFetch<ChaptersData>(`${BASE}/${bookId}/chapters`);
 }
 
-export async function getBookInfo(bookId: string): Promise<Record<string, unknown>> {
-  return jsonFetch<Record<string, unknown>>(`${BASE}/${bookId}`);
+export async function getBookInfo(bookId: string): Promise<BookResponse> {
+  return jsonFetch<BookResponse>(`${BASE}/${bookId}`);
 }
 
 // --- Music ---
-
-export interface TrackMatch {
-  track_id: string;
-  file_path: string;
-  stream_url: string;
-  cached: boolean;
-  duration_seconds: number;
-  tags: string[];
-  emotion_primary: string;
-}
-
-export interface DetailedMatch {
-  selected_track: string;
-  score: number;
-  scene_vector: number[];
-  fallback: string;
-  style_applied: string | null;
-  candidates: Array<{ track_id: string; tags: string[]; score: number }>;
-}
 
 export async function getPresets(): Promise<MusicPreset[]> {
   return jsonFetch<MusicPreset[]>('/api/music/presets');
@@ -165,7 +101,7 @@ export async function getSceneTrack(
   previousTrackId?: string,
   detailed?: boolean,
   exclude?: string[],
-): Promise<TrackMatch | DetailedMatch> {
+): Promise<SceneTrackResponse | DetailedSceneTrackResponse> {
   const params = new URLSearchParams();
   if (previousTrackId) params.set('previous_track_id', previousTrackId);
   if (detailed) params.set('detailed', 'true');
@@ -182,7 +118,7 @@ export async function checkCrossfade(
   sceneIdx: number,
   prevChapterIdx?: number,
   prevSceneIdx?: number,
-): Promise<{ should_crossfade: boolean; [key: string]: unknown }> {
+): Promise<CrossfadeResponse> {
   const params = new URLSearchParams();
   params.set('chapter_idx', String(chapterIdx));
   params.set('scene_idx', String(sceneIdx));

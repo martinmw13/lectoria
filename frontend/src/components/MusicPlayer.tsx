@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { getSceneTrack, checkCrossfade, type TrackMatch } from '../api/client';
+import { getSceneTrack, checkCrossfade } from '../api/client';
+import type { SceneTrackResponse } from '../api/types';
 import { useCrossfadeAudio } from '../hooks/useCrossfadeAudio';
 import { AudioError, type CrossfadeAudioPlayer } from '../audio/crossfadePlayer';
 
@@ -13,13 +14,13 @@ interface Props {
   prevSceneIndex?: number;
 }
 
-function buildAudioUrl(t: TrackMatch, preferLocal: boolean): string {
+function buildAudioUrl(t: SceneTrackResponse, preferLocal: boolean): string {
   if (preferLocal && t.cached) return `/api/music/${t.file_path}`;
   return t.stream_url;
 }
 
 // Local file first (served from /api/music/), CDN stream as fallback when they differ.
-function audioUrls(t: TrackMatch): { localUrl: string; fallbackUrl: string | null } {
+function audioUrls(t: SceneTrackResponse): { localUrl: string; fallbackUrl: string | null } {
   const localUrl = buildAudioUrl(t, true);
   const cdnUrl = t.stream_url;
   return { localUrl, fallbackUrl: localUrl !== cdnUrl ? cdnUrl : null };
@@ -41,7 +42,7 @@ export default function MusicPlayer({
   prevChapterIndex,
   prevSceneIndex,
 }: Props) {
-  const [track, setTrack] = useState<TrackMatch | null>(null);
+  const [track, setTrack] = useState<SceneTrackResponse | null>(null);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(0.5);
   const [error, setError] = useState('');
@@ -75,7 +76,7 @@ export default function MusicPlayer({
         setError('');
         const t = (await getSceneTrack(
           bookId, chapterIndex, sceneIndex, prevTrackId.current,
-        )) as TrackMatch;
+        )) as SceneTrackResponse;
         if (cancelled) return;
 
         if (prevChapterIndex !== undefined && prevSceneIndex !== undefined) {
@@ -130,7 +131,7 @@ export default function MusicPlayer({
         track.track_id,
         false,
         skippedIds.current,
-      )) as TrackMatch;
+      )) as SceneTrackResponse;
 
       setTrack(t);
       prevTrackId.current = t.track_id;

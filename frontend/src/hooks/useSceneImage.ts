@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { generateImage, generateSceneImage, type NCM } from '../api/client';
-
-type Scene = NCM['chapters'][0]['scenes'][0];
+import { generateImage, generateSceneImage } from '../api/client';
+import type { Scene } from '../api/types';
 
 export interface PopupPos {
   x: number;

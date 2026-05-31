@@ -1,6 +1,4 @@
-import type { NCM } from '../api/client';
-
-type Scene = NCM['chapters'][0]['scenes'][0];
+import type { Scene } from '../api/types';
 
 export interface Paragraph {
   index: number;

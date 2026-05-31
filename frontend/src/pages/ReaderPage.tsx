@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getNCM, getChapters, type NCM, type ChaptersData } from '../api/client';
+import { getNCM, getChapters } from '../api/client';
+import type { NCM, ChaptersData } from '../api/types';
 import PageView from '../components/PageView';
 import ChapterNav from '../components/ChapterNav';
 import DevPanel from '../components/DevPanel';
@@ -47,13 +48,13 @@ export default function ReaderPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const chapter = ncm?.chapters[chapterIdx];
-  const sourceChapter = chaptersData?.chapters.find(
+  const chapter = ncm?.chapters?.[chapterIdx];
+  const sourceChapter = chaptersData?.chapters?.find(
     (c) => c.chapter_index === chapter?.chapter_index,
   );
   const pages: Page[] = useMemo(() => {
     if (!chapter) return [];
-    return paginateChapter(chapter.scenes, sourceChapter?.paragraphs || []);
+    return paginateChapter(chapter.scenes ?? [], sourceChapter?.paragraphs || []);
   }, [chapter, sourceChapter?.paragraphs]);
 
   const currentPage = pages[pageIdx];
@@ -61,7 +62,7 @@ export default function ReaderPage() {
 
   const prevPageScene = pageIdx > 0 ? pages[pageIdx - 1]?.scene : undefined;
 
-  const chapterSummary = ncm?.book_map.chapters.find(
+  const chapterSummary = ncm?.book_map.chapters?.find(
     (c) => c.chapter_index === chapter?.chapter_index,
   );
 
@@ -87,7 +88,7 @@ export default function ReaderPage() {
       return;
     }
 
-    if (ncm && chapterIdx < ncm.chapters.length - 1) {
+    if (ncm && chapterIdx < (ncm.chapters?.length ?? 0) - 1) {
       animateSlide('left', () => {
         setChapterIdx(chapterIdx + 1);
         setPageIdx(0);
@@ -102,14 +103,15 @@ export default function ReaderPage() {
       return;
     }
     if (ncm && chapterIdx > 0) {
-      const prevChapter = ncm.chapters[chapterIdx - 1];
+      const prevChapter = ncm.chapters?.[chapterIdx - 1];
+      if (!prevChapter) return;
       animateSlide('right', () => {
         setChapterIdx(chapterIdx - 1);
-        const prevSource = chaptersData?.chapters.find(
+        const prevSource = chaptersData?.chapters?.find(
           (c) => c.chapter_index === prevChapter.chapter_index,
         );
         const prevPages = paginateChapter(
-          prevChapter.scenes,
+          prevChapter.scenes ?? [],
           prevSource?.paragraphs || [],
         );
         const lastIdx = prevPages.length - 1;
@@ -138,12 +140,12 @@ export default function ReaderPage() {
   const prevMusicChapterIndex = prevMusicScene
     ? chapter?.chapter_index
     : (pageIdx === 0 && chapterIdx > 0
-      ? ncm?.chapters[chapterIdx - 1]?.chapter_index
+      ? ncm?.chapters?.[chapterIdx - 1]?.chapter_index
       : undefined);
   const prevMusicSceneIndex = prevMusicScene
     ? prevMusicScene.scene_index
     : (pageIdx === 0 && chapterIdx > 0
-      ? ncm?.chapters[chapterIdx - 1]?.scenes.at(-1)?.scene_index
+      ? ncm?.chapters?.[chapterIdx - 1]?.scenes?.at(-1)?.scene_index
       : undefined);
 
   if (error) {
@@ -160,7 +162,7 @@ export default function ReaderPage() {
   }
 
   const isFirst = chapterIdx === 0 && pageIdx === 0;
-  const isLast = chapterIdx === ncm.chapters.length - 1 && pageIdx >= pages.length - 1;
+  const isLast = chapterIdx === (ncm.chapters?.length ?? 0) - 1 && pageIdx >= pages.length - 1;
 
   const slideClass = slideDir === 'left'
     ? 'slide-out-left'
@@ -202,8 +204,8 @@ export default function ReaderPage() {
 
       {showNav && (
         <ChapterNav
-          chapters={ncm.chapters}
-          bookMapChapters={ncm.book_map.chapters}
+          chapters={ncm.chapters ?? []}
+          bookMapChapters={ncm.book_map.chapters ?? []}
           currentChapterIdx={chapterIdx}
           onSelect={goToChapter}
           onClose={() => setShowNav(false)}
@@ -217,7 +219,7 @@ export default function ReaderPage() {
               page={currentPage}
               bookId={bookId!}
               chapterIndex={chapter.chapter_index}
-              characters={ncm.book_map.characters}
+              characters={ncm.book_map.characters ?? []}
               devMode={devMode}
               chapterAnalysis={chapter}
             />
@@ -244,7 +246,7 @@ export default function ReaderPage() {
               {currentPage.totalPagesInScene > 1 && (
                 <> ({currentPage.pageInScene + 1}/{currentPage.totalPagesInScene})</>
               )}
-              {' '}&middot; Ch {chapterIdx + 1}/{ncm.chapters.length}
+              {' '}&middot; Ch {chapterIdx + 1}/{ncm.chapters?.length ?? 0}
             </>
           )}
         </span>
