@@ -36,7 +36,7 @@
 
 - Strict mode enabled — no `any` types.
 - Prefer `interface` over `type` aliases for object shapes.
-- SSE connections must be closed on component unmount (`EventSource.close()`).
+- SSE/streaming connections must be torn down on component unmount. The app streams over POST + custom headers, so it uses `fetch` + `ReadableStream` with an `AbortController` rather than `EventSource` (see `docs/adr/0001-frontend-streaming-uses-fetch-not-eventsource.md`) — abort the controller on unmount; a hook that owns the controller is the canonical place.
 
 ## Quality Commands
 
