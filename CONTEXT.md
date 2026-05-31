@@ -42,7 +42,11 @@
 
 **Offline Pipeline** — The full processing flow: ingestion → LLM 1 → LLM 2 (concurrent, per chapter) → NCM assembly → save to disk. Triggered by the user after upload. Takes 3–10 minutes depending on book length and provider.
 
-**Online Reading** — What happens at read time: NCM + chapters loaded from disk, reader paginates scenes into pages, music matched per scene via tag similarity, images served from pre-generated files.
+**Online Reading** — What happens at read time: NCM + chapters loaded from disk, reader paginates scenes into pages, music matched per scene via tag similarity, images served per scene (see Scene Image, On-Demand Image).
+
+**Scene Image** — The canonical image for a Scene, generated from the Scene's pipeline-authored `image_prompt` (D5). At most one per Scene. The reader requests it via the "Picture scene" action; the pipeline may also pre-generate it. Stored under `images/scenes/` (see BookStore).
+
+**On-Demand Image** — An image the reader generates at read time from a passage they select, rather than from the Scene's `image_prompt`. Triggered by the "Picture this" popup. Scoped to the Scene the selection sits in. Stored under `images/on_demand/` (see BookStore).
 
 **Developer View** — A toggle in the reader UI (Ctrl+D) that shows per-scene debug info: LLM model, attempt count, coercion events, music matching details (score, candidates, fallback used).
 

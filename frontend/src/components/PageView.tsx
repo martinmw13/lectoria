@@ -1,15 +1,10 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { generateImage, generateSceneImage, type NCM } from '../api/client';
+import { useState } from 'react';
+import type { NCM } from '../api/client';
+import { useSceneImage } from '../hooks/useSceneImage';
 import type { Page, Paragraph } from '../utils/paginate';
 
 type Character = NCM['book_map']['characters'][0];
 type ChapterAnalysis = NCM['chapters'][0];
-
-interface PopupPos {
-  x: number;
-  y: number;
-  text: string;
-}
 
 interface Props {
   page: Page;
@@ -28,113 +23,20 @@ export default function PageView({
 }: Props) {
   const { scene, paragraphs, isFirstPage, isLastPage } = page;
 
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [imageLoading, setImageLoading] = useState(false);
-  const [imageError, setImageError] = useState('');
-  const [popup, setPopup] = useState<PopupPos | null>(null);
-  const [sceneImageLoaded, setSceneImageLoaded] = useState(false);
+  const {
+    containerRef,
+    popup,
+    image,
+    clearImage,
+    loading,
+    error,
+    pictureThis,
+    pictureScene,
+    hasSceneImage,
+  } = useSceneImage(bookId, chapterIndex, scene);
   const [confirmPictureScene, setConfirmPictureScene] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const sceneImageUrl = `/api/data/books/${bookId}/images/scenes/ch${chapterIndex}_sc${scene.scene_index}.png`;
-  const cachedOnDemandUrl = `/api/data/books/${bookId}/images/on_demand/ch${chapterIndex}_sc${scene.scene_index}.png`;
-
-  // State resets on page change are handled by the parent's `key` prop
-  // (ReaderPage wraps PageView in a div keyed by `${chapterIdx}-${pageIdx}`),
-  // which remounts this component on navigation.
-  useEffect(() => {
-    const sceneImg = new window.Image();
-    sceneImg.onload = () => setSceneImageLoaded(true);
-    sceneImg.src = sceneImageUrl;
-
-    const img = new window.Image();
-    img.onload = () => setGeneratedImage(cachedOnDemandUrl);
-    img.src = cachedOnDemandUrl;
-  }, [cachedOnDemandUrl, sceneImageUrl]);
-
-  useEffect(() => {
-    function handleMouseUp() {
-      requestAnimationFrame(() => {
-        const sel = window.getSelection();
-        const text = sel?.toString().trim() || '';
-
-        if (text.length < 3 || !containerRef.current) {
-          setPopup(null);
-          return;
-        }
-
-        const range = sel?.getRangeAt(0);
-        if (!range) { setPopup(null); return; }
-
-        const textEl = containerRef.current.querySelector('.scene-text');
-        if (!textEl || !textEl.contains(range.commonAncestorContainer)) {
-          setPopup(null);
-          return;
-        }
-
-        const rect = range.getBoundingClientRect();
-        const containerRect = containerRef.current.getBoundingClientRect();
-
-        setPopup({
-          x: rect.left + rect.width / 2 - containerRect.left,
-          y: rect.top - containerRect.top - 8,
-          text,
-        });
-      });
-    }
-
-    function handleMouseDown(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.picture-this-popup')) {
-        setPopup(null);
-      }
-    }
-
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('mousedown', handleMouseDown);
-    return () => {
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('mousedown', handleMouseDown);
-    };
-  }, []);
-
-  const handlePictureThis = useCallback(async () => {
-    if (!popup) return;
-    const selectedText = popup.text;
-    setPopup(null);
-
-    setImageLoading(true);
-    setImageError('');
-    try {
-      const result = await generateImage(bookId, selectedText, chapterIndex, scene.scene_index);
-      if (result.cache_url) {
-        setGeneratedImage(`${result.cache_url}?t=${Date.now()}`);
-      } else {
-        setGeneratedImage(`data:${result.content_type};base64,${result.image_base64}`);
-      }
-    } catch (e) {
-      setImageError(String(e));
-    } finally {
-      setImageLoading(false);
-    }
-  }, [popup, bookId, chapterIndex, scene.scene_index]);
-
-  const handlePictureScene = useCallback(async () => {
-    setConfirmPictureScene(false);
-    setImageLoading(true);
-    setImageError('');
-    try {
-      const result = await generateSceneImage(bookId, chapterIndex, scene.scene_index);
-      setSceneImageLoaded(true);
-      if (result.cache_url) {
-        setGeneratedImage(`${result.cache_url}?t=${Date.now()}`);
-      }
-    } catch (e) {
-      setImageError(String(e));
-    } finally {
-      setImageLoading(false);
-    }
-  }, [bookId, chapterIndex, scene.scene_index]);
 
   return (
     <div ref={containerRef} className="page-view" style={{ position: 'relative' }}>
@@ -142,8 +44,8 @@ export default function PageView({
         <div className="scene-header">
           <span className="scene-title">{scene.title}</span>
           <div className="scene-header-right">
-            {imageLoading && <span className="image-loading-indicator">Generating...</span>}
-            {scene.image_prompt && !sceneImageLoaded && !imageLoading && (
+            {loading && <span className="image-loading-indicator">Generating...</span>}
+            {scene.image_prompt && !hasSceneImage && !loading && (
               <button
                 className="picture-scene-btn"
                 onClick={() => setConfirmPictureScene(true)}
@@ -163,7 +65,15 @@ export default function PageView({
         <div className="confirm-picture-scene">
           <p>Generate an image for this scene? This will call the image generation API.</p>
           <div className="confirm-actions">
-            <button className="primary" onClick={handlePictureScene}>Generate</button>
+            <button
+              className="primary"
+              onClick={() => {
+                setConfirmPictureScene(false);
+                pictureScene();
+              }}
+            >
+              Generate
+            </button>
             <button onClick={() => setConfirmPictureScene(false)}>Cancel</button>
           </div>
         </div>
@@ -183,22 +93,22 @@ export default function PageView({
         )}
       </div>
 
-      {popup && !imageLoading && (
+      {popup && !loading && (
         <div
           className="picture-this-popup"
           style={{ left: `${popup.x}px`, top: `${popup.y}px` }}
         >
-          <button onClick={handlePictureThis}>Picture this</button>
+          <button onClick={pictureThis}>Picture this</button>
         </div>
       )}
 
-      {generatedImage && (
+      {image && (
         <div className="scene-generated-image">
-          <img src={generatedImage} alt="Generated from selected text" />
-          <button className="close-img" onClick={() => setGeneratedImage(null)}>x</button>
+          <img src={image} alt="Generated from selected text" />
+          <button className="close-img" onClick={clearImage}>x</button>
         </div>
       )}
-      {imageError && <div className="error-msg" style={{ fontSize: '0.8rem' }}>{imageError}</div>}
+      {error && <div className="error-msg" style={{ fontSize: '0.8rem' }}>{error}</div>}
 
       {isLastPage && (
         <img
