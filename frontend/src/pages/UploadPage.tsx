@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { hasLlmKey } from '../api/byok';
 import { uploadBook, listBooks, type BookSummary, type CostEstimate } from '../api/client';
 import { useBookProcessing } from '../hooks/useBookProcessing';
 
@@ -57,8 +58,7 @@ export default function UploadPage() {
   function startProcessing(force: boolean) {
     if (!estimate) return;
 
-    const llmKey = localStorage.getItem('llm_api_key') || '';
-    if (!llmKey) {
+    if (!hasLlmKey()) {
       setError('No LLM API key configured. Go to Settings to enter your API key before processing.');
       return;
     }
