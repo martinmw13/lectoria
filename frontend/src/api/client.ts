@@ -57,71 +57,25 @@ export async function uploadBook(file: File): Promise<CostEstimate> {
   return jsonFetch<CostEstimate>(BASE + '/upload', { method: 'POST', body: form });
 }
 
-export function processBook(
+export interface ProcessOptions {
+  maxChapters?: number;
+  force?: boolean;
+}
+
+// Open the book-processing SSE stream (POST + BYOK headers). Returns the raw
+// Response; the caller (useBookProcessing) inspects res.ok/status/body, parses
+// the body with parseSSEStream, and owns the AbortController. See ADR-0001.
+export function openProcessingStream(
   bookId: string,
-  onProgress: (msg: string) => void,
-  onDone: (finalBookId: string) => void,
-  onError: (err: string) => void,
-  maxChapters?: number,
-  force?: boolean,
-): () => void {
+  opts: ProcessOptions,
+  signal: AbortSignal,
+): Promise<Response> {
   const params = new URLSearchParams();
-  if (maxChapters) params.set('max_chapters', String(maxChapters));
-  if (force) params.set('force', 'true');
+  if (opts.maxChapters) params.set('max_chapters', String(opts.maxChapters));
+  if (opts.force) params.set('force', 'true');
   const qs = params.toString();
   const url = `${BASE}/${bookId}/process${qs ? '?' + qs : ''}`;
-  const headers = providerHeaders();
-
-  const controller = new AbortController();
-
-  (async () => {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        signal: controller.signal,
-      });
-      if (!res.ok || !res.body) {
-        const detail = await res.text().catch(() => res.statusText);
-        onError(`HTTP ${res.status}: ${detail}`);
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data.startsWith('done:')) {
-              const finalId = data.slice(6).trim() || bookId;
-              onDone(finalId);
-              return;
-            } else if (data.startsWith('error:')) {
-              onError(data);
-              return;
-            } else {
-              onProgress(data);
-            }
-          }
-        }
-      }
-    } catch (e) {
-      if (!controller.signal.aborted) {
-        onError(String(e));
-      }
-    }
-  })();
-
-  return () => controller.abort();
+  return fetch(url, { method: 'POST', headers: providerHeaders(), signal });
 }
 
 // --- NCM ---
