@@ -1,28 +1,34 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { uploadBook, processBook, listBooks, type BookSummary, type CostEstimate } from '../api/client';
+import { hasLlmKey } from '../api/byok';
+import { uploadBook, listBooks, type BookSummary, type CostEstimate } from '../api/client';
+import { useBookProcessing } from '../hooks/useBookProcessing';
 
 export default function UploadPage() {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
-  // Abort handle for the in-flight processing stream, so unmount can tear it down.
-  const abortStreamRef = useRef<(() => void) | null>(null);
+  const { status, progress, error: processingError, finalBookId, start, reset } =
+    useBookProcessing();
 
   const [books, setBooks] = useState<BookSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [estimate, setEstimate] = useState<CostEstimate | null>(null);
-  const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState<string[]>([]);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(''); // client-side validation / upload errors
   const [maxChapters, setMaxChapters] = useState<number>(5);
-  const [confirmOverwrite, setConfirmOverwrite] = useState(false);
 
-  // Tear down the processing stream if the user navigates away mid-flight,
-  // so its onDone/onError callbacks can't fire into the unmounted page
-  // (e.g. force-redirecting into the reader from an unrelated route).
+  const processing = status === 'running';
+
+  // The 409 "already processed" arrives as a pre-stream HTTP error carrying a
+  // status (replaces the old err.includes('409')). Derived from the error, so it
+  // clears automatically whenever the error does — via start() or reset() — which
+  // is what keeps the dialog from rendering alongside the progress panel.
+  const confirmOverwrite = processingError?.kind === 'http' && processingError.status === 409;
+
+  // Route to the reader on completion — from the page, while mounted, so an
+  // aborted/unmounted stream can never force-redirect (the #64 regression).
   useEffect(() => {
-    return () => abortStreamRef.current?.();
-  }, []);
+    if (status === 'done' && finalBookId) navigate(`/reader/${finalBookId}`);
+  }, [status, finalBookId, navigate]);
 
   async function loadBooks() {
     if (loaded) return;
@@ -40,7 +46,7 @@ export default function UploadPage() {
     if (!file) return;
     setError('');
     setEstimate(null);
-    setConfirmOverwrite(false);
+    reset(); // clear any prior run's processing state (incl. a stale 409 dialog)
     try {
       const est = await uploadBook(file);
       setEstimate(est);
@@ -52,36 +58,20 @@ export default function UploadPage() {
   function startProcessing(force: boolean) {
     if (!estimate) return;
 
-    const llmKey = localStorage.getItem('llm_api_key') || '';
-    if (!llmKey) {
+    if (!hasLlmKey()) {
       setError('No LLM API key configured. Go to Settings to enter your API key before processing.');
       return;
     }
 
-    setProcessing(true);
-    setProgress([]);
+    // Clear the local validation error; start() resets the hook's state
+    // (progress/error/status), which also clears the derived overwrite dialog,
+    // so Reprocess transitions cleanly into the progress panel.
     setError('');
-    setConfirmOverwrite(false);
 
-    abortStreamRef.current = processBook(
-      estimate.book_id,
-      (msg) => setProgress((prev) => [...prev, msg]),
-      (finalBookId) => {
-        setProcessing(false);
-        navigate(`/reader/${finalBookId}`);
-      },
-      (err) => {
-        setProcessing(false);
-        if (err.includes('409')) {
-          setConfirmOverwrite(true);
-          setError('');
-        } else {
-          setError(err);
-        }
-      },
-      maxChapters > 0 ? maxChapters : undefined,
+    start(estimate.book_id, {
+      maxChapters: maxChapters > 0 ? maxChapters : undefined,
       force,
-    );
+    });
   }
 
   function handleProcess() {
@@ -91,6 +81,14 @@ export default function UploadPage() {
   function handleForceProcess() {
     startProcessing(true);
   }
+
+  // Show validation/upload errors, else the processing error — but not the 409
+  // overwrite case, which drives the dialog above rather than an error banner.
+  const displayError = error
+    ? error
+    : processingError && !(processingError.kind === 'http' && processingError.status === 409)
+      ? processingError.message
+      : null;
 
   return (
     <div className="page upload-page">
@@ -106,10 +104,10 @@ export default function UploadPage() {
           </button>
         </div>
 
-        {error && (
+        {displayError && (
           <div className="error-msg">
-            {error}
-            {error.includes('Settings') && (
+            {displayError}
+            {displayError.includes('Settings') && (
               <button
                 className="inline-link"
                 onClick={() => navigate('/settings')}
@@ -129,7 +127,6 @@ export default function UploadPage() {
                 Reprocess
               </button>
               <button onClick={() => {
-                setConfirmOverwrite(false);
                 if (estimate) navigate(`/reader/${estimate.book_id}`);
               }}>
                 Read existing

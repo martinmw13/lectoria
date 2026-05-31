@@ -1,10 +1,10 @@
 ---
-description: Implement technical plans from docs/plans with verification
+description: Implement technical plans from ~/.claude/plans with verification
 ---
 
 # Implement Plan
 
-You are tasked with implementing an approved technical plan from `docs/plans/`. These plans contain phases with specific changes and success criteria.
+You are tasked with implementing an approved technical plan from `~/.claude/plans/lectoria/` (or a path the user provides). These plans contain phases with specific changes and success criteria.
 
 ## Getting Started
 

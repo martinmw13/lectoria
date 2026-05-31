@@ -1,36 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getMusicStyle, setMusicStyle, getPresets, type StylePreset } from '../api/client';
+import { type Credentials, DEFAULTS, getCredentials, saveCredentials } from '../api/byok';
+import { getPresets, type MusicPreset } from '../api/client';
+import { getMusicStyle, setMusicStyle } from '../api/prefs';
 
-interface Settings {
-  llm_provider: string;
-  llm_api_key: string;
-  image_provider: string;
-  image_api_key: string;
-}
-
-function loadSettings(): Settings {
+// Per-field fallback to DEFAULTS (NOT a spread): getCredentials() returns '' for
+// unset providers, and { ...DEFAULTS, ...getCredentials() } would let that '' clobber
+// the 'google' default and blank the dropdown. Reproduces the old loadSettings.
+function initialCredentials(): Credentials {
+  const stored = getCredentials();
   return {
-    llm_provider: localStorage.getItem('llm_provider') || 'google',
-    llm_api_key: localStorage.getItem('llm_api_key') || '',
-    image_provider: localStorage.getItem('image_provider') || 'google',
-    image_api_key: localStorage.getItem('image_api_key') || '',
+    llm_provider: stored.llm_provider || DEFAULTS.llm_provider,
+    llm_api_key: stored.llm_api_key || DEFAULTS.llm_api_key,
+    image_provider: stored.image_provider || DEFAULTS.image_provider,
+    image_api_key: stored.image_api_key || DEFAULTS.image_api_key,
   };
-}
-
-function saveSettings(s: Settings) {
-  localStorage.setItem('llm_provider', s.llm_provider);
-  localStorage.setItem('llm_api_key', s.llm_api_key);
-  localStorage.setItem('image_provider', s.image_provider);
-  localStorage.setItem('image_api_key', s.image_api_key);
 }
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const [settings, setSettings] = useState<Settings>(loadSettings);
+  const [creds, setCreds] = useState<Credentials>(initialCredentials);
   const [saved, setSaved] = useState(false);
   const [musicStyle, setMusicStyleState] = useState(getMusicStyle);
-  const [presets, setPresets] = useState<StylePreset[]>([]);
+  const [presets, setPresets] = useState<MusicPreset[]>([]);
 
   useEffect(() => {
     getPresets().then(setPresets).catch(() => {
@@ -53,13 +45,13 @@ export default function SettingsPage() {
   }, [saved]);
 
   function handleSave() {
-    saveSettings(settings);
+    saveCredentials(creds);
     setMusicStyle(musicStyle);
     setSaved(true);
   }
 
-  function update(field: keyof Settings, value: string) {
-    setSettings((prev) => ({ ...prev, [field]: value }));
+  function update(field: keyof Credentials, value: string) {
+    setCreds((prev) => ({ ...prev, [field]: value }));
     setSaved(false);
   }
 
@@ -77,7 +69,7 @@ export default function SettingsPage() {
         <div className="setting-row">
           <label>Provider</label>
           <select
-            value={settings.llm_provider}
+            value={creds.llm_provider}
             onChange={(e) => update('llm_provider', e.target.value)}
           >
             <option value="google">Google (Gemini)</option>
@@ -88,7 +80,7 @@ export default function SettingsPage() {
           <label>API Key</label>
           <input
             type="password"
-            value={settings.llm_api_key}
+            value={creds.llm_api_key}
             onChange={(e) => update('llm_api_key', e.target.value)}
             placeholder="Enter your API key"
           />
@@ -100,7 +92,7 @@ export default function SettingsPage() {
         <div className="setting-row">
           <label>Provider</label>
           <select
-            value={settings.image_provider}
+            value={creds.image_provider}
             onChange={(e) => update('image_provider', e.target.value)}
           >
             <option value="google">Google (Gemini image)</option>
@@ -111,7 +103,7 @@ export default function SettingsPage() {
           <label>API Key</label>
           <input
             type="password"
-            value={settings.image_api_key}
+            value={creds.image_api_key}
             onChange={(e) => update('image_api_key', e.target.value)}
             placeholder="Enter your API key"
           />

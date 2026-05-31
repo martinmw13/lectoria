@@ -33,7 +33,7 @@ Before implementing, classify the change:
 ### For L changes
 
 1. **Research**: Use `/research_codebase` to understand current state
-2. **Plan**: Use `/create_plan` to write implementation plan in `docs/plans/`
+2. **Plan**: Use `/create_plan` to write the implementation plan in `~/.claude/plans/lectoria/` (personal scratch — not committed)
 3. **Implement**: Use `/implement_plan` to execute with review gates
 
 ## README Maintenance

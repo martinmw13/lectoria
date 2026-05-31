@@ -1,18 +1,12 @@
+import { providerHeaders } from './byok';
+import { getMusicStyle } from './prefs';
+import type { MusicPreset } from './types';
+
+// Re-exported so existing import sites (e.g. SettingsPage) resolve `MusicPreset`
+// off the generated schema without reaching into `./types` directly.
+export type { MusicPreset } from './types';
+
 const BASE = '/api/books';
-
-function providerHeaders(): Record<string, string> {
-  const llmProvider = localStorage.getItem('llm_provider') || '';
-  const llmKey = localStorage.getItem('llm_api_key') || '';
-  const imageProvider = localStorage.getItem('image_provider') || '';
-  const imageKey = localStorage.getItem('image_api_key') || '';
-
-  const headers: Record<string, string> = {};
-  if (llmProvider) headers['X-Provider-LLM'] = llmProvider;
-  if (llmKey) headers['X-API-Key-LLM'] = llmKey;
-  if (imageProvider) headers['X-Provider-Image'] = imageProvider;
-  if (imageKey) headers['X-API-Key-Image'] = imageKey;
-  return headers;
-}
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
@@ -51,71 +45,25 @@ export async function uploadBook(file: File): Promise<CostEstimate> {
   return jsonFetch<CostEstimate>(BASE + '/upload', { method: 'POST', body: form });
 }
 
-export function processBook(
+export interface ProcessOptions {
+  maxChapters?: number;
+  force?: boolean;
+}
+
+// Open the book-processing SSE stream (POST + BYOK headers). Returns the raw
+// Response; the caller (useBookProcessing) inspects res.ok/status/body, parses
+// the body with parseSSEStream, and owns the AbortController. See ADR-0001.
+export function openProcessingStream(
   bookId: string,
-  onProgress: (msg: string) => void,
-  onDone: (finalBookId: string) => void,
-  onError: (err: string) => void,
-  maxChapters?: number,
-  force?: boolean,
-): () => void {
+  opts: ProcessOptions,
+  signal: AbortSignal,
+): Promise<Response> {
   const params = new URLSearchParams();
-  if (maxChapters) params.set('max_chapters', String(maxChapters));
-  if (force) params.set('force', 'true');
+  if (opts.maxChapters) params.set('max_chapters', String(opts.maxChapters));
+  if (opts.force) params.set('force', 'true');
   const qs = params.toString();
   const url = `${BASE}/${bookId}/process${qs ? '?' + qs : ''}`;
-  const headers = providerHeaders();
-
-  const controller = new AbortController();
-
-  (async () => {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        signal: controller.signal,
-      });
-      if (!res.ok || !res.body) {
-        const detail = await res.text().catch(() => res.statusText);
-        onError(`HTTP ${res.status}: ${detail}`);
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data.startsWith('done:')) {
-              const finalId = data.slice(6).trim() || bookId;
-              onDone(finalId);
-              return;
-            } else if (data.startsWith('error:')) {
-              onError(data);
-              return;
-            } else {
-              onProgress(data);
-            }
-          }
-        }
-      }
-    } catch (e) {
-      if (!controller.signal.aborted) {
-        onError(String(e));
-      }
-    }
-  })();
-
-  return () => controller.abort();
+  return fetch(url, { method: 'POST', headers: providerHeaders(), signal });
 }
 
 // --- NCM ---
@@ -206,21 +154,8 @@ export interface DetailedMatch {
   candidates: Array<{ track_id: string; tags: string[]; score: number }>;
 }
 
-export interface StylePreset {
-  name: string;
-  description: string;
-}
-
-export function getMusicStyle(): string {
-  return localStorage.getItem('lectoria_music_style') || 'auto';
-}
-
-export function setMusicStyle(style: string): void {
-  localStorage.setItem('lectoria_music_style', style);
-}
-
-export async function getPresets(): Promise<StylePreset[]> {
-  return jsonFetch<StylePreset[]>('/api/music/presets');
+export async function getPresets(): Promise<MusicPreset[]> {
+  return jsonFetch<MusicPreset[]>('/api/music/presets');
 }
 
 export async function getSceneTrack(

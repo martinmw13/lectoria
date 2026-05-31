@@ -97,7 +97,10 @@ just test           # backend tests (pytest)
 just test-frontend  # frontend tests (Vitest)
 just check          # lint + format check
 just typecheck      # pyright (opt-in, not yet in CI)
+just gen-api-types  # regenerate the frontend API types from the backend OpenAPI schema
 ```
+
+The frontend's TypeScript view of the API is **generated from the backend**, not hand-written. `just gen-api-types` extracts the OpenAPI schema headless (no running server) and runs `openapi-typescript`, writing `frontend/src/api/schema.json` and `frontend/src/api/schema.d.ts`. **Both generated files are committed**; rerun the recipe and commit the result whenever you change a backend request/response model. CI regenerates them and fails on drift, so a stale commit is caught automatically.
 
 ## Picking work
 
