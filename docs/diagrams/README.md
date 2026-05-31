@@ -22,7 +22,7 @@ Chrome/Chromium (point Puppeteer at it — `mmdc` does not bundle a browser here
 printf '{"executablePath":"%s","args":["--no-sandbox"]}' "$(command -v google-chrome || command -v chromium)" > /tmp/pptr.json
 
 for d in system pipeline byok; do
-  npx -y @mermaid-js/mermaid-cli -p /tmp/pptr.json -c config.json --svgId "lec-$d" -i "$d.mmd" -o "$d.svg"
+  npx -y @mermaid-js/mermaid-cli@latest -p /tmp/pptr.json -c config.json --svgId "lec-$d" -i "$d.mmd" -o "$d.svg"
 done
 ```
 
