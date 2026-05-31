@@ -52,3 +52,7 @@ dev-all:
 # Run pre-commit on all files
 pre-commit:
     uv run pre-commit run --all-files
+
+# What to work next: eligible / in-flight / blocked / parallel-safe issues (live from the tracker)
+next:
+    uv run python scripts/whats_next.py
