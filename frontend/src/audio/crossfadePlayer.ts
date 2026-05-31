@@ -132,6 +132,8 @@ export class CrossfadeAudioPlayer {
 
   resume(): void {
     if (this.disposed) return;
+    // User-initiated replay of an already-loaded element; a rejected play() here is a
+    // non-actionable transient (e.g. interrupted by a rapid pause/scene change), so swallow.
     this.current?.play().catch(() => {});
     this.onState(true);
   }
