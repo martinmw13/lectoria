@@ -1,5 +1,10 @@
 import { providerHeaders } from './byok';
 import { getMusicStyle } from './prefs';
+import type { MusicPreset } from './types';
+
+// Re-exported so existing import sites (e.g. SettingsPage) resolve `MusicPreset`
+// off the generated schema without reaching into `./types` directly.
+export type { MusicPreset } from './types';
 
 const BASE = '/api/books';
 
@@ -149,13 +154,8 @@ export interface DetailedMatch {
   candidates: Array<{ track_id: string; tags: string[]; score: number }>;
 }
 
-export interface StylePreset {
-  name: string;
-  description: string;
-}
-
-export async function getPresets(): Promise<StylePreset[]> {
-  return jsonFetch<StylePreset[]>('/api/music/presets');
+export async function getPresets(): Promise<MusicPreset[]> {
+  return jsonFetch<MusicPreset[]>('/api/music/presets');
 }
 
 export async function getSceneTrack(

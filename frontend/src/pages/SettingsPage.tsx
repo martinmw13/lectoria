@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type Credentials, DEFAULTS, getCredentials, saveCredentials } from '../api/byok';
-import { getPresets, type StylePreset } from '../api/client';
+import { getPresets, type MusicPreset } from '../api/client';
 import { getMusicStyle, setMusicStyle } from '../api/prefs';
 
 // Per-field fallback to DEFAULTS (NOT a spread): getCredentials() returns '' for
@@ -22,7 +22,7 @@ export default function SettingsPage() {
   const [creds, setCreds] = useState<Credentials>(initialCredentials);
   const [saved, setSaved] = useState(false);
   const [musicStyle, setMusicStyleState] = useState(getMusicStyle);
-  const [presets, setPresets] = useState<StylePreset[]>([]);
+  const [presets, setPresets] = useState<MusicPreset[]>([]);
 
   useEffect(() => {
     getPresets().then(setPresets).catch(() => {
