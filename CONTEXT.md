@@ -44,6 +44,8 @@
 
 **Ingestion** — The EPUB parsing step that produces `ChaptersData`: chapters with numbered paragraphs and a `is_narrative` flag. Runs before any LLM call.
 
+**ChaptersData** — The Ingestion output: the book's raw narrative text as chapters of numbered paragraphs plus an `is_narrative` flag. Distinct from the NCM, which carries *analysis* (scenes, emotions); `ChaptersData` carries *source text*. Persisted as `chapters.json`, served typed by `GET /books/{id}/chapters`. _Avoid_: chapters payload, raw chapters.
+
 **Offline Pipeline** — The full processing flow: ingestion → LLM 1 → LLM 2 (concurrent, per chapter) → NCM assembly → save to disk. Triggered by the user after upload. Takes 3–10 minutes depending on book length and provider.
 
 **Online Reading** — What happens at read time: NCM + chapters loaded from disk, reader paginates scenes into pages, music matched per scene via tag similarity, images served per scene (see Scene Image, On-Demand Image).

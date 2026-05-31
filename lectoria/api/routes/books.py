@@ -4,15 +4,15 @@ import asyncio
 import logging
 import shutil
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel, ValidationError
 from sse_starlette.sse import EventSourceResponse
 
 from lectoria.api.deps import get_book_store, llm_provider_dep
 from lectoria.core.config import get_settings
-from lectoria.models.ncm import NCM
+from lectoria.models.ncm import NCM, ChaptersData
 from lectoria.providers.base import LLMProvider
 from lectoria.services.bookstore import ArtifactNotFound, BookStore
 from lectoria.services.ingestion import ingest_epub
@@ -59,12 +59,6 @@ class BookResponse(BaseModel):
     character_count: int | None = None
     chapter_count: int | None = None
     scene_count: int | None = None
-
-
-class ChaptersResponse(RootModel[dict[str, Any]]):
-    """Passthrough of the on-disk chapters JSON. The store is intentionally
-    data-faithful (no model round-trip), so this stays a permissive wrapper
-    rather than the strict ChaptersData schema."""
 
 
 # ---------------------------------------------------------------------------
@@ -226,16 +220,24 @@ async def get_book(
     )
 
 
-@router.get("/{book_id}/chapters")
-async def get_chapters(
-    book_id: str, store: Annotated[BookStore, Depends(get_book_store)]
-) -> ChaptersResponse:
-    """Get the ingested chapters with paragraph text."""
+@router.get("/{book_id}/chapters", response_model=ChaptersData)
+async def get_chapters(book_id: str, store: Annotated[BookStore, Depends(get_book_store)]):
+    """Get the ingested chapters with paragraph text.
+
+    Typed at the route boundary with ``response_model=ChaptersData`` so the HTTP
+    contract is the structured shape. The store stays data-faithful (returns the
+    raw dict, no model round-trip — D15); validation/serialization happens here.
+    """
     try:
-        return ChaptersResponse(store.load_chapters_json(book_id))
+        return ChaptersData.model_validate(store.load_chapters_json(book_id))
     except ArtifactNotFound:
         raise HTTPException(
             status_code=404, detail=f"Chapters not found for book '{book_id}'"
+        ) from None
+    except ValidationError:
+        logger.error("Corrupt chapters.json for book '%s'", book_id, exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Corrupt chapters data for book '{book_id}'"
         ) from None
 
 

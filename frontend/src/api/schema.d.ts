@@ -77,6 +77,10 @@ export interface paths {
         /**
          * Get Chapters
          * @description Get the ingested chapters with paragraph text.
+         *
+         *     Typed at the route boundary with ``response_model=ChaptersData`` so the HTTP
+         *     contract is the structured shape. The store stays data-faithful (returns the
+         *     raw dict, no model round-trip — D15); validation/serialization happens here.
          */
         get: operations["get_chapters_api_books__book_id__chapters_get"];
         put?: never;
@@ -345,6 +349,23 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** Chapter */
+        Chapter: {
+            /** Chapter Index */
+            chapter_index: number;
+            /**
+             * Is Narrative
+             * @default true
+             */
+            is_narrative: boolean;
+            /** Paragraphs */
+            paragraphs?: components["schemas"]["Paragraph"][];
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+        };
         /**
          * ChapterAnalysis
          * @description LLM 2 output: scene-level analysis for one chapter.
@@ -391,13 +412,12 @@ export interface components {
             title: string;
         };
         /**
-         * ChaptersResponse
-         * @description Passthrough of the on-disk chapters JSON. The store is intentionally
-         *     data-faithful (no model round-trip), so this stays a permissive wrapper
-         *     rather than the strict ChaptersData schema.
+         * ChaptersData
+         * @description Ingestion output: structured text extracted from EPUB.
          */
-        ChaptersResponse: {
-            [key: string]: unknown;
+        ChaptersData: {
+            /** Chapters */
+            chapters?: components["schemas"]["Chapter"][];
         };
         /** Character */
         Character: {
@@ -522,6 +542,13 @@ export interface components {
          * @enum {string}
          */
         Pacing: "slow" | "medium" | "fast";
+        /** Paragraph */
+        Paragraph: {
+            /** Index */
+            index: number;
+            /** Text */
+            text: string;
+        };
         /** Relationship */
         Relationship: {
             /** Target Id */
@@ -762,7 +789,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChaptersResponse"];
+                    "application/json": components["schemas"]["ChaptersData"];
                 };
             };
             /** @description Validation Error */
