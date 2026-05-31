@@ -39,7 +39,7 @@ When this command is invoked:
 
 ### Step 4: Detailed Plan Writing
 
-Write the plan to `docs/plans/YYYY-MM-DD-description.md` using this template:
+Write the plan to `~/.claude/plans/lectoria/YYYY-MM-DD-description.md` (personal scratch — plans are not committed to the repo) using this template:
 
 ```markdown
 # [Feature/Task Name] Implementation Plan

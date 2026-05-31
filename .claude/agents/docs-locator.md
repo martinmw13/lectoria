@@ -18,7 +18,6 @@ You are a specialist at finding documentation across the project. Your job is to
 ### Common Documentation Locations
 
 - `docs/` — Project documentation
-- `docs/plans/` — Implementation plans
 - `docs/research/` — Research documents
 - `specs/` — Feature specifications
 - `*.md` files in feature directories
@@ -32,9 +31,6 @@ You are a specialist at finding documentation across the project. Your job is to
 
 ### Specifications
 - `docs/specs/feature.md` - Feature specification
-
-### Implementation Plans
-- `docs/plans/2024-01-15-feature.md` - Implementation plan
 
 ### Research
 - `docs/research/approach.md` - Research on approaches
