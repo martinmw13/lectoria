@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { uploadBook, processBook, listBooks, type BookSummary, type CostEstimate } from '../api/client';
 
 export default function UploadPage() {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
+  // Abort handle for the in-flight processing stream, so unmount can tear it down.
+  const abortStreamRef = useRef<(() => void) | null>(null);
 
   const [books, setBooks] = useState<BookSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -14,6 +16,13 @@ export default function UploadPage() {
   const [error, setError] = useState('');
   const [maxChapters, setMaxChapters] = useState<number>(5);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
+
+  // Tear down the processing stream if the user navigates away mid-flight,
+  // so its onDone/onError callbacks can't fire into the unmounted page
+  // (e.g. force-redirecting into the reader from an unrelated route).
+  useEffect(() => {
+    return () => abortStreamRef.current?.();
+  }, []);
 
   async function loadBooks() {
     if (loaded) return;
@@ -54,7 +63,7 @@ export default function UploadPage() {
     setError('');
     setConfirmOverwrite(false);
 
-    processBook(
+    abortStreamRef.current = processBook(
       estimate.book_id,
       (msg) => setProgress((prev) => [...prev, msg]),
       (finalBookId) => {
