@@ -1,9 +1,8 @@
-import type { Scene } from '../api/types';
+import type { Paragraph, Scene } from '../api/types';
 
-export interface Paragraph {
-  index: number;
-  text: string;
-}
+// Paragraphs flow in from ChaptersData.chapters[].paragraphs (schema `Paragraph`);
+// re-export the projected type so page consumers keep their single import surface.
+export type { Paragraph };
 
 export interface Page {
   sceneIdx: number;
