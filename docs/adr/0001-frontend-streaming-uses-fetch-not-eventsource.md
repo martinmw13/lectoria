@@ -6,8 +6,9 @@ frontend consumes it with `fetch` + `res.body.getReader()` and an `AbortControll
 request carries `max_chapters`/`force` as query params and the user's BYOK credentials as
 custom request headers (`X-Provider-LLM`, `X-API-Key-LLM`, … — see CONTEXT.md D17/D34).
 `EventSource` is GET-only and cannot set request headers, so it cannot carry the keys.
-Because the connection is therefore manual, it must be torn down explicitly: a
-`useBookProcessing` hook owns the `AbortController` and aborts it on component unmount.
+Because the connection is therefore manual, it must be torn down explicitly: today
+`UploadPage` aborts the `AbortController` in its unmount cleanup, and the planned
+`useBookProcessing` hook will own that controller and teardown.
 
 ## Considered options
 
@@ -25,6 +26,9 @@ Because the connection is therefore manual, it must be torn down explicitly: a
 - A hand-rolled SSE frame parser must encode the wire format. The backend
   (`EventSourceResponse` in `lectoria/api/routes/books.py`) currently emits every payload as
   `event: progress` and re-encodes the real type in the `data:` prefix (`done:` / `error:`),
-  with `event: ping` keepalives. The frontend keys off the `data:` prefix and drops pings.
-  This double-encoding (type in both `event:` and the `data:` prefix) is a known wart; moving
-  to distinct `event: done` / `event: error` types is a backend change deferred to a separate issue.
+  with `event: ping` keepalives. The frontend keys off the `data:` prefix *alone* and ignores
+  the `event:` line entirely, so a ping's `data: keepalive` payload falls through and surfaces
+  as a spurious `keepalive` progress line rather than being dropped.
+  This double-encoding (type in both `event:` and the `data:` prefix, with the `event:` field
+  effectively unused by the client) is a known wart; moving to distinct `event: done` /
+  `event: error` types is a backend change deferred to a separate issue.
