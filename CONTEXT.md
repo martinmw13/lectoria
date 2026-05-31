@@ -16,6 +16,8 @@
 
 **Scene** — The atomic narrative unit. A continuous segment of a chapter with consistent emotional tone, setting, and characters. Defined by `{start_paragraph, end_paragraph}` integer ranges. Scenes cover all paragraphs without gaps or overlaps.
 
+**Page** — A read-time display unit produced by paginating a Scene at paragraph boundaries (≤~250 words per page; D19). A Scene decomposes into one or more Pages that never cross scene boundaries; each Page knows its position (`isFirstPage`/`isLastPage`, `pageInScene`/`totalPagesInScene`). The reader renders one Page at a time (`PageView`). **Scene** remains the narrative-segmentation and music-sync unit; **Page** is purely presentational. Logic: `frontend/src/utils/paginate.ts`.
+
 **Emotion** — A 9-value categorical classification assigned to each scene by LLM 2. Values: `joy`, `sorrow`, `tension`, `anger`, `peace`, `romance`, `mystery`, `excitement`, `wonder`. Designed backwards from what music can sonically distinguish (not Plutchik, not GoEmotions). The primary axis driving music matching.
 
 **Pacing** — `slow | medium | fast`. Secondary axis for music matching, influencing tag vector composition.
@@ -92,7 +94,7 @@ Scene attributes are mapped to Jamendo mood tags via a fixed mapping table (`EMO
 ### Reader UI
 
 **D7 — Scene-based presentation (not epub.js pagination)**
-Content is paginated by scene, not by arbitrary visual breakpoints. Each scene is a self-contained display unit. Music transitions synchronize to scene boundaries.
+Content is paginated by scene, not by arbitrary visual breakpoints. Each scene is a self-contained display unit. Music transitions synchronize to scene boundaries. _(D19 later split long scenes into Pages for display; the Scene remains the segmentation / music-sync unit — see **Page** in the glossary.)_
 
 **D19 — Paginated e-reader with horizontal slide**
 Scenes longer than ~250 words are split into pages at paragraph boundaries. Navigation is one page at a time with horizontal slide transition (Kindle/Apple Books style). Progressive reveal: users can only advance forward, back to already-seen pages.
