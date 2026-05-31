@@ -172,6 +172,36 @@
         "title": "BookSummary",
         "type": "object"
       },
+      "Chapter": {
+        "properties": {
+          "chapter_index": {
+            "title": "Chapter Index",
+            "type": "integer"
+          },
+          "is_narrative": {
+            "default": true,
+            "title": "Is Narrative",
+            "type": "boolean"
+          },
+          "paragraphs": {
+            "items": {
+              "$ref": "#/components/schemas/Paragraph"
+            },
+            "title": "Paragraphs",
+            "type": "array"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chapter_index"
+        ],
+        "title": "Chapter",
+        "type": "object"
+      },
       "ChapterAnalysis": {
         "description": "LLM 2 output: scene-level analysis for one chapter.",
         "properties": {
@@ -236,10 +266,18 @@
         "title": "ChapterSummary",
         "type": "object"
       },
-      "ChaptersResponse": {
-        "additionalProperties": true,
-        "description": "Passthrough of the on-disk chapters JSON. The store is intentionally\ndata-faithful (no model round-trip), so this stays a permissive wrapper\nrather than the strict ChaptersData schema.",
-        "title": "ChaptersResponse",
+      "ChaptersData": {
+        "description": "Ingestion output: structured text extracted from EPUB.",
+        "properties": {
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/Chapter"
+            },
+            "title": "Chapters",
+            "type": "array"
+          }
+        },
+        "title": "ChaptersData",
         "type": "object"
       },
       "Character": {
@@ -601,6 +639,24 @@
         ],
         "title": "Pacing",
         "type": "string"
+      },
+      "Paragraph": {
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "text"
+        ],
+        "title": "Paragraph",
+        "type": "object"
       },
       "Relationship": {
         "properties": {
@@ -1052,7 +1108,7 @@
     },
     "/api/books/{book_id}/chapters": {
       "get": {
-        "description": "Get the ingested chapters with paragraph text.",
+        "description": "Get the ingested chapters with paragraph text.\n\nTyped at the route boundary with ``response_model=ChaptersData`` so the HTTP\ncontract is the structured shape. The store stays data-faithful (returns the\nraw dict, no model round-trip \u2014 D15); validation/serialization happens here.",
         "operationId": "get_chapters_api_books__book_id__chapters_get",
         "parameters": [
           {
@@ -1070,7 +1126,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChaptersResponse"
+                  "$ref": "#/components/schemas/ChaptersData"
                 }
               }
             },

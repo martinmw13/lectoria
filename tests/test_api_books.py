@@ -107,15 +107,42 @@ class TestListBooks:
 
 class TestGetChapters:
     @pytest.mark.asyncio
-    async def test_returns_chapters_byte_faithful(self, book_app, book_on_disk):
-        chapters = {"chapters": [{"index": 1, "paragraphs": [{"text": "hello"}]}]}
+    async def test_returns_typed_chaptersdata_shape(self, book_app, book_on_disk):
+        # The route is typed with response_model=ChaptersData: the HTTP edge
+        # validates and serializes through the model even though the store stays
+        # data-faithful (raw dict, no round-trip). So model defaults are filled
+        # in at the boundary — the first chapter omits ``is_narrative`` on disk
+        # and must come back ``True``; the second omits ``title`` and gets ``""``.
+        chapters = {
+            "chapters": [
+                {
+                    "chapter_index": 0,
+                    "title": "Chapter One",
+                    "paragraphs": [{"index": 0, "text": "Once upon a time."}],
+                },
+                {
+                    "chapter_index": 1,
+                    "paragraphs": [{"index": 0, "text": "Front matter."}],
+                    "is_narrative": False,
+                },
+            ]
+        }
         chapters_path = book_on_disk.book_dir / "chapters.json"
         chapters_path.write_text(json.dumps(chapters))
         async with _client(book_app) as client:
             res = await client.get(f"/api/books/{book_on_disk.book_id}/chapters")
         assert res.status_code == 200
-        # Data-faithful to the on-disk JSON (no model round-trip in the store).
-        assert res.json() == json.loads(chapters_path.read_text())
+        body = res.json()
+
+        first = body["chapters"][0]
+        assert first["chapter_index"] == 0
+        assert first["title"] == "Chapter One"
+        assert first["paragraphs"] == [{"index": 0, "text": "Once upon a time."}]
+        assert first["is_narrative"] is True  # model default filled at the boundary
+
+        second = body["chapters"][1]
+        assert second["is_narrative"] is False
+        assert second["title"] == ""  # model default filled at the boundary
 
     @pytest.mark.asyncio
     async def test_missing_returns_404(self, book_app, book_on_disk):
