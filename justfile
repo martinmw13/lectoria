@@ -10,13 +10,17 @@ install:
     uv run pre-commit install
     cd frontend && npm install
 
-# Run all tests
+# Run backend tests (pytest)
 test:
     uv run pytest
 
 # Run a specific test file or pattern
 test-file FILE:
     uv run pytest {{FILE}}
+
+# Run frontend tests (Vitest)
+test-frontend:
+    cd frontend && npm test
 
 # Lint and format check (fast — does not modify files)
 check:
