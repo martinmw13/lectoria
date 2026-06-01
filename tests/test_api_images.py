@@ -126,6 +126,23 @@ class TestGenerateImage:
         assert cached.read_bytes() == FAKE_PNG
 
     @pytest.mark.asyncio
+    async def test_bad_scene_coords_is_lenient(self, book_app, book_on_disk, image_provider):
+        # Decision 5: coordinates that don't resolve to a scene are non-fatal —
+        # the route still generates from the selected text rather than 404ing.
+        async with _client(book_app) as client:
+            res = await client.post(
+                f"/api/books/{book_on_disk.book_id}/images/generate",
+                json={
+                    "selected_text": "Hero draws a sword.",
+                    "chapter_index": 99,
+                    "scene_index": 99,
+                },
+            )
+        assert res.status_code == 200
+        assert base64.b64decode(res.json()["image_base64"]) == FAKE_PNG
+        assert image_provider.calls == 1
+
+    @pytest.mark.asyncio
     async def test_missing_book_returns_404(self, book_app):
         async with _client(book_app) as client:
             res = await client.post(

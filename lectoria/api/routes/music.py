@@ -6,10 +6,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from lectoria.api.deps import get_book_store
+from lectoria.api.deps import (
+    find_scene_or_404,
+    get_book_store,
+    get_current_scene_or_404,
+    load_ncm_or_404,
+)
 from lectoria.core.config import get_settings
-from lectoria.models.ncm import Emotion
-from lectoria.services.bookstore import ArtifactNotFound, BookStore
+from lectoria.models.ncm import NCM, Emotion, Scene
+from lectoria.services.bookstore import BookStore
 from lectoria.services.music import (
     EMOTION_TO_CLUSTER,
     STYLE_PRESETS,
@@ -106,15 +111,12 @@ async def get_scene_track(
             detail=f"Invalid style '{style}'. Valid options: {sorted(VALID_STYLE_NAMES)}",
         )
 
-    try:
-        ncm = store.load_ncm(book_id)
-    except ArtifactNotFound:
-        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
-
-    try:
-        _, scene = ncm.find_scene(chapter_idx, scene_idx)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+    # ``style`` is validated above before the NCM is touched: an invalid style
+    # (400) must take precedence over a missing book (404), so the load stays
+    # inline here rather than in a pre-handler dependency (which would run first
+    # and invert that order).
+    ncm = load_ncm_or_404(book_id, store)
+    scene = find_scene_or_404(ncm, chapter_idx, scene_idx)
 
     index = load_music_index()
     if not index:
@@ -163,27 +165,18 @@ async def get_scene_track(
     response_model_exclude_unset=True,
 )
 async def check_crossfade(
-    book_id: str,
-    chapter_idx: int,
-    scene_idx: int,
-    store: Annotated[BookStore, Depends(get_book_store)],
+    ncm: Annotated[NCM, Depends(load_ncm_or_404)],
+    scene: Annotated[Scene, Depends(get_current_scene_or_404)],
     prev_chapter_idx: int | None = None,
     prev_scene_idx: int | None = None,
 ) -> CrossfadeResponse:
     """Check whether a crossfade should occur when transitioning to this scene.
 
-    Returns the hysteresis decision based on emotion clusters (Decision 12).
+    Returns the hysteresis decision based on emotion clusters (Decision 12). The
+    current scene is resolved via dependencies (book_id/chapter_idx/scene_idx are
+    declared inside them and FastAPI caches the single NCM load); the previous
+    scene stays a lenient in-body lookup.
     """
-    try:
-        ncm = store.load_ncm(book_id)
-    except ArtifactNotFound:
-        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
-
-    try:
-        _, scene = ncm.find_scene(chapter_idx, scene_idx)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-
     if prev_chapter_idx is None or prev_scene_idx is None:
         return CrossfadeResponse(should_crossfade=True, reason="no previous scene")
 
