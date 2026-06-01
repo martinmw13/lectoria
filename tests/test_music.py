@@ -192,28 +192,24 @@ class TestMatchSceneToTrackDetailed:
     def test_returns_full_result_shape(self, index):
         scene = _scene(Emotion.JOY)
         result = match_scene_to_track_detailed(scene, index)
-        assert result["selected_track"] == "t1"
-        assert result["fallback"] == "none"
-        assert result["style_applied"] is None
-        assert "scene_vector" in result
-        assert {c["track_id"] for c in result["candidates"]} == {"t1", "t2", "t3"}
-        assert set(result["candidates"][0].keys()) == {"track_id", "tags", "score"}
-        assert result["candidates"][0]["track_id"] == "t1"  # ranked best-first
-
-    def test_top_n_limits_candidates(self, index):
-        scene = _scene(Emotion.JOY)
-        result = match_scene_to_track_detailed(scene, index, top_n=2)
-        assert len(result["candidates"]) == 2
+        assert result.selected is not None
+        assert result.selected.track_id == "t1"
+        assert result.fallback == "none"
+        assert result.style_applied is None
+        assert result.scene_vector is not None
+        assert {t.track_id for t, _ in result.ranked} == {"t1", "t2", "t3"}
+        assert result.ranked[0][0].track_id == "t1"  # ranked best-first
 
     def test_avoids_previous_track(self, index):
         scene = _scene(Emotion.JOY)
         result = match_scene_to_track_detailed(scene, index, previous_track_id="t1")
-        assert result["selected_track"] == "t2"  # t1 is top but == previous, bumped
+        assert result.selected is not None
+        assert result.selected.track_id == "t2"  # t1 is top but == previous, bumped
 
     def test_fallback_full_index_when_no_emotion_match(self, index):
         scene = _scene(Emotion.WONDER)
         result = match_scene_to_track_detailed(scene, index)
-        assert result["fallback"] == "full_index"
+        assert result.fallback == "full_index"
 
     def test_fallback_style_only(self):
         index = [
@@ -222,9 +218,10 @@ class TestMatchSceneToTrackDetailed:
         ]
         scene = _scene(Emotion.SORROW)
         result = match_scene_to_track_detailed(scene, index, style="piano_only")
-        assert result["fallback"] == "style_only"
-        assert result["selected_track"] == "jp"
-        assert result["style_applied"] == "piano_only"
+        assert result.fallback == "style_only"
+        assert result.selected is not None
+        assert result.selected.track_id == "jp"
+        assert result.style_applied == "piano_only"
 
     def test_fallback_emotion_only(self):
         index = [
@@ -237,21 +234,21 @@ class TestMatchSceneToTrackDetailed:
         ]
         scene = _scene(Emotion.TENSION)
         result = match_scene_to_track_detailed(scene, index, style="noir_jazz")
-        assert result["fallback"] == "emotion_only"
-        assert result["selected_track"] == "rk"
+        assert result.fallback == "emotion_only"
+        assert result.selected is not None
+        assert result.selected.track_id == "rk"
 
     def test_empty_index_returns_no_selection(self):
         scene = _scene(Emotion.JOY)
         result = match_scene_to_track_detailed(scene, [])
-        assert result["selected_track"] is None
-        assert result["candidates"] == []
-        # Behavior-preserving: the no-candidate result omits scene_vector.
-        assert "scene_vector" not in result
+        assert result.selected is None
+        assert result.ranked == []
+        # Behavior-preserving: the no-candidate result has no scene_vector.
+        assert result.scene_vector is None
 
     def test_exclude_honored_in_selection_but_not_in_candidates(self, index):
-        """Converged behavior: selected_track honors exclude (matching the played track),
-        while the candidates list keeps the full ranking so the dev view can still see
-        skipped tracks.
+        """Converged behavior: ``selected`` honors exclude (matching the played track),
+        while ``ranked`` keeps the full pool so the dev view can still see skipped tracks.
 
         Ranking is t1 > t2 > t3. With t1 excluded and t2 == previous_track_id, selection
         bumps to t3 — identical to match_scene_to_track's behavior.
@@ -260,12 +257,13 @@ class TestMatchSceneToTrackDetailed:
         result = match_scene_to_track_detailed(
             scene, index, exclude_track_ids={"t1"}, previous_track_id="t2"
         )
-        assert result["selected_track"] == "t3"
+        assert result.selected is not None
+        assert result.selected.track_id == "t3"
         # The excluded track is still shown in the full ranking.
-        assert "t1" in {c["track_id"] for c in result["candidates"]}
+        assert "t1" in {t.track_id for t, _ in result.ranked}
 
     def test_selection_matches_non_detailed_path(self, index):
-        """The dev view is a projection: its selected_track equals match_scene_to_track."""
+        """The dev view is a projection: its ``selected`` equals match_scene_to_track."""
         scene = _scene(Emotion.JOY)
         for kwargs in (
             {},
@@ -276,8 +274,7 @@ class TestMatchSceneToTrackDetailed:
         ):
             plain = match_scene_to_track(scene, index, **kwargs)
             detailed = match_scene_to_track_detailed(scene, index, **kwargs)
-            expected = plain.track_id if plain else None
-            assert detailed["selected_track"] == expected, kwargs
+            assert detailed.selected == plain, kwargs
 
 
 class TestShouldCrossfade:

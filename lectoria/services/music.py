@@ -693,41 +693,20 @@ def match_scene_to_track_detailed(
     *,
     previous_track_id: str | None = None,
     exclude_track_ids: set[str] | None = None,
-    top_n: int = 5,
     style: str | None = None,
-) -> dict:
-    """Dev-view projection of ``match_scene_to_track`` (same selection, plus ranking).
+) -> MatchResult:
+    """Dev-view match: same selection as ``match_scene_to_track`` plus the full ranking.
 
-    Returns a dict with: selected_track, score, scene_vector, candidates (the top N of the
-    full ranking, including any excluded tracks), fallback, and style_applied.
+    Returns the ``MatchResult`` directly (the full candidate pool ranked best-first in
+    ``.ranked``); the route slices the top N and projects it to the response model.
     """
-    result = _match_scene_core(
+    return _match_scene_core(
         scene,
         index,
         previous_track_id=previous_track_id,
         exclude_track_ids=exclude_track_ids,
         style=style,
     )
-
-    if result.selected is None:
-        # No candidate pool: preserve the historical no-scene_vector shape.
-        return {
-            "selected_track": None,
-            "score": 0.0,
-            "candidates": [],
-            "fallback": result.fallback,
-            "style_applied": result.style_applied,
-        }
-
-    candidates = [{"track_id": t.track_id, "tags": t.tags, "score": s} for t, s in result.ranked]
-    return {
-        "selected_track": result.selected.track_id,
-        "score": result.score,
-        "scene_vector": result.scene_vector.tolist(),  # type: ignore[union-attr]
-        "fallback": result.fallback,
-        "style_applied": result.style_applied,
-        "candidates": candidates[:top_n],
-    }
 
 
 # ---------------------------------------------------------------------------
