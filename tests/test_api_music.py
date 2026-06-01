@@ -11,11 +11,14 @@ otherwise 503 on an empty index.
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+import numpy as np
+
 from lectoria.api.deps import get_book_store
+from lectoria.api.routes.music import _project_detailed
 from lectoria.app import create_app
 from lectoria.models.ncm import Emotion, MusicIndexEntry
 from lectoria.services.bookstore import FileSystemBookStore
-from lectoria.services.music import tags_to_vector
+from lectoria.services.music import MatchResult, tags_to_vector
 
 
 @pytest.fixture()
@@ -130,6 +133,98 @@ class TestSceneTrack:
         async with _client(book_app) as client:
             res = await client.get(f"/api/books/{book_on_disk.book_id}/chapters/1/scenes/99/track")
         assert res.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_detailed_with_pool_includes_scene_vector(self, book_app, book_on_disk):
+        """With-pool dev view: a real match emits scene_vector as a float list plus
+        the selected track and ranked candidates."""
+        async with _client(book_app) as client:
+            res = await client.get(
+                f"/api/books/{book_on_disk.book_id}/chapters/1/scenes/1/track",
+                params={"detailed": "true"},
+            )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["selected_track"] == "track_42"
+        assert body["fallback"] == "none"
+        assert body["style_applied"] is None
+        assert isinstance(body["scene_vector"], list)
+        assert all(isinstance(x, float) for x in body["scene_vector"])
+        assert body["candidates"][0]["track_id"] == "track_42"
+        assert set(body["candidates"][0].keys()) == {"track_id", "tags", "score"}
+
+    @pytest.mark.asyncio
+    async def test_detailed_no_pool_omits_scene_vector(self, book_app, book_on_disk, monkeypatch):
+        """No-pool dev view: when the matcher finds no candidates, the response omits
+        scene_vector entirely (not ``"scene_vector": null``). The no-pool path is
+        unreachable with a non-empty index, so the matcher is stubbed to return it
+        while load_music_index stays non-empty to clear the 503 guard."""
+        no_pool = MatchResult(
+            selected=None,
+            score=0.0,
+            scene_vector=None,
+            ranked=[],
+            fallback="none",
+            style_applied=None,
+        )
+        monkeypatch.setattr(
+            "lectoria.api.routes.music.match_scene_to_track_detailed",
+            lambda *a, **k: no_pool,
+        )
+        async with _client(book_app) as client:
+            res = await client.get(
+                f"/api/books/{book_on_disk.book_id}/chapters/1/scenes/1/track",
+                params={"detailed": "true"},
+            )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["selected_track"] is None
+        assert body["candidates"] == []
+        assert "scene_vector" not in body
+
+
+class TestProjectDetailed:
+    """The route's projection helper: top-N candidate slice + no-pool shape."""
+
+    @staticmethod
+    def _track(track_id: str) -> MusicIndexEntry:
+        return MusicIndexEntry(
+            track_id=track_id,
+            file_path=f"tracks/{track_id}.mp3",
+            duration_seconds=120.0,
+            tags=["dream"],
+            emotion_primary=Emotion.WONDER,
+            tag_vector=tags_to_vector(["dream"]),
+        )
+
+    def test_top_n_limits_candidates(self):
+        ranked = [(self._track(f"track_{i}"), 1.0 - i / 10) for i in range(5)]
+        result = MatchResult(
+            selected=ranked[0][0],
+            score=ranked[0][1],
+            scene_vector=np.array(tags_to_vector(["dream"])),
+            ranked=ranked,
+            fallback="none",
+            style_applied=None,
+        )
+        projected = _project_detailed(result, top_n=2)
+        assert len(projected.candidates) == 2
+        assert [c.track_id for c in projected.candidates] == ["track_0", "track_1"]
+
+    def test_no_pool_leaves_scene_vector_unset(self):
+        result = MatchResult(
+            selected=None,
+            score=0.0,
+            scene_vector=None,
+            ranked=[],
+            fallback="none",
+            style_applied=None,
+        )
+        projected = _project_detailed(result, top_n=5)
+        assert projected.selected_track is None
+        assert projected.candidates == []
+        # Unset (not None) so response_model_exclude_unset drops it from the JSON.
+        assert "scene_vector" not in projected.model_dump(exclude_unset=True)
 
 
 class TestCrossfade:
