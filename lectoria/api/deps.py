@@ -36,6 +36,12 @@ def load_ncm_or_404(
     directly with an explicit store when a route must run another check first —
     e.g. the scene-track route validates ``style`` (400) before touching the NCM,
     a precedence a pre-handler dependency would invert.
+
+    Intentionally a sync ``def`` (not ``async``): ``store.load_ncm`` does blocking
+    disk I/O + a CPU-bound parse, so FastAPI runs it in its threadpool when injected
+    via ``Depends``. Making it ``async`` would run that blocking load on the event
+    loop and stall concurrent requests — do not "tidy" it to match the async
+    provider deps above (those do no blocking I/O).
     """
     try:
         return store.load_ncm(book_id)
