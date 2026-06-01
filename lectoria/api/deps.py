@@ -7,12 +7,13 @@ seam, constructed from settings and injected into routes via ``Depends``.
 import logging
 from typing import Annotated
 
-from fastapi import Header, HTTPException
+from fastapi import Depends, Header, HTTPException
 
 from lectoria.core.config import get_settings
+from lectoria.models.ncm import NCM, Scene
 from lectoria.providers.base import ImageProvider, LLMProvider
 from lectoria.providers.registry import get_image_provider, get_llm_provider
-from lectoria.services.bookstore import BookStore, FileSystemBookStore
+from lectoria.services.bookstore import ArtifactNotFound, BookStore, FileSystemBookStore
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,50 @@ def get_book_store() -> BookStore:
     Tests override this provider with a temp-directory-backed store.
     """
     return FileSystemBookStore(get_settings().books_dir)
+
+
+def load_ncm_or_404(
+    book_id: str,
+    store: Annotated[BookStore, Depends(get_book_store)],
+) -> NCM:
+    """Load a book's NCM, raising 404 when the artifact is missing.
+
+    Usable as a FastAPI dependency (``Depends(load_ncm_or_404)``) or called
+    directly with an explicit store when a route must run another check first —
+    e.g. the scene-track route validates ``style`` (400) before touching the NCM,
+    a precedence a pre-handler dependency would invert.
+    """
+    try:
+        return store.load_ncm(book_id)
+    except ArtifactNotFound:
+        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
+
+
+def find_scene_or_404(ncm: NCM, chapter_idx: int, scene_idx: int) -> Scene:
+    """Resolve a scene by index, raising 404 when the chapter or scene is absent.
+
+    Lives in the deps layer rather than on the NCM model so the model stays free
+    of HTTP concerns; ``deps.py`` is the boundary where ``HTTPException`` is allowed.
+    """
+    try:
+        _, scene = ncm.find_scene(chapter_idx, scene_idx)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    return scene
+
+
+def get_current_scene_or_404(
+    chapter_idx: int,
+    scene_idx: int,
+    ncm: Annotated[NCM, Depends(load_ncm_or_404)],
+) -> Scene:
+    """Resolve the path-addressed current scene, 404ing if the NCM or scene is absent.
+
+    For routes whose scene coordinates are path parameters (the crossfade route).
+    Routes that validate other inputs first, or whose coordinates live in the
+    request body, call ``load_ncm_or_404`` / ``find_scene_or_404`` directly.
+    """
+    return find_scene_or_404(ncm, chapter_idx, scene_idx)
 
 
 async def llm_provider_dep(
