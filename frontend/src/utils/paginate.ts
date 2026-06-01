@@ -1,11 +1,8 @@
-import type { NCM } from '../api/client';
+import type { Paragraph, Scene } from '../api/types';
 
-type Scene = NCM['chapters'][0]['scenes'][0];
-
-export interface Paragraph {
-  index: number;
-  text: string;
-}
+// Paragraphs flow in from ChaptersData.chapters[].paragraphs (schema `Paragraph`);
+// re-export the projected type so page consumers keep their single import surface.
+export type { Paragraph };
 
 export interface Page {
   sceneIdx: number;

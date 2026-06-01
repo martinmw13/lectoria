@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getSceneTrack, type DetailedMatch, type NCM } from '../api/client';
-
-type Scene = NCM['chapters'][0]['scenes'][0];
-type ChapterAnalysis = NCM['chapters'][0];
+import { getSceneTrack } from '../api/client';
+import type { ChapterAnalysis, DetailedSceneTrackResponse, Scene } from '../api/types';
 
 interface Props {
   scene: Scene;
@@ -12,7 +10,7 @@ interface Props {
 }
 
 export default function DevPanel({ scene, chapter, bookId, onClose }: Props) {
-  const [musicMatch, setMusicMatch] = useState<DetailedMatch | null>(null);
+  const [musicMatch, setMusicMatch] = useState<DetailedSceneTrackResponse | null>(null);
   const [musicError, setMusicError] = useState('');
 
   useEffect(() => {
@@ -20,7 +18,7 @@ export default function DevPanel({ scene, chapter, bookId, onClose }: Props) {
     getSceneTrack(bookId, chapter.chapter_index, scene.scene_index, undefined, true)
       .then((data) => {
         if (cancelled) return;
-        setMusicMatch(data as DetailedMatch);
+        setMusicMatch(data as DetailedSceneTrackResponse);
         setMusicError('');
       })
       .catch((e) => {
@@ -37,6 +35,9 @@ export default function DevPanel({ scene, chapter, bookId, onClose }: Props) {
     scene.raw_scene_type && { field: 'scene_type', from: scene.raw_scene_type, to: scene.scene_type },
     scene.raw_transition_type && { field: 'transition_type', from: scene.raw_transition_type, to: scene.transition_type },
   ].filter(Boolean) as { field: string; from: string; to: string }[];
+
+  const keyPhrases = scene.key_phrases ?? [];
+  const keyObjects = scene.key_objects ?? [];
 
   return (
     <aside className="dev-panel">
@@ -59,9 +60,9 @@ export default function DevPanel({ scene, chapter, bookId, onClose }: Props) {
             <tr><td>Pacing</td><td>{scene.pacing}</td></tr>
             <tr><td>Scene type</td><td>{scene.scene_type}</td></tr>
             <tr><td>Transition</td><td>{scene.transition_type}</td></tr>
-            <tr><td>Characters</td><td>{scene.characters_present.join(', ') || '(none)'}</td></tr>
-            <tr><td>Location</td><td>{scene.setting.location || '(unspecified)'}</td></tr>
-            <tr><td>Time of day</td><td>{scene.setting.time_of_day || '(unknown)'}</td></tr>
+            <tr><td>Characters</td><td>{(scene.characters_present ?? []).join(', ') || '(none)'}</td></tr>
+            <tr><td>Location</td><td>{scene.setting?.location || '(unspecified)'}</td></tr>
+            <tr><td>Time of day</td><td>{scene.setting?.time_of_day || '(unknown)'}</td></tr>
           </tbody>
         </table>
       </section>
@@ -95,7 +96,7 @@ export default function DevPanel({ scene, chapter, bookId, onClose }: Props) {
             <tr><td>LLM model</td><td>{chapter.llm_model || '(unknown)'}</td></tr>
             <tr><td>Attempts</td><td>{chapter.attempt_count}</td></tr>
             <tr><td>Fallback</td><td>{chapter.is_fallback ? 'Yes' : 'No'}</td></tr>
-            <tr><td>Total scenes</td><td>{chapter.scenes.length}</td></tr>
+            <tr><td>Total scenes</td><td>{chapter.scenes?.length ?? 0}</td></tr>
           </tbody>
         </table>
       </section>
@@ -153,21 +154,21 @@ export default function DevPanel({ scene, chapter, bookId, onClose }: Props) {
       </section>
 
       {/* Key phrases / objects */}
-      {(scene.key_phrases.length > 0 || scene.key_objects.length > 0) && (
+      {(keyPhrases.length > 0 || keyObjects.length > 0) && (
         <section className="dev-section">
-          {scene.key_phrases.length > 0 && (
+          {keyPhrases.length > 0 && (
             <>
               <h4>Key Phrases</h4>
               <ul className="dev-list">
-                {scene.key_phrases.map((p, i) => <li key={i}>{p}</li>)}
+                {keyPhrases.map((p, i) => <li key={i}>{p}</li>)}
               </ul>
             </>
           )}
-          {scene.key_objects.length > 0 && (
+          {keyObjects.length > 0 && (
             <>
               <h4>Key Objects</h4>
               <ul className="dev-list">
-                {scene.key_objects.map((o, i) => <li key={i}>{o}</li>)}
+                {keyObjects.map((o, i) => <li key={i}>{o}</li>)}
               </ul>
             </>
           )}

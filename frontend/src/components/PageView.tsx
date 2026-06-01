@@ -1,10 +1,7 @@
 import { useState } from 'react';
-import type { NCM } from '../api/client';
 import { useSceneImage } from '../hooks/useSceneImage';
+import type { Character, ChapterAnalysis } from '../api/types';
 import type { Page, Paragraph } from '../utils/paginate';
-
-type Character = NCM['book_map']['characters'][0];
-type ChapterAnalysis = NCM['chapters'][0];
 
 interface Props {
   page: Page;

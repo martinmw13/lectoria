@@ -1,7 +1,4 @@
-import type { NCM } from '../api/client';
-
-type ChapterAnalysis = NCM['chapters'][0];
-type ChapterSummary = NCM['book_map']['chapters'][0];
+import type { ChapterAnalysis, ChapterSummary } from '../api/types';
 
 interface Props {
   chapters: ChapterAnalysis[];
@@ -27,6 +24,7 @@ export default function ChapterNav({
             const summary = bookMapChapters.find(
               (c) => c.chapter_index === ch.chapter_index,
             );
+            const sceneCount = ch.scenes?.length ?? 0;
             return (
               <li
                 key={ch.chapter_index}
@@ -37,7 +35,7 @@ export default function ChapterNav({
                   {summary?.title || `Chapter ${ch.chapter_index}`}
                 </span>
                 <span className="ch-scenes">
-                  {ch.scenes.length} scene{ch.scenes.length !== 1 ? 's' : ''}
+                  {sceneCount} scene{sceneCount !== 1 ? 's' : ''}
                 </span>
               </li>
             );
