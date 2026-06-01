@@ -16,12 +16,30 @@ from lectoria.models.ncm import (
 )
 from lectoria.providers.base import CompletionResult, LLMProvider
 from lectoria.services.narrative import (
+    CHARS_PER_TOKEN,
     MAX_RETRIES,
     _coerce_scene_enums,
     analyze_book,
     analyze_chapter,
+    estimate_tokens,
 )
 from tests.fakes import FakeLLMProvider
+
+
+class TestEstimateTokens:
+    @pytest.mark.parametrize(
+        "char_count,expected",
+        [
+            (0, 0),
+            (3, 0),  # fewer than CHARS_PER_TOKEN chars → 0 tokens
+            (4, 1),
+            (10, 2),  # integer (floor) division
+            (4000, 1000),
+        ],
+    )
+    def test_estimate(self, char_count, expected):
+        assert estimate_tokens(char_count) == expected
+        assert estimate_tokens(char_count) == char_count // CHARS_PER_TOKEN
 
 
 class TestCoerceSceneEnums:
