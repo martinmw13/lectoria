@@ -1,8 +1,10 @@
 """Book upload, processing, and retrieval endpoints."""
 
 import asyncio
+import functools
 import logging
 import shutil
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 from typing import Annotated
 
@@ -59,6 +61,59 @@ class BookResponse(BaseModel):
     character_count: int | None = None
     chapter_count: int | None = None
     scene_count: int | None = None
+
+
+# ---------------------------------------------------------------------------
+# SSE progress bridge
+# ---------------------------------------------------------------------------
+
+
+_KEEPALIVE_TIMEOUT_S = 120  # SSE keepalive ping interval (was inline in process_book)
+
+
+class _SSEProgressBridge:
+    """Bridges ``run_pipeline``'s ``on_progress`` callback to an SSE event stream.
+
+    Runs the bound pipeline as a background task, forwarding each progress
+    callback through an ``asyncio.Queue``, and yields SSE events until the
+    pipeline emits a terminal ``done``/``error``. Stays in the API layer (it
+    speaks SSE) and has exactly one caller (``process_book``) — extracted for
+    readability, not reuse.
+    """
+
+    def __init__(
+        self,
+        pipeline: Callable[..., Awaitable[tuple[str, NCM]]],
+        *,
+        label: str,
+    ) -> None:
+        self._pipeline = pipeline
+        self._label = label
+        self._queue: asyncio.Queue[dict] = asyncio.Queue()
+
+    def _on_progress(self, stage: str, detail: str = "") -> None:
+        self._queue.put_nowait({"stage": stage, "detail": detail})
+
+    async def _run(self) -> None:
+        try:
+            book_id, _ncm = await self._pipeline(on_progress=self._on_progress)
+            self._queue.put_nowait({"stage": "done", "detail": book_id})
+        except Exception as e:
+            logger.exception("Pipeline failed for %s", self._label)
+            self._queue.put_nowait({"stage": "error", "detail": str(e)})
+
+    async def events(self) -> AsyncIterator[dict]:
+        task = asyncio.create_task(self._run())
+        while True:
+            try:
+                msg = await asyncio.wait_for(self._queue.get(), timeout=_KEEPALIVE_TIMEOUT_S)
+            except asyncio.TimeoutError:
+                yield {"event": "ping", "data": "keepalive"}
+                continue
+            yield {"event": "progress", "data": f"{msg['stage']}: {msg['detail']}"}
+            if msg["stage"] in ("done", "error"):
+                break
+        await task
 
 
 # ---------------------------------------------------------------------------
@@ -158,43 +213,14 @@ async def process_book(
             bookmap_path.unlink()
         logger.info("Cleared existing NCM for %s (force reprocess)", book_id)
 
-    async def event_generator():
-        progress_queue: asyncio.Queue[dict] = asyncio.Queue()
-
-        def on_progress(stage: str, detail: str = "") -> None:
-            progress_queue.put_nowait({"stage": stage, "detail": detail})
-
-        async def _run():
-            try:
-                _book_id, _ncm = await run_pipeline(
-                    epub_path,
-                    llm_provider,
-                    book_id=book_id,
-                    max_chapters=max_chapters,
-                    on_progress=on_progress,
-                )
-                progress_queue.put_nowait({"stage": "done", "detail": _book_id})
-            except Exception as e:
-                logger.exception("Pipeline failed for %s", book_id)
-                progress_queue.put_nowait({"stage": "error", "detail": str(e)})
-
-        task = asyncio.create_task(_run())
-
-        while True:
-            try:
-                msg = await asyncio.wait_for(progress_queue.get(), timeout=120)
-            except asyncio.TimeoutError:
-                yield {"event": "ping", "data": "keepalive"}
-                continue
-
-            yield {"event": "progress", "data": f"{msg['stage']}: {msg['detail']}"}
-
-            if msg["stage"] in ("done", "error"):
-                break
-
-        await task
-
-    return EventSourceResponse(event_generator())
+    pipeline = functools.partial(
+        run_pipeline,
+        epub_path,
+        llm_provider,
+        book_id=book_id,
+        max_chapters=max_chapters,
+    )
+    return EventSourceResponse(_SSEProgressBridge(pipeline, label=book_id).events())
 
 
 @router.get("/{book_id}", response_model_exclude_unset=True)

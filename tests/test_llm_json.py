@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from lectoria.providers.base import CompletionResult
 from lectoria.services.llm_json import (
     StructuredCallError,
+    TokenUsage,
     complete_to_model,
     extract_json,
 )
@@ -45,6 +46,28 @@ class TestExtractJson:
     def test_whitespace_stripped(self):
         raw = '   \n{"chapter_index": 1}  \n'
         assert extract_json(raw) == '{"chapter_index": 1}'
+
+
+class TestTokenUsageMerge:
+    def test_add_merges_fields(self):
+        a = TokenUsage(prompt_tokens=10, completion_tokens=5, calls=1)
+        b = TokenUsage(prompt_tokens=3, completion_tokens=7, calls=2)
+        merged = a + b
+        assert (merged.prompt_tokens, merged.completion_tokens, merged.calls) == (13, 12, 3)
+        assert merged.total == 25
+
+    def test_add_is_pure(self):
+        a = TokenUsage(prompt_tokens=10, completion_tokens=5, calls=1)
+        _ = a + TokenUsage(prompt_tokens=1, completion_tokens=1, calls=1)
+        assert (a.prompt_tokens, a.completion_tokens, a.calls) == (10, 5, 1)  # unchanged
+
+    def test_sum_with_empty_start(self):
+        usages = [TokenUsage(prompt_tokens=1, completion_tokens=2, calls=1) for _ in range(3)]
+        total = sum(usages, TokenUsage())
+        assert (total.prompt_tokens, total.completion_tokens, total.calls) == (3, 6, 3)
+
+    def test_add_returns_notimplemented_for_other_types(self):
+        assert TokenUsage().__add__(5) is NotImplemented
 
 
 class TestCompleteToModel:

@@ -5,6 +5,7 @@ Coordinates the full offline pipeline:
 """
 
 import asyncio
+import functools
 import logging
 import re
 from collections.abc import Callable
@@ -134,6 +135,81 @@ def assemble_ncm(
 # ---------------------------------------------------------------------------
 
 
+def _emit_progress(
+    on_progress: Callable[[str, str], None] | None, stage: str, detail: str = ""
+) -> None:
+    """Fan a pipeline progress event out to the optional callback and the log."""
+    if on_progress:
+        on_progress(stage, detail)
+    logger.info("[Pipeline] %s %s", stage, detail)
+
+
+async def _analyze_chapter_bounded(
+    idx: int,
+    chapter: Chapter,
+    *,
+    sem: asyncio.Semaphore,
+    llm_provider: LLMProvider,
+    book_map: BookMap,
+    total: int,
+    progress: Callable[[str, str], None],
+) -> tuple[ChapterAnalysis, TokenUsage]:
+    """Analyze one chapter under the concurrency semaphore, reporting progress."""
+    async with sem:
+        progress("llm2", f"Chapter {idx}/{total}: {chapter.title or '(untitled)'}")
+        return await analyze_chapter(llm_provider, chapter, book_map)
+
+
+def _ingest_and_trim(
+    epub_path: Path,
+    max_chapters: int | None,
+    progress: Callable[[str, str], None],
+) -> tuple[ChaptersData, list[Chapter]]:
+    """Parse the EPUB, keep narrative chapters, and optionally trim to max_chapters."""
+    progress("ingestion", f"Parsing {epub_path.name}")
+    chapters_data = ingest_epub(epub_path)
+    narrative_chapters = [c for c in chapters_data.chapters if c.is_narrative]
+    progress("ingestion", f"Done: {len(narrative_chapters)} narrative chapters")
+
+    if max_chapters and max_chapters < len(narrative_chapters):
+        logger.info(
+            "Trimming to first %d narrative chapters (of %d)", max_chapters, len(narrative_chapters)
+        )
+        narrative_chapters = narrative_chapters[:max_chapters]
+        chapters_data = ChaptersData(chapters=narrative_chapters)
+        progress("ingestion", f"Trimmed to {max_chapters} chapters for processing")
+
+    return chapters_data, narrative_chapters
+
+
+async def _run_llm2(
+    narrative_chapters: list[Chapter],
+    *,
+    llm_provider: LLMProvider,
+    book_map: BookMap,
+    progress: Callable[[str, str], None],
+) -> tuple[list[ChapterAnalysis], TokenUsage]:
+    """Run LLM 2 per-chapter scene analysis concurrently (bounded), summing token usage."""
+    llm2_concurrency = 2
+    sem = asyncio.Semaphore(llm2_concurrency)
+    total = len(narrative_chapters)
+
+    analyze = functools.partial(
+        _analyze_chapter_bounded,
+        sem=sem,
+        llm_provider=llm_provider,
+        book_map=book_map,
+        total=total,
+        progress=progress,
+    )
+    results = list(
+        await asyncio.gather(*(analyze(i, ch) for i, ch in enumerate(narrative_chapters, 1)))
+    )
+    chapter_analyses = [r[0] for r in results]
+    llm2_usage = sum((usage for _, usage in results), TokenUsage())
+    return chapter_analyses, llm2_usage
+
+
 async def run_pipeline(
     epub_path: Path,
     llm_provider: LLMProvider,
@@ -155,31 +231,17 @@ async def run_pipeline(
         Tuple of (book_id, NCM).
     """
 
-    def _progress(stage: str, detail: str = "") -> None:
-        if on_progress:
-            on_progress(stage, detail)
-        logger.info("[Pipeline] %s %s", stage, detail)
+    progress = functools.partial(_emit_progress, on_progress)
 
     # 1. Ingestion
-    _progress("ingestion", f"Parsing {epub_path.name}")
-    chapters_data = ingest_epub(epub_path)
-    narrative_chapters = [c for c in chapters_data.chapters if c.is_narrative]
-    _progress("ingestion", f"Done: {len(narrative_chapters)} narrative chapters")
-
-    if max_chapters and max_chapters < len(narrative_chapters):
-        logger.info(
-            "Trimming to first %d narrative chapters (of %d)", max_chapters, len(narrative_chapters)
-        )
-        narrative_chapters = narrative_chapters[:max_chapters]
-        chapters_data = ChaptersData(chapters=narrative_chapters)
-        _progress("ingestion", f"Trimmed to {max_chapters} chapters for processing")
+    chapters_data, narrative_chapters = _ingest_and_trim(epub_path, max_chapters, progress)
 
     # 2. LLM 1 — book-level analysis
-    _progress("llm1", f"Analyzing book ({len(narrative_chapters)} chapters)")
+    progress("llm1", f"Analyzing book ({len(narrative_chapters)} chapters)")
     book_map, llm1_usage = await analyze_book(llm_provider, chapters_data)
     if not book_id:
         book_id = make_book_id(book_map.title)
-    _progress(
+    progress(
         "llm1",
         f"Done: '{book_map.title}', {len(book_map.characters)} characters "
         f"| tokens: prompt={llm1_usage.prompt_tokens} completion={llm1_usage.completion_tokens} total={llm1_usage.total}",
@@ -191,43 +253,26 @@ async def run_pipeline(
     save_bookmap(book_dir, book_map)
 
     # 4. LLM 2 — per-chapter scene analysis (concurrent with bounded parallelism)
-    llm2_concurrency = 2
-    sem = asyncio.Semaphore(llm2_concurrency)
-    total = len(narrative_chapters)
-
-    async def _analyze_one(idx: int, chapter: Chapter) -> tuple[ChapterAnalysis, TokenUsage]:
-        async with sem:
-            _progress("llm2", f"Chapter {idx}/{total}: {chapter.title or '(untitled)'}")
-            return await analyze_chapter(llm_provider, chapter, book_map)
-
-    results = list(
-        await asyncio.gather(*(_analyze_one(i, ch) for i, ch in enumerate(narrative_chapters, 1)))
+    chapter_analyses, llm2_usage = await _run_llm2(
+        narrative_chapters, llm_provider=llm_provider, book_map=book_map, progress=progress
     )
-    chapter_analyses = [r[0] for r in results]
-
-    llm2_usage = TokenUsage()
-    for _, ch_usage in results:
-        llm2_usage.prompt_tokens += ch_usage.prompt_tokens
-        llm2_usage.completion_tokens += ch_usage.completion_tokens
-        llm2_usage.calls += ch_usage.calls
-
-    _progress(
+    progress(
         "llm2",
         f"Done: {sum(len(a.scenes) for a in chapter_analyses)} total scenes "
         f"| tokens: prompt={llm2_usage.prompt_tokens} completion={llm2_usage.completion_tokens} total={llm2_usage.total} ({llm2_usage.calls} calls)",
     )
 
     # 5. Assemble and save NCM
-    _progress("assembly", "Merging LLM 1 + LLM 2 outputs")
+    progress("assembly", "Merging LLM 1 + LLM 2 outputs")
     ncm = assemble_ncm(book_map, chapter_analyses)
     save_ncm(book_dir, ncm)
 
-    total_prompt = llm1_usage.prompt_tokens + llm2_usage.prompt_tokens
-    total_completion = llm1_usage.completion_tokens + llm2_usage.completion_tokens
-    _progress(
+    total_usage = llm1_usage + llm2_usage
+    progress(
         "complete",
         f"NCM saved to {book_dir} "
-        f"| total tokens: prompt={total_prompt} completion={total_completion} total={total_prompt + total_completion}",
+        f"| total tokens: prompt={total_usage.prompt_tokens} "
+        f"completion={total_usage.completion_tokens} total={total_usage.total}",
     )
 
     return book_id, ncm

@@ -6,13 +6,16 @@ temp-directory-backed store (the ``book_on_disk`` fixture), so the happy paths
 run without touching the real ``data/books/`` directory.
 """
 
+import asyncio
 import json
 import logging
+from types import SimpleNamespace
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from lectoria.api.deps import get_book_store
+import lectoria.api.routes.books as books_route
+from lectoria.api.deps import get_book_store, llm_provider_dep
 from lectoria.app import create_app
 from lectoria.services.bookstore import FileSystemBookStore
 
@@ -29,6 +32,14 @@ def book_app(book_on_disk):
 
 def _client(app) -> AsyncClient:
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+
+def _unprocessed_book(tmp_path, book_id="sse-book"):
+    """Materialise an uploaded-but-unprocessed book dir (source.epub, no ncm.json)."""
+    book_dir = tmp_path / "books" / book_id
+    book_dir.mkdir(parents=True)
+    (book_dir / "source.epub").write_bytes(b"PK\x03\x04 fake epub")
+    return book_dir.parent  # books_dir
 
 
 class TestGetNcm:
@@ -166,3 +177,97 @@ class TestGetChapters:
         assert res.status_code == 500
         assert res.json()["detail"] == f"Corrupt chapters data for book '{book_on_disk.book_id}'"
         assert book_on_disk.book_id in caplog.text  # logged with context (observability.md)
+
+
+class TestProcessBookSSE:
+    """Characterizes the /process SSE wire format after the _SSEProgressBridge
+    extraction: 3 event types — ``progress``, ``ping`` (keepalive), and the
+    terminal ``done``/``error`` riding on ``event: progress``."""
+
+    @pytest.mark.asyncio
+    async def test_streams_progress_then_terminal_done(self, tmp_path, monkeypatch):
+        books_dir = _unprocessed_book(tmp_path)
+        monkeypatch.setattr(
+            books_route, "get_settings", lambda: SimpleNamespace(books_dir=books_dir)
+        )
+
+        async def fake_run_pipeline(epub_path, provider, *, book_id, max_chapters, on_progress):
+            on_progress("ingestion", "Parsing source.epub")
+            on_progress("llm1", "Analyzing book")
+            return book_id, object()  # (book_id, ncm) — ncm unused by the bridge
+
+        monkeypatch.setattr(books_route, "run_pipeline", fake_run_pipeline)
+
+        app = create_app()
+        app.dependency_overrides[llm_provider_dep] = lambda: object()
+        try:
+            async with (
+                _client(app) as client,
+                client.stream("POST", "/api/books/sse-book/process") as r,
+            ):
+                assert r.status_code == 200
+                body = "".join([chunk async for chunk in r.aiter_text()])
+        finally:
+            app.dependency_overrides.clear()
+
+        assert "event: progress" in body
+        assert "data: ingestion: Parsing source.epub" in body
+        assert "data: llm1: Analyzing book" in body
+        assert "data: done: sse-book" in body  # terminal rides on progress
+        assert "event: done" not in body  # NOT a distinct event type
+
+    @pytest.mark.asyncio
+    async def test_pipeline_exception_streams_terminal_error(self, tmp_path, monkeypatch):
+        books_dir = _unprocessed_book(tmp_path)
+        monkeypatch.setattr(
+            books_route, "get_settings", lambda: SimpleNamespace(books_dir=books_dir)
+        )
+
+        async def boom(epub_path, provider, *, book_id, max_chapters, on_progress):
+            on_progress("ingestion", "start")
+            raise RuntimeError("kaboom")
+
+        monkeypatch.setattr(books_route, "run_pipeline", boom)
+
+        app = create_app()
+        app.dependency_overrides[llm_provider_dep] = lambda: object()
+        try:
+            async with (
+                _client(app) as client,
+                client.stream("POST", "/api/books/sse-book/process") as r,
+            ):
+                body = "".join([chunk async for chunk in r.aiter_text()])
+        finally:
+            app.dependency_overrides.clear()
+
+        assert "data: error: kaboom" in body
+        assert "event: error" not in body
+
+    @pytest.mark.asyncio
+    async def test_emits_keepalive_ping_on_timeout(self, tmp_path, monkeypatch):
+        books_dir = _unprocessed_book(tmp_path)
+        monkeypatch.setattr(
+            books_route, "get_settings", lambda: SimpleNamespace(books_dir=books_dir)
+        )
+        monkeypatch.setattr(books_route, "_KEEPALIVE_TIMEOUT_S", 0.01)
+
+        async def slow(epub_path, provider, *, book_id, max_chapters, on_progress):
+            await asyncio.sleep(0.05)  # longer than the timeout → forces a ping
+            return book_id, object()
+
+        monkeypatch.setattr(books_route, "run_pipeline", slow)
+
+        app = create_app()
+        app.dependency_overrides[llm_provider_dep] = lambda: object()
+        try:
+            async with (
+                _client(app) as client,
+                client.stream("POST", "/api/books/sse-book/process") as r,
+            ):
+                body = "".join([chunk async for chunk in r.aiter_text()])
+        finally:
+            app.dependency_overrides.clear()
+
+        assert "event: ping" in body
+        assert "data: keepalive" in body
+        assert "data: done: sse-book" in body  # still terminates after the ping
