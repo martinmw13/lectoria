@@ -29,6 +29,17 @@ logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
 
+# Rough token-estimation heuristic shared by the upload route and book analysis:
+# ~4 characters per token. Used only for cost display and context-window warnings,
+# so the approximation does not need to be exact.
+CHARS_PER_TOKEN = 4
+
+
+def estimate_tokens(char_count: int) -> int:
+    """Estimate token count from a character count (~4 chars per token)."""
+    return char_count // CHARS_PER_TOKEN
+
+
 # ---------------------------------------------------------------------------
 # Scene enum coercion (Decision 18)
 # ---------------------------------------------------------------------------
@@ -206,7 +217,7 @@ async def analyze_book(
     """
     book_text = _format_book_text(chapters_data)
 
-    token_estimate = len(book_text) // 4  # rough estimate
+    token_estimate = estimate_tokens(len(book_text))
     max_tokens = provider.max_context_tokens()
     if token_estimate > max_tokens * 0.9:
         logger.warning(

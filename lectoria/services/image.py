@@ -9,6 +9,8 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 
+from pydantic import BaseModel
+
 from lectoria.models.ncm import BookMap, Character, ChapterAnalysis, NCM, Scene
 from lectoria.providers.base import ImageProvider
 from lectoria.services.bookstore import BookStore
@@ -19,6 +21,15 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Automatic image generation (Decision 5)
 # ---------------------------------------------------------------------------
+
+
+class ImageGenerationStats(BaseModel):
+    """Summary counts returned by :func:`generate_all_images`."""
+
+    covers_generated: int = 0
+    scenes_generated: int = 0
+    failed: int = 0
+    skipped: int = 0
 
 
 def _load_character_ref(store: BookStore, book_id: str, character_id: str) -> bytes | None:
@@ -106,18 +117,18 @@ async def generate_all_images(
     scenes: bool = True,
     covers: bool = True,
     on_progress: Callable[[str, str], None] | None = None,
-) -> dict:
+) -> ImageGenerationStats:
     """Generate all automatic images for a book.
 
-    Returns summary dict with counts of generated/skipped/failed.
+    Returns summary counts of generated/skipped/failed.
     """
-    stats = {"covers_generated": 0, "scenes_generated": 0, "failed": 0, "skipped": 0}
+    stats = ImageGenerationStats()
 
     for chapter in ncm.chapters:
         if covers:
             result = await generate_cover_image(provider, store, book_id, chapter)
             if result:
-                stats["covers_generated"] += 1
+                stats.covers_generated += 1
 
         if scenes:
             for scene in chapter.scenes:
@@ -129,17 +140,17 @@ async def generate_all_images(
                     chapter.chapter_index,
                 )
                 if result:
-                    stats["scenes_generated"] += 1
+                    stats.scenes_generated += 1
                 elif scene.image_prompt:
-                    stats["failed"] += 1
+                    stats.failed += 1
                 else:
-                    stats["skipped"] += 1
+                    stats.skipped += 1
 
         if on_progress:
             on_progress(
                 "images",
-                f"Chapter {chapter.chapter_index}: {stats['scenes_generated']} scenes, "
-                f"{stats['covers_generated']} covers",
+                f"Chapter {chapter.chapter_index}: {stats.scenes_generated} scenes, "
+                f"{stats.covers_generated} covers",
             )
 
     logger.info("Image generation complete: %s", stats)
@@ -186,13 +197,18 @@ def build_on_demand_prompt(
     selected_text: str,
     characters: list[Character],
     scene: Scene | None = None,
+    *,
+    identified: list[Character] | None = None,
 ) -> str:
     """Build an image prompt from user-selected text + character descriptions.
 
-    Injects physical descriptions of identified characters.
+    Injects physical descriptions of identified characters. Callers that already
+    ran :func:`identify_characters` can pass ``identified`` to avoid recomputing it;
+    when omitted it is computed from ``selected_text``/``characters``/``scene``.
     """
-    scene_chars = scene.characters_present if scene else None
-    identified = identify_characters(selected_text, characters, scene_chars)
+    if identified is None:
+        scene_chars = scene.characters_present if scene else None
+        identified = identify_characters(selected_text, characters, scene_chars)
 
     parts = [selected_text]
 
@@ -225,7 +241,9 @@ async def generate_on_demand(
     """
     scene_chars = scene.characters_present if scene else None
     identified = identify_characters(selected_text, book_map.characters, scene_chars)
-    prompt = build_on_demand_prompt(selected_text, book_map.characters, scene)
+    prompt = build_on_demand_prompt(
+        selected_text, book_map.characters, scene, identified=identified
+    )
 
     reference = None
     if provider.supports_reference_image() and identified:

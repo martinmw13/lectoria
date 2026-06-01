@@ -18,6 +18,7 @@ from lectoria.models.ncm import NCM, ChaptersData
 from lectoria.providers.base import LLMProvider
 from lectoria.services.bookstore import ArtifactNotFound, BookStore
 from lectoria.services.ingestion import ingest_epub
+from lectoria.services.narrative import estimate_tokens
 from lectoria.services.pipeline import (
     get_book_dir,
     make_book_id,
@@ -155,9 +156,8 @@ async def upload_and_estimate(file: UploadFile) -> CostEstimate:
         narrative = [c for c in chapters_data.chapters if c.is_narrative]
         total_paragraphs = sum(len(c.paragraphs) for c in narrative)
 
-        # Rough token estimate: ~1.3 tokens per word, ~5 chars per word
         total_chars = sum(len(p.text) for c in narrative for p in c.paragraphs)
-        estimated_tokens = int(total_chars / 5 * 1.3)
+        estimated_tokens = estimate_tokens(total_chars)
 
         # Create a preliminary book_id from filename
         book_id = make_book_id(Path(file.filename).stem)

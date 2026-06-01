@@ -83,6 +83,13 @@ class MusicPreset(BaseModel):
 
 DETAILED_CANDIDATE_LIMIT = 5
 
+# Jamendo stream URL template; ``track_id`` is the numeric Jamendo track id.
+JAMENDO_STREAM_URL_TEMPLATE = "https://prod-1.storage.jamendo.com/?trackid={track_id}&format=mp32"
+# Prefix on internal track ids (e.g. ``track_123``) stripped to recover the numeric id.
+TRACK_ID_PREFIX = "track_"
+# A local file smaller than this (bytes) is treated as a stub/placeholder, not a real cache hit.
+CACHED_MIN_BYTES = 1000
+
 
 def _project_detailed(result: MatchResult, top_n: int) -> DetailedSceneTrackResponse:
     """Project a ``MatchResult`` into the dev-view response, slicing the top ``top_n``
@@ -183,13 +190,13 @@ async def get_scene_track(
         raise HTTPException(status_code=404, detail="No matching track found")
 
     settings = get_settings()
-    numeric_id = str(int(track.track_id.replace("track_", "")))
+    numeric_id = str(int(track.track_id.replace(TRACK_ID_PREFIX, "")))
     local_path = settings.music_dir / track.file_path
     return SceneTrackResponse(
         track_id=track.track_id,
         file_path=track.file_path,
-        stream_url=f"https://prod-1.storage.jamendo.com/?trackid={numeric_id}&format=mp32",
-        cached=local_path.exists() and local_path.stat().st_size > 1000,
+        stream_url=JAMENDO_STREAM_URL_TEMPLATE.format(track_id=numeric_id),
+        cached=local_path.exists() and local_path.stat().st_size > CACHED_MIN_BYTES,
         duration_seconds=track.duration_seconds,
         tags=track.tags,
         emotion_primary=track.emotion_primary,
