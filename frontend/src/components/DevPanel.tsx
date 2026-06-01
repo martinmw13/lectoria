@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSceneTrack } from '../api/client';
+import { getSceneTrackDetailed } from '../api/client';
 import type { ChapterAnalysis, DetailedSceneTrackResponse, Scene } from '../api/types';
 
 interface Props {
@@ -15,10 +15,10 @@ export default function DevPanel({ scene, chapter, bookId, onClose }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    getSceneTrack(bookId, chapter.chapter_index, scene.scene_index, undefined, true)
+    getSceneTrackDetailed(bookId, chapter.chapter_index, scene.scene_index)
       .then((data) => {
         if (cancelled) return;
-        setMusicMatch(data as DetailedSceneTrackResponse);
+        setMusicMatch(data);
         setMusicError('');
       })
       .catch((e) => {

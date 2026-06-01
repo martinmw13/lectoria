@@ -74,9 +74,9 @@ export default function MusicPlayer({
     async function load(p: CrossfadeAudioPlayer) {
       try {
         setError('');
-        const t = (await getSceneTrack(
+        const t = await getSceneTrack(
           bookId, chapterIndex, sceneIndex, prevTrackId.current,
-        )) as SceneTrackResponse;
+        );
         if (cancelled) return;
 
         if (prevChapterIndex !== undefined && prevSceneIndex !== undefined) {
@@ -126,12 +126,11 @@ export default function MusicPlayer({
     setError('');
 
     try {
-      const t = (await getSceneTrack(
+      const t = await getSceneTrack(
         bookId, chapterIndex, sceneIndex,
         track.track_id,
-        false,
         skippedIds.current,
-      )) as SceneTrackResponse;
+      );
 
       setTrack(t);
       prevTrackId.current = t.track_id;
