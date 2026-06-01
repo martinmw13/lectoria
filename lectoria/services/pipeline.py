@@ -160,6 +160,56 @@ async def _analyze_chapter_bounded(
         return await analyze_chapter(llm_provider, chapter, book_map)
 
 
+def _ingest_and_trim(
+    epub_path: Path,
+    max_chapters: int | None,
+    progress: Callable[[str, str], None],
+) -> tuple[ChaptersData, list[Chapter]]:
+    """Parse the EPUB, keep narrative chapters, and optionally trim to max_chapters."""
+    progress("ingestion", f"Parsing {epub_path.name}")
+    chapters_data = ingest_epub(epub_path)
+    narrative_chapters = [c for c in chapters_data.chapters if c.is_narrative]
+    progress("ingestion", f"Done: {len(narrative_chapters)} narrative chapters")
+
+    if max_chapters and max_chapters < len(narrative_chapters):
+        logger.info(
+            "Trimming to first %d narrative chapters (of %d)", max_chapters, len(narrative_chapters)
+        )
+        narrative_chapters = narrative_chapters[:max_chapters]
+        chapters_data = ChaptersData(chapters=narrative_chapters)
+        progress("ingestion", f"Trimmed to {max_chapters} chapters for processing")
+
+    return chapters_data, narrative_chapters
+
+
+async def _run_llm2(
+    narrative_chapters: list[Chapter],
+    *,
+    llm_provider: LLMProvider,
+    book_map: BookMap,
+    progress: Callable[[str, str], None],
+) -> tuple[list[ChapterAnalysis], TokenUsage]:
+    """Run LLM 2 per-chapter scene analysis concurrently (bounded), summing token usage."""
+    llm2_concurrency = 2
+    sem = asyncio.Semaphore(llm2_concurrency)
+    total = len(narrative_chapters)
+
+    analyze = functools.partial(
+        _analyze_chapter_bounded,
+        sem=sem,
+        llm_provider=llm_provider,
+        book_map=book_map,
+        total=total,
+        progress=progress,
+    )
+    results = list(
+        await asyncio.gather(*(analyze(i, ch) for i, ch in enumerate(narrative_chapters, 1)))
+    )
+    chapter_analyses = [r[0] for r in results]
+    llm2_usage = sum((usage for _, usage in results), TokenUsage())
+    return chapter_analyses, llm2_usage
+
+
 async def run_pipeline(
     epub_path: Path,
     llm_provider: LLMProvider,
@@ -184,18 +234,7 @@ async def run_pipeline(
     progress = functools.partial(_emit_progress, on_progress)
 
     # 1. Ingestion
-    progress("ingestion", f"Parsing {epub_path.name}")
-    chapters_data = ingest_epub(epub_path)
-    narrative_chapters = [c for c in chapters_data.chapters if c.is_narrative]
-    progress("ingestion", f"Done: {len(narrative_chapters)} narrative chapters")
-
-    if max_chapters and max_chapters < len(narrative_chapters):
-        logger.info(
-            "Trimming to first %d narrative chapters (of %d)", max_chapters, len(narrative_chapters)
-        )
-        narrative_chapters = narrative_chapters[:max_chapters]
-        chapters_data = ChaptersData(chapters=narrative_chapters)
-        progress("ingestion", f"Trimmed to {max_chapters} chapters for processing")
+    chapters_data, narrative_chapters = _ingest_and_trim(epub_path, max_chapters, progress)
 
     # 2. LLM 1 — book-level analysis
     progress("llm1", f"Analyzing book ({len(narrative_chapters)} chapters)")
@@ -214,25 +253,9 @@ async def run_pipeline(
     save_bookmap(book_dir, book_map)
 
     # 4. LLM 2 — per-chapter scene analysis (concurrent with bounded parallelism)
-    llm2_concurrency = 2
-    sem = asyncio.Semaphore(llm2_concurrency)
-    total = len(narrative_chapters)
-
-    analyze = functools.partial(
-        _analyze_chapter_bounded,
-        sem=sem,
-        llm_provider=llm_provider,
-        book_map=book_map,
-        total=total,
-        progress=progress,
+    chapter_analyses, llm2_usage = await _run_llm2(
+        narrative_chapters, llm_provider=llm_provider, book_map=book_map, progress=progress
     )
-    results = list(
-        await asyncio.gather(*(analyze(i, ch) for i, ch in enumerate(narrative_chapters, 1)))
-    )
-    chapter_analyses = [r[0] for r in results]
-
-    llm2_usage = sum((usage for _, usage in results), TokenUsage())
-
     progress(
         "llm2",
         f"Done: {sum(len(a.scenes) for a in chapter_analyses)} total scenes "
