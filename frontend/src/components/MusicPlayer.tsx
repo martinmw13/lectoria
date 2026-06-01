@@ -26,6 +26,18 @@ function audioUrls(t: SceneTrackResponse): { localUrl: string; fallbackUrl: stri
   return { localUrl, fallbackUrl: localUrl !== cdnUrl ? cdnUrl : null };
 }
 
+// Apply a freshly-fetched track to the engine: crossfade if a track is already
+// playing, otherwise cold-start. togglePlay shares only the URL-destructure + play
+// tail (hasCurrent is statically false there), so it stays inline.
+async function startOrCrossfade(player: CrossfadeAudioPlayer, t: SceneTrackResponse): Promise<void> {
+  const { localUrl, fallbackUrl } = audioUrls(t);
+  if (player.hasCurrent) {
+    await player.crossfadeTo(localUrl, { fallbackUrl });
+  } else {
+    await player.play(localUrl, { fallbackUrl });
+  }
+}
+
 // The engine rejects with a typed AudioError; the UI copy lives here (not in the engine).
 function mapAudioError(e: AudioError): string {
   return e.code === 'autoplay-blocked' ? 'Autoplay blocked -- click play' : e.message;
@@ -99,12 +111,7 @@ export default function MusicPlayer({
 
         if (!playingRef.current) return;
 
-        const { localUrl, fallbackUrl } = audioUrls(t);
-        if (p.hasCurrent) {
-          await p.crossfadeTo(localUrl, { fallbackUrl });
-        } else {
-          await p.play(localUrl, { fallbackUrl });
-        }
+        await startOrCrossfade(p, t);
       } catch (e) {
         if (cancelled) return;
         setError(describeError(e));
@@ -136,12 +143,7 @@ export default function MusicPlayer({
       prevTrackId.current = t.track_id;
 
       if (playingRef.current && player) {
-        const { localUrl, fallbackUrl } = audioUrls(t);
-        if (player.hasCurrent) {
-          await player.crossfadeTo(localUrl, { fallbackUrl });
-        } else {
-          await player.play(localUrl, { fallbackUrl });
-        }
+        await startOrCrossfade(player, t);
       }
     } catch (e) {
       setError(describeError(e));
