@@ -44,29 +44,32 @@ class TestCoerceSceneEnums:
         assert scene["transition_type"] == "none"
         assert "raw_emotion" not in scene
 
-    def test_emotion_coercion(self):
-        data = {"scenes": [{"emotion": "frustration"}]}
-        result = _coerce_scene_enums(data)
-        scene = result["scenes"][0]
-        assert scene["emotion"] == "anger"
-        assert scene["raw_emotion"] == "frustration"
+    @pytest.mark.parametrize(
+        "field, coerced_input, coerced_output, valid_value",
+        [
+            ("emotion", "frustration", "anger", "joy"),
+            ("scene_type", "combat", "action", "action"),
+            ("transition_type", "perspective_change", "pov_change", "none"),
+            ("pacing", "moderate", "medium", "fast"),
+        ],
+    )
+    def test_per_field_coercion(self, field, coerced_input, coerced_output, valid_value):
+        raw_key = f"raw_{field}"
 
-    def test_scene_type_coercion(self):
-        data = {"scenes": [{"scene_type": "combat"}]}
-        result = _coerce_scene_enums(data)
-        scene = result["scenes"][0]
-        assert scene["scene_type"] == "action"
-        assert scene["raw_scene_type"] == "combat"
+        # Coerced hit: invalid-but-known value maps to a valid one, original stashed.
+        coerced = _coerce_scene_enums({"scenes": [{field: coerced_input}]})["scenes"][0]
+        assert coerced[field] == coerced_output
+        assert coerced[raw_key] == coerced_input
 
-    def test_transition_coercion(self):
-        data = {"scenes": [{"transition_type": "perspective_change"}]}
-        result = _coerce_scene_enums(data)
-        assert result["scenes"][0]["transition_type"] == "pov_change"
+        # Already-valid passthrough: untouched, no raw_<field> stamped.
+        valid = _coerce_scene_enums({"scenes": [{field: valid_value}]})["scenes"][0]
+        assert valid[field] == valid_value
+        assert raw_key not in valid
 
-    def test_pacing_coercion(self):
-        data = {"scenes": [{"pacing": "moderate"}]}
-        result = _coerce_scene_enums(data)
-        assert result["scenes"][0]["pacing"] == "medium"
+        # Unknown-value passthrough: left as-is for Pydantic to reject, no raw_<field>.
+        unknown = _coerce_scene_enums({"scenes": [{field: "totally_invented_value"}]})["scenes"][0]
+        assert unknown[field] == "totally_invented_value"
+        assert raw_key not in unknown
 
     def test_unknown_value_left_as_is(self):
         data = {"scenes": [{"emotion": "totally_invented_value"}]}
