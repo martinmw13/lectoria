@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Project is pre-1.0 — minor versions may include breaking changes until the first
 tagged release.
 
+## [0.2.2](https://github.com/martinmw13/lectoria/compare/v0.2.1...v0.2.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* **api:** restrict CORS to dev origin and disable credentials ([#57](https://github.com/martinmw13/lectoria/issues/57)) ([d8f0beb](https://github.com/martinmw13/lectoria/commit/d8f0beb84179b71c0a1b2ab98248ae834ca46ed7))
+* **frontend:** abort book-processing stream when UploadPage unmounts ([#75](https://github.com/martinmw13/lectoria/issues/75)) ([3d8d9d8](https://github.com/martinmw13/lectoria/commit/3d8d9d8dad8c903a01d6ad1f8d29a0fb10adc1e7)), closes [#64](https://github.com/martinmw13/lectoria/issues/64)
+
+
+### Documentation
+
+* **agents:** add work-selection + parallelism method ([#50](https://github.com/martinmw13/lectoria/issues/50)) ([#51](https://github.com/martinmw13/lectoria/issues/51)) ([09d2238](https://github.com/martinmw13/lectoria/commit/09d2238850ed739576615ee608d01e396821b0b7))
+* **observability:** scope error-logging rule to server-side failures ([#58](https://github.com/martinmw13/lectoria/issues/58)) ([1bd3536](https://github.com/martinmw13/lectoria/commit/1bd3536ecda5289b29a9aaeb9af4d402ffa01338))
+* **onboarding:** add Mermaid system, pipeline, and BYOK diagrams ([#60](https://github.com/martinmw13/lectoria/issues/60)) ([719778d](https://github.com/martinmw13/lectoria/commit/719778db8d7320914bdd2362dc2c6f503d84666b))
+* **onboarding:** sync guide with BookStore, CORS policy, and dev tooling ([#59](https://github.com/martinmw13/lectoria/issues/59)) ([d86ecf5](https://github.com/martinmw13/lectoria/commit/d86ecf5cde426e5c73b35b954e8d7cc0f3e50df5))
+
 ## [0.2.1](https://github.com/martinmw13/lectoria/compare/v0.2.0...v0.2.1) (2026-05-30)
 
 
