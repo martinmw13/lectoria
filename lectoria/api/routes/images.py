@@ -7,9 +7,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from lectoria.api.deps import get_book_store, image_provider_dep
+from lectoria.api.deps import (
+    find_scene_or_404,
+    get_book_store,
+    image_provider_dep,
+    load_ncm_or_404,
+)
+from lectoria.models.ncm import NCM
 from lectoria.providers.base import ImageProvider
-from lectoria.services.bookstore import ArtifactNotFound, BookStore
+from lectoria.services.bookstore import BookStore
 from lectoria.services.image import generate_on_demand, generate_scene_image
 
 logger = logging.getLogger(__name__)
@@ -45,18 +51,16 @@ async def generate_image(
     book_id: str,
     request: ImageGenerateRequest,
     store: Annotated[BookStore, Depends(get_book_store)],
-    image_provider: ImageProvider = Depends(image_provider_dep),
+    ncm: Annotated[NCM, Depends(load_ncm_or_404)],
+    image_provider: Annotated[ImageProvider, Depends(image_provider_dep)],
 ) -> OnDemandImageResponse:
     """Generate an on-demand image from selected text (Decision 5).
 
     Injects character physical descriptions via string matching (Decision 9).
     Stores character memory on single-character images (Decision 8).
     """
-    try:
-        ncm = store.load_ncm(book_id)
-    except ArtifactNotFound:
-        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
-
+    # Lenient scene lookup (Decision 5): bad/absent coordinates are non-fatal —
+    # we still generate from the selected text, just without scene context.
     scene = None
     if request.chapter_index is not None and request.scene_index is not None:
         try:
@@ -102,18 +106,13 @@ async def generate_scene(
     book_id: str,
     request: SceneImageRequest,
     store: Annotated[BookStore, Depends(get_book_store)],
-    image_provider: ImageProvider = Depends(image_provider_dep),
+    ncm: Annotated[NCM, Depends(load_ncm_or_404)],
+    image_provider: Annotated[ImageProvider, Depends(image_provider_dep)],
 ) -> SceneImageResponse:
     """Generate (or return cached) scene image from the LLM-produced image_prompt (Decision 33)."""
-    try:
-        ncm = store.load_ncm(book_id)
-    except ArtifactNotFound:
-        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
-
-    try:
-        _, scene = ncm.find_scene(request.chapter_index, request.scene_index)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+    # Strict lookup: coordinates come from the request body, so the scene is
+    # resolved here via the shared helper rather than a path-param dependency.
+    scene = find_scene_or_404(ncm, request.chapter_index, request.scene_index)
 
     if not scene.image_prompt:
         raise HTTPException(

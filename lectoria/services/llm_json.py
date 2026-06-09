@@ -63,6 +63,16 @@ class TokenUsage:
         self.prompt_tokens += prompt or 0
         self.completion_tokens += completion or 0
 
+    def __add__(self, other: "TokenUsage") -> "TokenUsage":
+        """Merge two usages field-wise (enables ``sum(usages, TokenUsage())``)."""
+        if not isinstance(other, TokenUsage):
+            return NotImplemented
+        return TokenUsage(
+            prompt_tokens=self.prompt_tokens + other.prompt_tokens,
+            completion_tokens=self.completion_tokens + other.completion_tokens,
+            calls=self.calls + other.calls,
+        )
+
 
 @dataclass
 class StructuredCompletion[T: BaseModel]:

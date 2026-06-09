@@ -56,10 +56,8 @@ def _is_non_narrative_title(title: str) -> bool:
     return any(pat.search(title_stripped) for pat in _NON_NARRATIVE_RE)
 
 
-def _extract_text_paragraphs(html_content: bytes) -> list[str]:
+def _extract_text_paragraphs(soup: BeautifulSoup) -> list[str]:
     """Extract paragraph texts from HTML, stripping tags and normalizing whitespace."""
-    soup = BeautifulSoup(html_content, "lxml")
-
     body = soup.find("body")
     if body is None:
         body = soup
@@ -76,9 +74,8 @@ def _extract_text_paragraphs(html_content: bytes) -> list[str]:
     return paragraphs
 
 
-def _extract_chapter_title(html_content: bytes) -> str:
+def _extract_chapter_title(soup: BeautifulSoup) -> str:
     """Try to extract a chapter title from the first heading in the HTML."""
-    soup = BeautifulSoup(html_content, "lxml")
     for tag_name in ["h1", "h2", "h3"]:
         heading = soup.find(tag_name)
         if heading:
@@ -111,13 +108,14 @@ def ingest_epub(epub_path: Path) -> ChaptersData:
         if item.get_type() != ebooklib.ITEM_DOCUMENT:
             continue
 
-        content = item.get_content()
-        paragraphs_text = _extract_text_paragraphs(content)
+        # Parse the chapter HTML once; both extractors read from the same soup.
+        soup = BeautifulSoup(item.get_content(), "lxml")
+        paragraphs_text = _extract_text_paragraphs(soup)
 
         if not paragraphs_text:
             continue
 
-        title = _extract_chapter_title(content)
+        title = _extract_chapter_title(soup)
         chapter_index += 1
 
         is_narrative = True

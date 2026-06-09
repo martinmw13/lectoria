@@ -29,6 +29,17 @@ logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
 
+# Rough token-estimation heuristic shared by the upload route and book analysis:
+# ~4 characters per token. Used only for cost display and context-window warnings,
+# so the approximation does not need to be exact.
+CHARS_PER_TOKEN = 4
+
+
+def estimate_tokens(char_count: int) -> int:
+    """Estimate token count from a character count (~4 chars per token)."""
+    return char_count // CHARS_PER_TOKEN
+
+
 # ---------------------------------------------------------------------------
 # Scene enum coercion (Decision 18)
 # ---------------------------------------------------------------------------
@@ -107,6 +118,15 @@ _VALID_SCENE_TYPES = {s.value for s in SceneType}
 _VALID_TRANSITIONS = {t.value for t in TransitionType}
 _VALID_PACINGS = {p.value for p in Pacing}
 
+# (field, valid-value set, coerce-map) — one row per scene enum field, driving the
+# coercion loop below. Adding a coercible field is one new row, not a new block.
+_COERCIBLE_FIELDS: tuple[tuple[str, set[str], dict[str, str]], ...] = (
+    ("emotion", _VALID_EMOTIONS, _EMOTION_COERCE),
+    ("scene_type", _VALID_SCENE_TYPES, _SCENE_TYPE_COERCE),
+    ("transition_type", _VALID_TRANSITIONS, _TRANSITION_COERCE),
+    ("pacing", _VALID_PACINGS, _PACING_COERCE),
+)
+
 
 def _coerce_scene_enums(data: dict) -> dict:
     """Map LLM-invented enum values to valid ones before Pydantic validation.
@@ -114,37 +134,15 @@ def _coerce_scene_enums(data: dict) -> dict:
     When a value is coerced, the original is preserved in raw_<field> for dev inspection.
     """
     for scene in data.get("scenes", []):
-        emotion = str(scene.get("emotion", "")).lower().strip()
-        if emotion and emotion not in _VALID_EMOTIONS:
-            coerced = _EMOTION_COERCE.get(emotion)
+        for field, valid_set, coerce_map in _COERCIBLE_FIELDS:
+            raw = str(scene.get(field, "")).lower().strip()
+            if not raw or raw in valid_set:
+                continue
+            coerced = coerce_map.get(raw)
             if coerced:
-                logger.info("Coerced emotion '%s' -> '%s'", emotion, coerced)
-                scene["raw_emotion"] = emotion
-                scene["emotion"] = coerced
-
-        scene_type = str(scene.get("scene_type", "")).lower().strip()
-        if scene_type and scene_type not in _VALID_SCENE_TYPES:
-            coerced = _SCENE_TYPE_COERCE.get(scene_type)
-            if coerced:
-                logger.info("Coerced scene_type '%s' -> '%s'", scene_type, coerced)
-                scene["raw_scene_type"] = scene_type
-                scene["scene_type"] = coerced
-
-        transition = str(scene.get("transition_type", "")).lower().strip()
-        if transition and transition not in _VALID_TRANSITIONS:
-            coerced = _TRANSITION_COERCE.get(transition)
-            if coerced:
-                logger.info("Coerced transition_type '%s' -> '%s'", transition, coerced)
-                scene["raw_transition_type"] = transition
-                scene["transition_type"] = coerced
-
-        pacing = str(scene.get("pacing", "")).lower().strip()
-        if pacing and pacing not in _VALID_PACINGS:
-            coerced = _PACING_COERCE.get(pacing)
-            if coerced:
-                logger.info("Coerced pacing '%s' -> '%s'", pacing, coerced)
-                scene["raw_pacing"] = pacing
-                scene["pacing"] = coerced
+                logger.info("Coerced %s '%s' -> '%s'", field, raw, coerced)
+                scene[f"raw_{field}"] = raw
+                scene[field] = coerced
 
     return data
 
@@ -219,7 +217,7 @@ async def analyze_book(
     """
     book_text = _format_book_text(chapters_data)
 
-    token_estimate = len(book_text) // 4  # rough estimate
+    token_estimate = estimate_tokens(len(book_text))
     max_tokens = provider.max_context_tokens()
     if token_estimate > max_tokens * 0.9:
         logger.warning(

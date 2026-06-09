@@ -10,9 +10,9 @@ import type {
   SceneTrackResponse,
 } from './types';
 
-// Re-exported so existing `from '../api/client'` import sites resolve these names
-// off the generated schema without reaching into `./types` directly.
-export type { ChaptersData, MusicPreset, NCM } from './types';
+// Re-exported so the settings page resolves this name off the generated schema
+// without reaching into `./types` directly.
+export type { MusicPreset } from './types';
 
 const BASE = '/api/books';
 
@@ -94,22 +94,41 @@ export async function getPresets(): Promise<MusicPreset[]> {
   return jsonFetch<MusicPreset[]>('/api/music/presets');
 }
 
-export async function getSceneTrack(
+function sceneTrackUrl(
   bookId: string,
   chapterIdx: number,
   sceneIdx: number,
   previousTrackId?: string,
-  detailed?: boolean,
   exclude?: string[],
-): Promise<SceneTrackResponse | DetailedSceneTrackResponse> {
+  detailed?: boolean,
+): string {
   const params = new URLSearchParams();
   if (previousTrackId) params.set('previous_track_id', previousTrackId);
   if (detailed) params.set('detailed', 'true');
   if (exclude && exclude.length) params.set('exclude', exclude.join(','));
   const style = getMusicStyle();
   if (style && style !== 'auto') params.set('style', style);
-  const url = `${BASE}/${bookId}/chapters/${chapterIdx}/scenes/${sceneIdx}/track?${params}`;
-  return jsonFetch(url);
+  return `${BASE}/${bookId}/chapters/${chapterIdx}/scenes/${sceneIdx}/track?${params}`;
+}
+
+export async function getSceneTrack(
+  bookId: string,
+  chapterIdx: number,
+  sceneIdx: number,
+  previousTrackId?: string,
+  exclude?: string[],
+): Promise<SceneTrackResponse> {
+  return jsonFetch(sceneTrackUrl(bookId, chapterIdx, sceneIdx, previousTrackId, exclude));
+}
+
+export async function getSceneTrackDetailed(
+  bookId: string,
+  chapterIdx: number,
+  sceneIdx: number,
+  previousTrackId?: string,
+  exclude?: string[],
+): Promise<DetailedSceneTrackResponse> {
+  return jsonFetch(sceneTrackUrl(bookId, chapterIdx, sceneIdx, previousTrackId, exclude, true));
 }
 
 export async function checkCrossfade(

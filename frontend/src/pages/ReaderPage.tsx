@@ -1,12 +1,12 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getNCM, getChapters } from '../api/client';
 import type { NCM, ChaptersData } from '../api/types';
+import { useReaderCursor } from '../hooks/useReaderCursor';
 import PageView from '../components/PageView';
 import ChapterNav from '../components/ChapterNav';
 import DevPanel from '../components/DevPanel';
 import MusicPlayer from '../components/MusicPlayer';
-import { paginateChapter, type Page } from '../utils/paginate';
 
 export default function ReaderPage() {
   const { bookId } = useParams<{ bookId: string }>();
@@ -14,15 +14,16 @@ export default function ReaderPage() {
 
   const [ncm, setNcm] = useState<NCM | null>(null);
   const [chaptersData, setChaptersData] = useState<ChaptersData | null>(null);
-  const [chapterIdx, setChapterIdx] = useState(0);
-  const [pageIdx, setPageIdx] = useState(0);
-  const [, setMaxRevealed] = useState(0);
   const [showNav, setShowNav] = useState(false);
   const [devMode, setDevMode] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [error, setError] = useState('');
   const [slideDir, setSlideDir] = useState<'none' | 'left' | 'right'>('none');
   const slideTimeout = useRef<number | null>(null);
+
+  // Where am I / what page renders / which scene drives music / how do I move — all delegated
+  // to the pure ReaderCursor; ReaderPage keeps only the slide animation + wiring (see ADR-0002).
+  const { cursor, commit } = useReaderCursor(ncm, chaptersData);
 
   // Latest-ref pattern: keydown listener is registered once but always calls the freshest goNext/goPrev.
   const goNextRef = useRef<() => void>(() => {});
@@ -48,24 +49,6 @@ export default function ReaderPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const chapter = ncm?.chapters?.[chapterIdx];
-  const sourceChapter = chaptersData?.chapters?.find(
-    (c) => c.chapter_index === chapter?.chapter_index,
-  );
-  const pages: Page[] = useMemo(() => {
-    if (!chapter) return [];
-    return paginateChapter(chapter.scenes ?? [], sourceChapter?.paragraphs || []);
-  }, [chapter, sourceChapter?.paragraphs]);
-
-  const currentPage = pages[pageIdx];
-  const currentScene = currentPage?.scene;
-
-  const prevPageScene = pageIdx > 0 ? pages[pageIdx - 1]?.scene : undefined;
-
-  const chapterSummary = ncm?.book_map.chapters?.find(
-    (c) => c.chapter_index === chapter?.chapter_index,
-  );
-
   const animateSlide = useCallback((dir: 'left' | 'right', then: () => void) => {
     if (slideTimeout.current) clearTimeout(slideTimeout.current);
     setSlideDir(dir);
@@ -76,77 +59,26 @@ export default function ReaderPage() {
     }, 280);
   }, []);
 
-  function goNext() {
-    if (!pages.length) return;
-
-    if (pageIdx < pages.length - 1) {
-      const nextIdx = pageIdx + 1;
-      animateSlide('left', () => {
-        setPageIdx(nextIdx);
-        setMaxRevealed((prev) => Math.max(prev, nextIdx));
-      });
-      return;
-    }
-
-    if (ncm && chapterIdx < (ncm.chapters?.length ?? 0) - 1) {
-      animateSlide('left', () => {
-        setChapterIdx(chapterIdx + 1);
-        setPageIdx(0);
-        setMaxRevealed(0);
-      });
-    }
-  }
-
-  function goPrev() {
-    if (pageIdx > 0) {
-      animateSlide('right', () => setPageIdx(pageIdx - 1));
-      return;
-    }
-    if (ncm && chapterIdx > 0) {
-      const prevChapter = ncm.chapters?.[chapterIdx - 1];
-      if (!prevChapter) return;
-      animateSlide('right', () => {
-        setChapterIdx(chapterIdx - 1);
-        const prevSource = chaptersData?.chapters?.find(
-          (c) => c.chapter_index === prevChapter.chapter_index,
-        );
-        const prevPages = paginateChapter(
-          prevChapter.scenes ?? [],
-          prevSource?.paragraphs || [],
-        );
-        const lastIdx = prevPages.length - 1;
-        setPageIdx(Math.max(0, lastIdx));
-        setMaxRevealed(lastIdx);
-      });
-    }
-  }
-
-  function goToChapter(idx: number) {
-    setChapterIdx(idx);
-    setPageIdx(0);
-    setMaxRevealed(0);
+  // Animate iff the transition is a real move; a null result is a no-op boundary (book end /
+  // book start / empty chapter) and must not trigger the slide.
+  const goNext = () => {
+    const n = cursor?.next();
+    if (n) animateSlide('left', () => commit(n));
+  };
+  const goPrev = () => {
+    const n = cursor?.prev();
+    if (n) animateSlide('right', () => commit(n));
+  };
+  const goToChapter = (idx: number) => {
+    const n = cursor?.goToChapter(idx);
+    if (n) commit(n); // no animation (matches original)
     setShowNav(false);
-  }
+  };
 
   useEffect(() => {
     goNextRef.current = goNext;
     goPrevRef.current = goPrev;
   });
-
-  // Determine which scene the music should react to
-  const musicSceneIndex = currentScene?.scene_index ?? 0;
-  const prevMusicScene = prevPageScene && prevPageScene.scene_index !== musicSceneIndex
-    ? prevPageScene : undefined;
-  const prevMusicChapterIndex = prevMusicScene
-    ? chapter?.chapter_index
-    : (pageIdx === 0 && chapterIdx > 0
-      ? ncm?.chapters?.[chapterIdx - 1]?.chapter_index
-      : undefined);
-  const prevMusicSceneIndex = prevMusicScene
-    ? prevMusicScene.scene_index
-    : (pageIdx === 0 && chapterIdx > 0
-      ? ncm?.chapters?.[chapterIdx - 1]?.scenes?.at(-1)?.scene_index
-      : undefined);
 
   if (error) {
     return (
@@ -157,12 +89,18 @@ export default function ReaderPage() {
     );
   }
 
-  if (!ncm || !chaptersData || !chapter) {
+  const chapter = cursor?.chapter;
+  if (!ncm || !chaptersData || !cursor || !chapter) {
     return <div className="page loading">Loading book data...</div>;
   }
 
-  const isFirst = chapterIdx === 0 && pageIdx === 0;
-  const isLast = chapterIdx === (ncm.chapters?.length ?? 0) - 1 && pageIdx >= pages.length - 1;
+  const currentPage = cursor.currentPage;
+  const currentScene = cursor.currentScene;
+  const music = cursor.musicScene;
+  const prevMusic = cursor.prevMusicScene;
+  const chapterSummary = ncm.book_map.chapters?.find(
+    (c) => c.chapter_index === chapter.chapter_index,
+  );
 
   const slideClass = slideDir === 'left'
     ? 'slide-out-left'
@@ -206,7 +144,7 @@ export default function ReaderPage() {
         <ChapterNav
           chapters={ncm.chapters ?? []}
           bookMapChapters={ncm.book_map.chapters ?? []}
-          currentChapterIdx={chapterIdx}
+          currentChapterIdx={cursor.chapterIdx}
           onSelect={goToChapter}
           onClose={() => setShowNav(false)}
         />
@@ -214,7 +152,7 @@ export default function ReaderPage() {
 
       <main className="reader-content">
         {currentPage && (
-          <div className={`page-slide ${slideClass}`} key={`${chapterIdx}-${pageIdx}`}>
+          <div className={`page-slide ${slideClass}`} key={`${cursor.chapterIdx}-${cursor.pageIdx}`}>
             <PageView
               page={currentPage}
               bookId={bookId!}
@@ -229,14 +167,14 @@ export default function ReaderPage() {
 
       <MusicPlayer
         bookId={bookId!}
-        chapterIndex={chapter.chapter_index}
-        sceneIndex={musicSceneIndex}
-        prevChapterIndex={prevMusicChapterIndex}
-        prevSceneIndex={prevMusicSceneIndex}
+        chapterIndex={music.chapterIndex}
+        sceneIndex={music.sceneIndex}
+        prevChapterIndex={prevMusic?.chapterIndex}
+        prevSceneIndex={prevMusic?.sceneIndex}
       />
 
       <footer className="reader-footer">
-        <button onClick={goPrev} disabled={isFirst}>
+        <button onClick={goPrev} disabled={cursor.isFirst}>
           &larr; Prev
         </button>
         <span className="scene-indicator">
@@ -246,11 +184,11 @@ export default function ReaderPage() {
               {currentPage.totalPagesInScene > 1 && (
                 <> ({currentPage.pageInScene + 1}/{currentPage.totalPagesInScene})</>
               )}
-              {' '}&middot; Ch {chapterIdx + 1}/{ncm.chapters?.length ?? 0}
+              {' '}&middot; Ch {cursor.chapterIdx + 1}/{ncm.chapters?.length ?? 0}
             </>
           )}
         </span>
-        <button onClick={goNext} disabled={isLast}>
+        <button onClick={goNext} disabled={cursor.isLast}>
           Next &rarr;
         </button>
       </footer>

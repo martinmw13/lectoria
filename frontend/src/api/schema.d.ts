@@ -102,7 +102,10 @@ export interface paths {
          * Check Crossfade
          * @description Check whether a crossfade should occur when transitioning to this scene.
          *
-         *     Returns the hysteresis decision based on emotion clusters (Decision 12).
+         *     Returns the hysteresis decision based on emotion clusters (Decision 12). The
+         *     current scene is resolved via dependencies (book_id/chapter_idx/scene_idx are
+         *     declared inside them and FastAPI caches the single NCM load); the previous
+         *     scene stays a lenient in-body lookup.
          */
         get: operations["check_crossfade_api_books__book_id__chapters__chapter_idx__scenes__scene_idx__crossfade_get"];
         put?: never;

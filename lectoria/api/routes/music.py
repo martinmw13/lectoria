@@ -6,14 +6,20 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from lectoria.api.deps import get_book_store
+from lectoria.api.deps import (
+    find_scene_or_404,
+    get_book_store,
+    get_current_scene_or_404,
+    load_ncm_or_404,
+)
 from lectoria.core.config import get_settings
-from lectoria.models.ncm import Emotion
-from lectoria.services.bookstore import ArtifactNotFound, BookStore
+from lectoria.models.ncm import NCM, Emotion, Scene
+from lectoria.services.bookstore import BookStore
 from lectoria.services.music import (
     EMOTION_TO_CLUSTER,
     STYLE_PRESETS,
     VALID_STYLE_NAMES,
+    MatchResult,
     load_music_index,
     match_scene_to_track,
     match_scene_to_track_detailed,
@@ -75,6 +81,50 @@ class MusicPreset(BaseModel):
     description: str
 
 
+DETAILED_CANDIDATE_LIMIT = 5
+
+# Jamendo stream URL template; ``track_id`` is the numeric Jamendo track id.
+JAMENDO_STREAM_URL_TEMPLATE = "https://prod-1.storage.jamendo.com/?trackid={track_id}&format=mp32"
+# Prefix on internal track ids (e.g. ``track_123``) stripped to recover the numeric id.
+TRACK_ID_PREFIX = "track_"
+# A local file smaller than this (bytes) is treated as a stub/placeholder, not a real cache hit.
+CACHED_MIN_BYTES = 1000
+
+
+def _project_detailed(result: MatchResult, top_n: int) -> DetailedSceneTrackResponse:
+    """Project a ``MatchResult`` into the dev-view response, slicing the top ``top_n``
+    ranked candidates.
+
+    ``selected`` and ``scene_vector`` are both ``None`` exactly when there is no candidate
+    pool; branching on that disjunction narrows both for the type checker (no ``type:
+    ignore`` needed) and lets the no-pool case leave ``scene_vector`` unset so
+    ``response_model_exclude_unset`` omits it — preserving the historical no-vector shape
+    rather than emitting ``"scene_vector": null``.
+    """
+    candidates = [
+        SceneTrackCandidate(track_id=t.track_id, tags=t.tags, score=s)
+        for t, s in result.ranked[:top_n]
+    ]
+    selected = result.selected
+    scene_vector = result.scene_vector
+    if selected is None or scene_vector is None:
+        return DetailedSceneTrackResponse(
+            selected_track=None,
+            score=0.0,
+            fallback=result.fallback,
+            style_applied=result.style_applied,
+            candidates=candidates,
+        )
+    return DetailedSceneTrackResponse(
+        selected_track=selected.track_id,
+        score=result.score,
+        fallback=result.fallback,
+        style_applied=result.style_applied,
+        candidates=candidates,
+        scene_vector=scene_vector.tolist(),
+    )
+
+
 @router.get(
     "/books/{book_id}/chapters/{chapter_idx}/scenes/{scene_idx}/track",
     response_model_exclude_unset=True,
@@ -106,15 +156,12 @@ async def get_scene_track(
             detail=f"Invalid style '{style}'. Valid options: {sorted(VALID_STYLE_NAMES)}",
         )
 
-    try:
-        ncm = store.load_ncm(book_id)
-    except ArtifactNotFound:
-        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
-
-    try:
-        _, scene = ncm.find_scene(chapter_idx, scene_idx)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+    # ``style`` is validated above before the NCM is touched: an invalid style
+    # (400) must take precedence over a missing book (404), so the load stays
+    # inline here rather than in a pre-handler dependency (which would run first
+    # and invert that order).
+    ncm = load_ncm_or_404(book_id, store)
+    scene = find_scene_or_404(ncm, chapter_idx, scene_idx)
 
     index = load_music_index()
     if not index:
@@ -123,16 +170,14 @@ async def get_scene_track(
     exclude_ids = set(exclude.split(",")) if exclude else set()
 
     if detailed:
-        # Build from the service dict via **: keys absent in the no-pool shape
-        # (scene_vector) stay unset and are dropped by response_model_exclude_unset.
-        detail = match_scene_to_track_detailed(
+        result = match_scene_to_track_detailed(
             scene,
             index,
             previous_track_id=previous_track_id,
             exclude_track_ids=exclude_ids or None,
             style=style,
         )
-        return DetailedSceneTrackResponse(**detail)
+        return _project_detailed(result, top_n=DETAILED_CANDIDATE_LIMIT)
 
     track = match_scene_to_track(
         scene,
@@ -145,13 +190,13 @@ async def get_scene_track(
         raise HTTPException(status_code=404, detail="No matching track found")
 
     settings = get_settings()
-    numeric_id = str(int(track.track_id.replace("track_", "")))
+    numeric_id = str(int(track.track_id.replace(TRACK_ID_PREFIX, "")))
     local_path = settings.music_dir / track.file_path
     return SceneTrackResponse(
         track_id=track.track_id,
         file_path=track.file_path,
-        stream_url=f"https://prod-1.storage.jamendo.com/?trackid={numeric_id}&format=mp32",
-        cached=local_path.exists() and local_path.stat().st_size > 1000,
+        stream_url=JAMENDO_STREAM_URL_TEMPLATE.format(track_id=numeric_id),
+        cached=local_path.exists() and local_path.stat().st_size > CACHED_MIN_BYTES,
         duration_seconds=track.duration_seconds,
         tags=track.tags,
         emotion_primary=track.emotion_primary,
@@ -163,27 +208,18 @@ async def get_scene_track(
     response_model_exclude_unset=True,
 )
 async def check_crossfade(
-    book_id: str,
-    chapter_idx: int,
-    scene_idx: int,
-    store: Annotated[BookStore, Depends(get_book_store)],
+    ncm: Annotated[NCM, Depends(load_ncm_or_404)],
+    scene: Annotated[Scene, Depends(get_current_scene_or_404)],
     prev_chapter_idx: int | None = None,
     prev_scene_idx: int | None = None,
 ) -> CrossfadeResponse:
     """Check whether a crossfade should occur when transitioning to this scene.
 
-    Returns the hysteresis decision based on emotion clusters (Decision 12).
+    Returns the hysteresis decision based on emotion clusters (Decision 12). The
+    current scene is resolved via dependencies (book_id/chapter_idx/scene_idx are
+    declared inside them and FastAPI caches the single NCM load); the previous
+    scene stays a lenient in-body lookup.
     """
-    try:
-        ncm = store.load_ncm(book_id)
-    except ArtifactNotFound:
-        raise HTTPException(status_code=404, detail=f"NCM not found for book '{book_id}'") from None
-
-    try:
-        _, scene = ncm.find_scene(chapter_idx, scene_idx)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-
     if prev_chapter_idx is None or prev_scene_idx is None:
         return CrossfadeResponse(should_crossfade=True, reason="no previous scene")
 
