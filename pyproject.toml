@@ -15,7 +15,7 @@ dependencies = [
     "python-multipart",
     "numpy",
     "sse-starlette",
-    "google-genai>=2.6.0,<3",
+    "google-genai>=2.8.0,<3",
     "aiohttp",
 ]
 
