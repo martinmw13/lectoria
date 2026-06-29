@@ -413,6 +413,7 @@
 </style>
 </head>
 <body>
+<!-- onboarding-sync: 3622a27261375ee8f5c15909a95c696c3465bac6 2026-06-29 -->
 
 <!-- ─── Sidebar ──────────────────────────────────────────────────────────── -->
 <nav id="sidebar">
@@ -544,10 +545,12 @@ just dev-all</code></pre>
       <tr><td><code>just dev</code></td><td>Backend dev server (http://localhost:8000)</td></tr>
       <tr><td><code>just dev-frontend</code></td><td>Frontend dev server (http://localhost:5173)</td></tr>
       <tr><td><code>just dev-all</code></td><td>Backend + frontend together in one terminal (Ctrl-C stops both)</td></tr>
-      <tr><td><code>just test</code></td><td>Run all pytest tests</td></tr>
+      <tr><td><code>just test</code></td><td>Run backend tests (pytest)</td></tr>
+      <tr><td><code>just test-frontend</code></td><td>Run frontend tests (Vitest)</td></tr>
       <tr><td><code>just check</code></td><td>Lint + format check (no auto-fix)</td></tr>
       <tr><td><code>just fmt</code></td><td>Auto-fix lint and format</td></tr>
       <tr><td><code>just typecheck</code></td><td>pyright (opt-in, not in CI)</td></tr>
+      <tr><td><code>just gen-api-types</code></td><td>Regenerate the frontend API types from the backend OpenAPI schema (commit both files)</td></tr>
     </table>
   </section>
 
@@ -926,20 +929,23 @@ class ImageProvider(Protocol):
     <h3>Reader Architecture</h3>
     <p>The reader paginates scenes into ~250-word pages at paragraph boundaries (<span class="file-ref">utils/paginate.ts</span>). Navigation is page-by-page with a horizontal slide animation. <code>MusicPlayer</code> receives <code>chapterIndex + sceneIndex</code> as props and fetches the appropriate track when the scene changes.</p>
 
+    <p><code>ReaderPage</code> keeps its render logic thin by delegating two concerns to dedicated, separately-tested units: <span class="file-ref">reader/cursor.ts</span> is a pure module that maps a paragraph offset to a <code>(chapter, scene, page)</code> cursor — owned by the <code>useReaderCursor</code> hook — and <span class="file-ref">audio/crossfadePlayer.ts</span> is a framework-free <code>CrossfadeAudioPlayer</code> class (zero React imports, dual-track volume ramp) held in a <code>useRef</code> by the <code>useCrossfadeAudio</code> hook (<a href="#decisions">ADR-0002</a>).</p>
+
     <pre><code>ReaderPage
 ├── loads ncm.json + chapters.json on mount
+├── useReaderCursor(ncm, chapters)   ← pure reader/cursor.ts → (chapter, scene, page)
 ├── paginateChapter(scenes, paragraphs) → Page[]
 │
 ├── PageView         ← renders current page text + scene header
 ├── ChapterNav       ← overlay with chapter list (click title to open)
-├── MusicPlayer      ← SSE-connected, crossfades on scene change
+├── MusicPlayer      ← useCrossfadeAudio → CrossfadeAudioPlayer class; crossfades on scene change
 └── DevPanel         ← shows scene attributes, LLM metadata, music debug (Ctrl+D)</code></pre>
 
     <h3>API Client</h3>
-    <p>All API calls are in <span class="file-ref">frontend/src/api/client.ts</span>. API keys are read from <code>localStorage</code> on each call and injected as headers. The client uses the native <code>EventSource</code> API for SSE (pipeline progress). <code>EventSource</code> connections are closed on component unmount.</p>
+    <p>The <code>frontend/src/api/</code> module owns all backend access. <span class="file-ref">api/client.ts</span> holds the calls; credentials and preferences are split out: <span class="file-ref">api/byok.ts</span> reads the per-provider API keys from <code>localStorage</code> and builds the request headers, and <span class="file-ref">api/prefs.ts</span> holds non-secret UI preferences (e.g. music style) — kept apart so a key is never conflated with a preference. SSE (pipeline progress) does <strong>not</strong> use the native <code>EventSource</code> API: the app streams over <code>POST</code> with custom headers, so it uses <code>fetch</code> + a <code>ReadableStream</code> parsed by <span class="file-ref">api/sseParser.ts</span>, with an <code>AbortController</code> torn down on unmount (<a href="#decisions">ADR-0001</a>).</p>
 
     <h3>Strict TypeScript</h3>
-    <p>Strict mode is enabled. No <code>any</code> types. Prefer <code>interface</code> over <code>type</code> for object shapes. The NCM type definitions in <code>client.ts</code> mirror the Pydantic models in <span class="file-ref">lectoria/models/ncm.py</span> — if the schema changes, both must be updated.</p>
+    <p>Strict mode is enabled. No <code>any</code> types. Prefer <code>interface</code> over <code>type</code> for object shapes. The API types are <strong>generated</strong> from the backend, not hand-mirrored: <code>just gen-api-types</code> dumps the FastAPI OpenAPI schema to <span class="file-ref">api/schema.json</span> and runs <code>openapi-typescript</code> to produce <span class="file-ref">api/schema.d.ts</span>; <span class="file-ref">api/types.ts</span> then re-exports the named components (<code>NCM</code>, <code>Scene</code>, response DTOs…) as the single source of truth (<a href="#decisions">ADR-0003</a>). A CI job (<code>api-types-drift</code>) regenerates the types and fails if the committed files are stale — so touching a backend route means re-running <code>just gen-api-types</code> and committing both files.</p>
   </section>
 
   <!-- ── Data Layout ──────────────────────────────────────────────────── -->
@@ -1009,10 +1015,13 @@ python scripts/build_music_index.py \
     </table>
 
     <h3>Before Every PR</h3>
-    <pre><code>just test       # all tests must pass
-just check      # lint + format (no auto-fix — just reports)
+    <pre><code>just test            # backend tests must pass
+just test-frontend   # frontend (Vitest) tests must pass
+just check           # lint + format (no auto-fix — just reports)
 # If fmt needed:
-just fmt        # auto-fix, then re-run check</code></pre>
+just fmt             # auto-fix, then re-run check
+# If you touched a backend route:
+just gen-api-types   # regenerate + commit api/schema.json + schema.d.ts (else api-types-drift CI fails)</code></pre>
 
     <h3>Branch Convention</h3>
     <pre><code>feat/add-music-style-presets
@@ -1035,11 +1044,14 @@ docs: add CONTEXT.md and onboarding guide</code></pre>
   <section id="testing">
     <h2>Testing</h2>
 
-    <p>Tests live in <code>tests/</code>. Framework: pytest + pytest-asyncio. AI providers are always mocked — never call real APIs in tests.</p>
+    <p>Backend tests live in <code>tests/</code>. Framework: pytest + pytest-asyncio. AI providers are always mocked — never call real APIs in tests. The frontend has its own <strong>Vitest</strong> suite (jsdom) alongside the source in <code>frontend/src/</code> — so <code>just test</code> is backend-only and <code>just test-frontend</code> runs the JS tests.</p>
 
-    <pre><code>just test                          # all tests
-uv run pytest tests/test_music.py  # specific file
+    <pre><code>just test                          # backend (pytest)
+just test-frontend                 # frontend (Vitest)
+uv run pytest tests/test_music.py  # specific backend file
 uv run pytest -k "test_ncm"        # filter by name</code></pre>
+
+    <p>The frontend tests cover the framework-free units extracted from the pages: <span class="file-ref">audio/crossfadePlayer.test.ts</span> (the dual-track volume ramp and error handling) and <span class="file-ref">reader/cursor.test.ts</span> (offset → cursor mapping). Pure logic lives outside React precisely so it can be tested without rendering.</p>
 
     <h3>Key Test Files</h3>
     <table>
@@ -1096,7 +1108,7 @@ async def test_health():
   <section id="decisions">
     <h2>Design Decisions</h2>
 
-    <p>These decisions appear as <code>(Decision N)</code> comments in the code. Full rationale in <code>.openspec-archive/changes/multimodal-reader-system/design.md</code>.</p>
+    <p>These decisions appear as <code>(Decision N)</code> comments in the code. Full rationale in <code>.openspec-archive/changes/multimodal-reader-system/design.md</code>. Cross-cutting frontend choices made since then are recorded as <strong>Architecture Decision Records</strong> in <code>docs/adr/</code> (the <code>ADR-*</code> cards below).</p>
 
     <div class="decision-grid">
       <div class="decision-card">
@@ -1184,6 +1196,21 @@ async def test_health():
         <h4>CORS restricted to the dev frontend</h4>
         <p>Replaces the earlier <code>allow_origins=["*"]</code>. Only <code>localhost:5173</code> / <code>127.0.0.1:5173</code> are allowed, and <code>allow_credentials=False</code> (BYOK keys ride in headers, not cookies). Origins live in <code>ALLOWED_ORIGINS</code> in <span class="file-ref">lectoria/app.py</span>.</p>
       </div>
+      <div class="decision-card">
+        <div class="d-num">ADR-1</div>
+        <h4>Frontend streaming uses fetch, not EventSource</h4>
+        <p>Pipeline progress streams over <code>POST</code> with custom BYOK headers, which <code>EventSource</code> cannot send. The client uses <code>fetch</code> + a <code>ReadableStream</code> parsed by <span class="file-ref">api/sseParser.ts</span>, with an <code>AbortController</code> torn down on unmount. See <code>docs/adr/0001</code>.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">ADR-2</div>
+        <h4>Frontend audio engine is a plain class</h4>
+        <p><code>CrossfadeAudioPlayer</code> (<span class="file-ref">audio/crossfadePlayer.ts</span>) is a framework-free TypeScript class — zero React imports — held in a <code>useRef</code> via the thin <code>useCrossfadeAudio</code> hook, so its imperative dual-track volume ramp is unit-testable without rendering. See <code>docs/adr/0002</code>.</p>
+      </div>
+      <div class="decision-card">
+        <div class="d-num">ADR-3</div>
+        <h4>Frontend NCM types generated from the backend OpenAPI schema</h4>
+        <p>The frontend stops hand-mirroring the NCM contract. <code>just gen-api-types</code> generates <span class="file-ref">api/schema.d.ts</span> from the backend's OpenAPI schema; <span class="file-ref">api/types.ts</span> re-exports the named components. A CI job fails on drift. See <code>docs/adr/0003</code>.</p>
+      </div>
     </div>
   </section>
 
@@ -1226,11 +1253,6 @@ X-API-Key-Image:   AIza...  (optional)</code></pre>
         <td>No pyright in CI</td>
         <td>Opt-in via <code>just typecheck</code>. Not enforced until codebase is clean.</td>
         <td><code>CLAUDE.md</code></td>
-      </tr>
-      <tr>
-        <td>No docs/adr/ directory</td>
-        <td>ADRs not yet written. <code>docs/agents/domain.md</code> describes the expected structure for future grilling sessions.</td>
-        <td><code>docs/agents/domain.md</code></td>
       </tr>
       <tr>
         <td>Character memory limited</td>
