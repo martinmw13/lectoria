@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lectoria — User Guide</title>
+<style>
+  :root {
+    --bg: #fafaf8;
+    --surface: #ffffff;
+    --border: #e5e5e0;
+    --text: #1a1a18;
+    --muted: #6b6b65;
+    --accent: #2563eb;
+    --accent-light: #eff6ff;
+    --code-bg: #f4f4f0;
+    --sidebar-bg: #1e1e1c;
+    --sidebar-text: #d4d4cc;
+    --sidebar-active: #ffffff;
+    --sidebar-hover: #2a2a28;
+    --pill-joy: #fef3c7; --pill-joy-t: #92400e;
+    --pill-sorrow: #dbeafe; --pill-sorrow-t: #1e40af;
+    --pill-tension: #fee2e2; --pill-tension-t: #991b1b;
+    --pill-peace: #d1fae5; --pill-peace-t: #065f46;
+    --pill-romance: #fce7f3; --pill-romance-t: #9d174d;
+    --pill-mystery: #ede9fe; --pill-mystery-t: #5b21b6;
+    --pill-excitement: #ffedd5; --pill-excitement-t: #9a3412;
+    --pill-wonder: #f0fdf4; --pill-wonder-t: #14532d;
+    --pill-anger: #fef2f2; --pill-anger-t: #7f1d1d;
+    --decision-bg: #f0f9ff; --decision-border: #bae6fd;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    display: flex;
+  }
+
+  /* ── Sidebar ─────────────────────────────────────────── */
+  #sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 240px;
+    height: 100vh;
+    background: var(--sidebar-bg);
+    overflow-y: auto;
+    padding: 1.5rem 0 2rem;
+    z-index: 100;
+    scrollbar-width: thin;
+    scrollbar-color: #444 transparent;
+  }
+
+  #sidebar .site-title {
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0 1.25rem 1.25rem;
+    border-bottom: 1px solid #333;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.01em;
+  }
+
+  #sidebar .site-title span {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: #888;
+    margin-top: 0.2rem;
+    letter-spacing: 0;
+  }
+
+  #sidebar .toc-section {
+    padding: 0.5rem 0;
+  }
+
+  #sidebar .toc-group-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #555;
+    padding: 0.5rem 1.25rem 0.25rem;
+  }
+
+  #sidebar a {
+    display: block;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.82rem;
+    padding: 0.3rem 1.25rem;
+    border-left: 2px solid transparent;
+    transition: all 0.1s;
+  }
+
+  #sidebar a:hover {
+    background: var(--sidebar-hover);
+    color: var(--sidebar-active);
+  }
+
+  #sidebar a.active {
+    color: var(--sidebar-active);
+    border-left-color: #60a5fa;
+    background: rgba(96, 165, 250, 0.08);
+  }
+
+  #sidebar a.sub {
+    font-size: 0.77rem;
+    padding-left: 2rem;
+    color: #888;
+  }
+
+  /* ── Main content ─────────────────────────────────────── */
+  main {
+    margin-left: 240px;
+    flex: 1;
+    max-width: calc(100% - 240px);
+    padding: 2.5rem 3rem 4rem;
+  }
+
+  @media (max-width: 768px) {
+    #sidebar { display: none; }
+    main { margin-left: 0; max-width: 100%; padding: 1.5rem; }
+  }
+
+  /* ── Typography ──────────────────────────────────────── */
+  section { margin-bottom: 3.5rem; }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+
+  h1 + .lead {
+    font-size: 1.05rem;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+    max-width: 72ch;
+  }
+
+  h2 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 2rem 0 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid var(--border);
+    color: var(--text);
+    scroll-margin-top: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 1.5rem 0 0.5rem;
+    color: var(--text);
+    scroll-margin-top: 1.5rem;
+  }
+
+  h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 1.25rem 0 0.4rem;
+  }
+
+  p { margin-bottom: 0.85rem; max-width: 80ch; }
+
+  ul, ol { padding-left: 1.4rem; margin-bottom: 0.85rem; max-width: 78ch; }
+  li { margin-bottom: 0.3rem; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  strong { font-weight: 600; }
+
+  /* ── Code ────────────────────────────────────────────── */
+  code {
+    font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Cascadia Code', monospace;
+    font-size: 0.83em;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.1em 0.35em;
+    color: #c7254e;
+  }
+
+  pre {
+    background: #1e1e1c;
+    color: #d4d4cc;
+    border-radius: 8px;
+    padding: 1.2rem 1.4rem;
+    overflow-x: auto;
+    margin: 1rem 0 1.25rem;
+    font-size: 0.83rem;
+    line-height: 1.6;
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+
+  /* ── Tables ──────────────────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 1.25rem;
+    font-size: 0.88rem;
+  }
+
+  th {
+    text-align: left;
+    padding: 0.6rem 0.85rem;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  td {
+    padding: 0.55rem 0.85rem;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td { background: #fafaf8; }
+
+  /* ── Cards / callouts ────────────────────────────────── */
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-light);
+    padding: 0.85rem 1.1rem;
+    border-radius: 0 6px 6px 0;
+    margin: 1rem 0 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  .callout.decision {
+    border-left-color: #0ea5e9;
+    background: var(--decision-bg);
+  }
+
+  .callout p { margin-bottom: 0; }
+
+  .decision-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+
+  @media (max-width: 900px) {
+    .decision-grid { grid-template-columns: 1fr; }
+  }
+
+  .decision-card {
+    background: var(--decision-bg);
+    border: 1px solid var(--decision-border);
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .decision-card .d-num {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #0284c7;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.25rem;
+  }
+
+  .decision-card h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: 0;
+    margin: 0 0 0.3rem;
+  }
+
+  .decision-card p { color: var(--muted); max-width: none; margin: 0; }
+
+  /* ── Emotion pills ───────────────────────────────────── */
+  .pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
+
+  .pill {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 100px;
+  }
+
+  .pill.joy      { background: var(--pill-joy);       color: var(--pill-joy-t); }
+  .pill.sorrow   { background: var(--pill-sorrow);    color: var(--pill-sorrow-t); }
+  .pill.tension  { background: var(--pill-tension);   color: var(--pill-tension-t); }
+  .pill.peace    { background: var(--pill-peace);     color: var(--pill-peace-t); }
+  .pill.romance  { background: var(--pill-romance);   color: var(--pill-romance-t); }
+  .pill.mystery  { background: var(--pill-mystery);   color: var(--pill-mystery-t); }
+  .pill.excitement{ background: var(--pill-excitement); color: var(--pill-excitement-t); }
+  .pill.wonder   { background: var(--pill-wonder);    color: var(--pill-wonder-t); }
+  .pill.anger    { background: var(--pill-anger);     color: var(--pill-anger-t); }
+
+  /* ── Diagram ─────────────────────────────────────────── */
+  .diagram {
+    background: #1e1e1c;
+    color: #a8b5c8;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    border-radius: 8px;
+    padding: 1.2rem 1.4rem;
+    overflow-x: auto;
+    line-height: 1.55;
+    margin: 1rem 0;
+    white-space: pre;
+  }
+
+  .diagram .green  { color: #6ee7b7; }
+  .diagram .blue   { color: #93c5fd; }
+  .diagram .yellow { color: #fde68a; }
+  .diagram .pink   { color: #f9a8d4; }
+  .diagram .dim    { color: #555; }
+
+  .mermaid-svg {
+    margin: 1rem 0 1.5rem;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    overflow-x: auto;
+    text-align: center;
+  }
+  .mermaid-svg svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+  .mermaid-svg svg text, .mermaid-svg svg tspan {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif !important;
+  }
+  .mermaid-svg figcaption {
+    margin-top: 0.85rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* ── File ref ────────────────────────────────────────── */
+  .file-ref {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: #0369a1;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 3px;
+    padding: 0.1em 0.4em;
+  }
+
+  /* ── Layout helpers ──────────────────────────────────── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin: 1rem 0;
+  }
+
+  @media (max-width: 900px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  .box {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.1rem;
+    background: var(--surface);
+    font-size: 0.88rem;
+  }
+
+  .box h4 { margin-top: 0; }
+
+  /* ── Hero ────────────────────────────────────────────── */
+  .hero {
+    background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+    color: #fff;
+    border-radius: 12px;
+    padding: 2rem 2.25rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .hero h1 { color: #fff; font-size: 2.2rem; }
+  .hero p { color: #94a3b8; max-width: 65ch; margin-top: 0.4rem; font-size: 0.95rem; }
+  .hero .tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 1rem; }
+  .hero .tag {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.65rem;
+    border-radius: 100px;
+    background: rgba(255,255,255,0.1);
+    color: #cbd5e1;
+    font-weight: 500;
+  }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+</style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="site-title">Lectoria <span>CEIA · FIUBA</span></div>
+  <div class="toc-section">
+    <div class="toc-group-label">Contents</div>
+    <a href="#objective">Objective</a>
+    <a href="#general-overview">General Overview</a>
+    <a href="#getting-started">Getting Started</a>
+    <a href="#prerequisites" class="sub">Prerequisites</a>
+    <a href="#adding-your-api-key" class="sub">Adding your API key</a>
+    <a href="#reading-a-book">Reading a Book</a>
+    <a href="#1-upload-an-epub" class="sub">1. Upload an EPUB</a>
+    <a href="#2-process-the-book" class="sub">2. Process the book</a>
+    <a href="#3-read" class="sub">3. Read</a>
+    <a href="#features">Features</a>
+    <a href="#adaptive-music" class="sub">Adaptive music</a>
+    <a href="#music-style-presets" class="sub">Music style presets</a>
+    <a href="#scene-on-demand-images" class="sub">Scene &amp; on-demand images</a>
+    <a href="#reader-controls" class="sub">Reader controls</a>
+    <a href="#developer-panel" class="sub">Developer panel</a>
+    <a href="#privacy-and-your-api-key">Privacy and Your API Key</a>
+    <a href="#limitations-faq">Limitations &amp; FAQ</a>
+  </div>
+</nav>
+
+<main>
+
+  <div class="hero">
+    <h1>Lectoria — User Guide</h1>
+    <p>CEIA · FIUBA — Academic Thesis Project · June 2026</p>
+    <div class="tags">
+      <span class="tag">EPUB reader</span>
+      <span class="tag">Adaptive music</span>
+      <span class="tag">AI images</span>
+      <span class="tag">BYOK</span>
+      <span class="tag">Google Gemini</span>
+    </div>
+  </div>
+
+<h2 id="objective">Objective</h2>
+<p>Lectoria is a <strong>multimodal EPUB reader</strong>: as you read, it plays <strong>music that matches the mood
+of each scene</strong> and can generate <strong>images</strong> of what you are reading. The goal is for the
+soundtrack and visuals to feel like they belong to the story — to respond to tension, calm,
+romance, or wonder as the narrative shifts — rather than being random background.</p>
+<p>This guide is for <strong>readers</strong>. It explains how to set up the app, process a book, and use the
+reading features. (Developers: see the <a href="./dev-guide.html">Dev Guide</a>.)</p>
+<h2 id="general-overview">General Overview</h2>
+<p>You bring your own <strong>Google Gemini API key</strong>. When you add a book, Lectoria reads the whole
+EPUB and uses AI to break it into <em>scenes</em>, tagging each one with an emotion, pace, and scene
+type. That analysis — done once per book — is what powers the music and images while you read.</p>
+<pre><code>Upload an EPUB  ──►  Lectoria analyzes it (a few minutes)  ──►  Read with adaptive music + images
+</code></pre>
+<p>Nothing is shared with other users, and there are no accounts — everything runs locally
+against your own API key.</p>
+<h2 id="getting-started">Getting Started</h2>
+<h3 id="prerequisites">Prerequisites</h3>
+<ul>
+<li>A running Lectoria instance (open <strong>http://localhost:5173</strong> in your browser).</li>
+<li>A <strong>Google Gemini API key</strong> — get one free at <a href="https://aistudio.google.com/">aistudio.google.com</a>.</li>
+<li>One or more <strong>EPUB</strong> files. (PDF and other formats are not supported.)</li>
+</ul>
+<h3 id="adding-your-api-key">Adding your API key</h3>
+<ol>
+<li>Open <strong>Settings</strong> (top navigation).</li>
+<li>Paste your <strong>Gemini API key</strong> into the LLM key field. The same key works for image
+   generation.</li>
+<li>Optionally pick a default <strong>music style preset</strong> (see below).</li>
+</ol>
+<p>Your key is stored only in your browser and is sent directly to the AI provider on each
+request. See <a href="#privacy-and-your-api-key">Privacy and Your API Key</a>.</p>
+<h2 id="reading-a-book">Reading a Book</h2>
+<h3 id="1-upload-an-epub">1. Upload an EPUB</h3>
+<p>On the <strong>Upload</strong> page (the home page), choose an <code>.epub</code> file. Lectoria reads it and shows a
+<strong>cost estimate</strong> — how many chapters and roughly how many tokens the analysis will use — so
+you know what to expect before spending any API quota.</p>
+<h3 id="2-process-the-book">2. Process the book</h3>
+<p>Confirm to start <strong>processing</strong>. Lectoria runs a two-stage analysis of the book and shows
+<strong>live progress</strong> as it goes (ingestion → characters → chapter-by-chapter scene analysis).
+This typically takes <strong>3–10 minutes</strong> depending on book length and your API quota. You only
+do this <strong>once per book</strong> — the result is saved, so re-opening the book later is instant.</p>
+<blockquote>
+<p>If you stop or the page closes mid-analysis, you can re-upload the same book and start again.</p>
+</blockquote>
+<h3 id="3-read">3. Read</h3>
+<p>When analysis finishes you land in the <strong>reader</strong>. The text is split into pages of about 250
+words. As you move through the book, the music and (if enabled) images update to match the
+current scene.</p>
+<h2 id="features">Features</h2>
+<h3 id="adaptive-music">Adaptive music</h3>
+<p>A track plays in the background and <strong>changes with the mood of the story</strong>. Lectoria does not
+swap songs on every page — it keeps the same track through related moments and <strong>crossfades</strong>
+to a new one when the emotional tone genuinely shifts (for example, moving from a calm scene
+into a tense one). You can adjust volume or mute at any time from the player.</p>
+<h3 id="music-style-presets">Music style presets</h3>
+<p>If you'd prefer a particular musical flavor, choose a <strong>style preset</strong> in Settings:</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Feel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Auto</strong></td>
+<td>No filter — uses the full library (default)</td>
+</tr>
+<tr>
+<td><strong>Cinematic</strong></td>
+<td>Orchestral, strings, brass — film scores and epic soundtracks</td>
+</tr>
+<tr>
+<td><strong>Piano only</strong></td>
+<td>Solo piano and keyboard — intimate and minimal</td>
+</tr>
+<tr>
+<td><strong>Ambient</strong></td>
+<td>Synths, pads, atmospheric textures — no vocals or drums</td>
+</tr>
+<tr>
+<td><strong>Synthwave</strong></td>
+<td>Electronic, retro synths, 80s vibes — sci-fi and neon</td>
+</tr>
+<tr>
+<td><strong>Noir jazz</strong></td>
+<td>Jazz, saxophone, blues — smoky and dark</td>
+</tr>
+</tbody>
+</table>
+<p>The preset narrows <em>which</em> tracks can play; Lectoria still matches the mood within that style.</p>
+<h3 id="scene-on-demand-images">Scene &amp; on-demand images</h3>
+<p>Lectoria can generate an <strong>image for the current scene</strong> based on what the text describes. You
+can also <strong>select any passage</strong> of text and ask for an image of that specific moment.
+Generated images are cached, so revisiting a scene reuses the existing image instead of
+spending more quota.</p>
+<blockquote>
+<p>Image <em>characters</em> are drawn from the descriptions in the book, but Lectoria cannot
+guarantee the same character looks identical across different images — see Limitations.</p>
+</blockquote>
+<h3 id="reader-controls">Reader controls</h3>
+<ul>
+<li><strong>Arrow keys</strong> (or on-screen controls) turn pages, one page at a time, with a horizontal
+  slide.</li>
+<li>A <strong>chapter list</strong> overlay lets you jump between chapters.</li>
+<li>The <strong>music player</strong> offers play/pause, volume, mute, and skip-to-next-track.</li>
+</ul>
+<h3 id="developer-panel">Developer panel</h3>
+<p>Press <strong>Ctrl + D</strong> to toggle a panel that shows the behind-the-scenes data for the current
+scene: its detected emotion and pacing, the AI metadata, and why a particular music track was
+chosen. It is meant for the curious (and for the thesis), and can be ignored while reading.</p>
+<h2 id="privacy-and-your-api-key">Privacy and Your API Key</h2>
+<ul>
+<li>Your Gemini API key is stored <strong>only in your browser</strong> (<code>localStorage</code>) and is sent as a
+  request header straight to the AI provider. Lectoria's server <strong>never stores</strong> it.</li>
+<li>There are <strong>no user accounts</strong> and <strong>no cross-device sync</strong> — books and their analysis live
+  on the machine running Lectoria.</li>
+<li><strong>Security note (thesis limitation):</strong> browser <code>localStorage</code> is vulnerable to XSS, which is
+  acceptable for an academic demo but would need hardening (e.g. httpOnly cookies or a secrets
+  manager) for production use.</li>
+</ul>
+<h2 id="limitations-faq">Limitations &amp; FAQ</h2>
+<ul>
+<li><strong>Only EPUB is supported.</strong> No PDF, no plain text, no DRM-protected files.</li>
+<li><strong>Processing costs API quota and time.</strong> A full book runs the analysis once (3–10 minutes)
+  and consumes Gemini tokens against <em>your</em> key. The cost estimate before processing helps you
+  plan.</li>
+<li><strong>Music is selected, not generated.</strong> Tracks come from a curated <a href="https://mtg.github.io/mtg-jamendo-dataset/">MTG-Jamendo</a>
+  library; Lectoria picks the best match, it does not compose new audio.</li>
+<li><strong>Character appearance may vary between images.</strong> Image generation is guided by text
+  descriptions only; there is no persistent character likeness across separate images.</li>
+<li><strong>Single user.</strong> Lectoria is built for one reader at a time on a local machine — it is a
+  thesis prototype, not a multi-tenant service.</li>
+</ul>
+
+</main>
+
+<script>
+  const links = document.querySelectorAll('#sidebar a[href^="#"]');
+  const sections = [];
+  links.forEach(l => {
+    const id = l.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) sections.push({ el, link: l });
+  });
+  function updateActive() {
+    let current = null;
+    for (const { el } of sections) {
+      if (el.getBoundingClientRect().top <= 80) current = el.id;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (current) {
+      const active = document.querySelector(`#sidebar a[href="#${current}"]`);
+      if (active) active.classList.add('active');
+    }
+  }
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+</script>
+</body>
+</html>
