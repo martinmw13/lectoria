@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Project is pre-1.0 — minor versions may include breaking changes until the first
 tagged release.
 
+## [0.2.3](https://github.com/martinmw13/lectoria/compare/v0.2.2...v0.2.3) (2026-06-29)
+
+
+### Documentation
+
+* sync onboarding + add user/dev guides ([#128](https://github.com/martinmw13/lectoria/issues/128)) ([6468590](https://github.com/martinmw13/lectoria/commit/6468590902786aec3f228b9ea5cbc83a80167513))
+
 ## [0.2.2](https://github.com/martinmw13/lectoria/compare/v0.2.1...v0.2.2) (2026-06-01)
 
 
