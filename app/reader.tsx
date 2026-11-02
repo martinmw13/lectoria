@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { isSceneAttr, type SceneAttr } from "@/core/bookmap";
-import { isUploadId } from "@/core/uploads";
 import { canPlayAudio } from "./ambience-engine";
 import { choosePlayableSources, currentMode, musicModes, parseManifest } from "@/core/music";
 import type { MusicManifest, MusicMode, MusicModeId, SceneSignal, Track } from "@/core/music";
@@ -397,14 +396,11 @@ export function Reader({
     : [];
 
 
-  // Chat runs on our key for shelf books only, so uploads read without it.
-  const chatOn = !isUploadId(bookId);
-  // Pictures serve shelf books only: the images API rejects upload ids.
-  // The book view defaults to the same flag from its own model id.
-  const visualsOn = !isUploadId(bookId);
+  // Chat answers from the same book text for shelf books and uploads
+  // alike; an upload finished with the reader's own key asks on that key.
   return (
     <NarrationProvider entries={narration} scenes={scenes}>
-      <div className={visualsOn ? "folio" : "folio no-visuals"}>
+      <div className="folio">
         <a href="#story" className="skip-link">
           Skip to the story
         </a>
@@ -440,7 +436,7 @@ export function Reader({
           onEnded={ended}
           playlistOn={playlistOn}
         />
-      {chatOn && chatScene && chatChapter && (
+      {chatScene && chatChapter && (
         <ReaderChat
           bookId={bookId}
           upToN={chatScene.endN}

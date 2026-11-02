@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { uploadDailySpendKey } from "@/core/uploads";
 import { bookQuotaKeysFor } from "@/server/guard/quota";
 import { spendKey } from "@/server/guard/spend";
@@ -136,16 +136,15 @@ describe("create size limits", () => {
 });
 
 describe("create caps", () => {
-  it("allows two free books per IP per day", async () => {
+  it("allows one free book per IP per day", async () => {
     const kv = createMemoryKV();
     const store = memoryStore();
     const deps = { env: testEnv(), kv, store, meta: helpfulMeta(), now: new Date(`${DAY}T00:00:00Z`) };
     const headers = { "x-real-ip": "5.6.7.8" };
     expect((await handleUploadsCreate(postRequest(URL, tinyBook(), headers), deps)).status).toBe(200);
-    expect((await handleUploadsCreate(postRequest(URL, tinyBook(), headers), deps)).status).toBe(200);
-    const third = await handleUploadsCreate(postRequest(URL, tinyBook(), headers), deps);
-    expect(third.status).toBe(429);
-    expect(await third.json()).toEqual(expect.objectContaining({ code: "daily_books_reached" }));
+    const second = await handleUploadsCreate(postRequest(URL, tinyBook(), headers), deps);
+    expect(second.status).toBe(429);
+    expect(await second.json()).toEqual(expect.objectContaining({ code: "daily_books_reached" }));
   });
 
   it("counts the anon cookie too, whichever hits first", async () => {
@@ -153,18 +152,13 @@ describe("create caps", () => {
     const store = memoryStore();
     const deps = { env: testEnv(), kv, store, meta: helpfulMeta(), now: new Date(`${DAY}T00:00:00Z`) };
     const first = await handleUploadsCreate(postRequest(URL, tinyBook(), { "x-real-ip": "9.9.9.1" }), deps);
-    const cookies = cookiesFrom(first);
+    expect(first.status).toBe(200);
     const second = await handleUploadsCreate(
-      postRequest(URL, tinyBook(), { "x-real-ip": "9.9.9.2", cookie: cookies }),
+      postRequest(URL, tinyBook(), { "x-real-ip": "9.9.9.2", cookie: cookiesFrom(first) }),
       deps,
     );
-    expect(second.status).toBe(200);
-    const third = await handleUploadsCreate(
-      postRequest(URL, tinyBook(), { "x-real-ip": "9.9.9.3", cookie: cookiesFrom(second, cookies) }),
-      deps,
-    );
-    expect(third.status).toBe(429);
-    expect(await third.json()).toEqual(expect.objectContaining({ code: "daily_books_reached" }));
+    expect(second.status).toBe(429);
+    expect(await second.json()).toEqual(expect.objectContaining({ code: "daily_books_reached" }));
   });
 
   it("refuses when the daily upload budget is spent, and refunds quota", async () => {
@@ -183,6 +177,78 @@ describe("create caps", () => {
     expect(await kv.get(keys.ip)).toBe("0");
     expect(await kv.get(keys.anon)).toBe("0");
     expect(await kv.get(spendKey())).toBe("0");
+  });
+});
+
+describe("create friend codes", () => {
+  const CODE = "maple-river";
+  const withCode = (over: Record<string, string> = {}) => ({ ...tinyBook(), friendCode: CODE, ...over });
+  const friendEnv = () => testEnv({ friendCodes: [CODE, "lantern-meadow"] });
+
+  it("allows five books with a valid code and refuses the sixth", async () => {
+    const kv = createMemoryKV();
+    const deps = { env: friendEnv(), kv, store: memoryStore(), meta: helpfulMeta(), now: new Date(`${DAY}T00:00:00Z`) };
+    const headers = { "x-real-ip": "6.6.6.6" };
+    for (let i = 0; i < 5; i++) {
+      const res = await handleUploadsCreate(postRequest(URL, withCode(), headers), deps);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual(expect.objectContaining({ status: "created", friendAccepted: true }));
+    }
+    const sixth = await handleUploadsCreate(postRequest(URL, withCode(), headers), deps);
+    expect(sixth.status).toBe(429);
+    expect(await sixth.json()).toEqual(expect.objectContaining({ code: "daily_books_reached" }));
+  });
+
+  it("keeps the normal one-book quota on a wrong code, without an error", async () => {
+    const kv = createMemoryKV();
+    const deps = { env: friendEnv(), kv, store: memoryStore(), meta: helpfulMeta(), now: new Date(`${DAY}T00:00:00Z`) };
+    const headers = { "x-real-ip": "6.6.6.7" };
+    const first = await handleUploadsCreate(postRequest(URL, { ...tinyBook(), friendCode: "not-a-code" }, headers), deps);
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual(expect.objectContaining({ status: "created", friendAccepted: false }));
+    const second = await handleUploadsCreate(postRequest(URL, { ...tinyBook(), friendCode: "not-a-code" }, headers), deps);
+    expect(second.status).toBe(429);
+    expect(await second.json()).toEqual(expect.objectContaining({ code: "daily_books_reached" }));
+  });
+
+  it("ignores codes when none are configured", async () => {
+    const kv = createMemoryKV();
+    const deps = { env: testEnv(), kv, store: memoryStore(), meta: helpfulMeta(), now: new Date(`${DAY}T00:00:00Z`) };
+    const headers = { "x-real-ip": "6.6.6.8" };
+    expect((await handleUploadsCreate(postRequest(URL, withCode(), headers), deps)).status).toBe(200);
+    const second = await handleUploadsCreate(postRequest(URL, withCode(), headers), deps);
+    expect(second.status).toBe(429);
+  });
+
+  it("ignores codes on the BYOK path", async () => {
+    const kv = createMemoryKV();
+    const deps = { env: friendEnv(), kv, store: memoryStore(), meta: helpfulMeta(), now: new Date(`${DAY}T00:00:00Z`) };
+    const res = await handleUploadsCreate(
+      postRequest(URL, withCode(), { "x-byok-key": "byok-key-friend-1", "x-real-ip": "6.6.6.9" }),
+      deps,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(expect.objectContaining({ status: "created", friendAccepted: false }));
+  });
+
+  it("never puts the code in a response body or console output", async () => {
+    const kv = createMemoryKV();
+    const deps = { env: friendEnv(), kv, store: memoryStore(), meta: helpfulMeta(), now: new Date(`${DAY}T00:00:00Z`) };
+    const headers = { "x-real-ip": "6.6.6.10" };
+    const warned: unknown[][] = [];
+    const errored: unknown[][] = [];
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation((...args: unknown[]) => void warned.push(args));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => void errored.push(args));
+    try {
+      const bodies: string[] = [];
+      bodies.push(JSON.stringify(await (await handleUploadsCreate(postRequest(URL, withCode(), headers), deps)).json()));
+      bodies.push(JSON.stringify(await (await handleUploadsCreate(postRequest(URL, withCode(), headers), deps)).json()));
+      expect(bodies.join("")).not.toContain(CODE);
+      for (const args of [...warned, ...errored]) expect(JSON.stringify(args)).not.toContain(CODE);
+    } finally {
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
   });
 });
 

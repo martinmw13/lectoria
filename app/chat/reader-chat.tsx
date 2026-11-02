@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { getReaderKey } from "../leer/reader-key";
 import { ChatPanel } from "./chat-panel";
 import { CHAT_COPY, CHAT_LABEL } from "./copy";
 import { SUGGESTED_QUESTIONS } from "./suggestions";
@@ -8,7 +9,9 @@ import { useChat } from "./use-chat";
 import { ChatBubble } from "./chat-bubble";
 
 // Launcher + panel shell. Mounted once inside the reader folio; the key it
-// holds lives in state only, so reload and panel close clear it.
+// holds lives in state only, so reload and panel close clear it. For an
+// upload finished with the reader's own key, that key (module memory only)
+// asks until the reader types another one.
 export function ReaderChat({
   bookId,
   upToN,
@@ -25,10 +28,12 @@ export function ReaderChat({
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const launcherRef = useRef<HTMLButtonElement | null>(null);
 
+  // Closing clears the typed key, so the reader key below returns.
+  const effectiveKey = byokKey ?? getReaderKey(bookId);
   const chat = useChat({
     bookId,
     upToN,
-    byokKey,
+    byokKey: effectiveKey,
     turnstileToken,
     onTokenUsed: () => setTurnstileToken(null),
   });
@@ -47,7 +52,7 @@ export function ReaderChat({
           chapterTitle={chapterTitle}
           chat={chat}
           suggestions={[...SUGGESTED_QUESTIONS]}
-          byokKey={byokKey}
+          byokKey={effectiveKey}
           onKeySubmit={(key) => {
             setByokKey(key);
             chat.retry({ key });

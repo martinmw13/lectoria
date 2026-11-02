@@ -17,7 +17,9 @@ import {
 } from "@/core/chat";
 import type { ChatErrorBody, ChatErrorCode, ChatRequest } from "@/core/chat";
 import type { KV } from "@/core/types";
-import { isKnownBookId, loadBookData } from "@/server/books";
+import { isUploadId } from "@/core/uploads";
+import { isKnownBookId, loadBook, loadBookData } from "@/server/books";
+import type { BookPayload } from "@/server/books";
 import {
   issueAnonId,
   parseAnonCookie,
@@ -42,6 +44,7 @@ export interface ChatHandlerDeps {
   createStreamer?: (args: { apiKey: string; fetchFn: typeof fetch }) => ChatStreamer;
   fetchFn?: typeof fetch;
   now?: Date;
+  loadBook?: (bookId: string) => Promise<BookPayload>;
 }
 
 // Expected failures (bad input, over limit, missing env, spent budget)
@@ -85,7 +88,8 @@ export async function handleChatPost(req: Request, deps: ChatHandlerDeps = {}): 
   } catch {
     return fail("bad_request", "?", cookies);
   }
-  if (!isKnownBookId(body.bookId)) return fail("bad_request", "?", cookies, false, body.bookId);
+  if (!isKnownBookId(body.bookId) && !isUploadId(body.bookId))
+    return fail("bad_request", "?", cookies, false, body.bookId);
 
   let env = deps.env;
   if (!env) {
@@ -165,7 +169,19 @@ export async function handleChatPost(req: Request, deps: ChatHandlerDeps = {}): 
     quotaTaken = true;
     const remaining = limit - Math.max(taken.ipCount, taken.anonCount);
 
-    const { book } = await loadBookData(body.bookId);
+    // Shelf books keep loadBookData (known but unready books still chat);
+    // finished uploads load through the loader pictures use. A missing,
+    // unfinished, or expired upload answers 400, with the quota given back.
+    let book: BookPayload["book"];
+    try {
+      ({ book } = isUploadId(body.bookId)
+        ? await (deps.loadBook ?? loadBook)(body.bookId)
+        : await loadBookData(body.bookId));
+    } catch {
+      if (!isUploadId(body.bookId)) throw new Error("chat book load failed");
+      await refundAll();
+      return fail("bad_request", "?", cookies, false, body.bookId);
+    }
     const maxN = book.paragraphs.reduce((m, p) => Math.max(m, p.n), 0);
     const clampedN = Math.min(body.upToN, maxN);
     const chapter =

@@ -1,5 +1,7 @@
 import "server-only";
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { KV } from "@/core/types";
+import { FRIEND_CODE_MAX_LEN } from "@/core/uploads";
 import { hashIp, ipBucket } from "./request";
 
 // Per-person quota, counted by hashed IP and by the anonymous
@@ -72,9 +74,16 @@ export async function refundDualQuota(kv: KV, keys: DualKeys): Promise<void> {
   }
 }
 
-// Free uploaded-book processing: two books per person per UTC day,
+// Free uploaded-book processing: one book per person per UTC day,
 // counted on hashed IP and the anon cookie, whichever hits first.
-export const FREE_BOOKS_PER_PERSON = 2;
+export const FREE_BOOKS_PER_PERSON = 1;
+// A valid friend code raises the free path to five books that day,
+// on the same quota keys, so a friend gets five total, not five more.
+export const FRIEND_BOOKS_PER_PERSON = 5;
+// Wrong friend-code guesses per hashed IP per day before codes stop
+// being checked; a wrong guess never errors, the upload just keeps
+// the normal quota.
+export const FRIEND_WRONG_GUESSES_PER_DAY = 10;
 // BYOK uploads spend the reader's key, but creates still need a per-person
 // cap so a bot cannot farm infinite jobs; same dual counting, own prefix.
 export const BYOK_UPLOADS_PER_PERSON = 10;
@@ -117,4 +126,62 @@ export async function checkBookQuota(
 
 export async function refundBookQuota(kv: KV, keys: DualKeys): Promise<void> {
   await refundDualQuota(kv, keys);
+}
+
+// Server-only friend codes from LECTORIA_FRIEND_CODES: comma-separated,
+// trimmed, empties dropped. Unset or empty means the feature is off.
+export function parseFriendCodes(raw: string | undefined | null): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((code) => code.trim())
+    .filter((code) => code.length > 0);
+}
+
+// Constant-time match over sha256 digests so lengths always match, and
+// every configured code is checked with no early exit.
+export function matchFriendCode(submitted: string, codes: string[]): boolean {
+  const want = createHash("sha256").update(submitted, "utf8").digest();
+  let hit = false;
+  for (const code of codes) {
+    const got = createHash("sha256").update(code, "utf8").digest();
+    if (timingSafeEqual(want, got)) hit = true;
+  }
+  return hit;
+}
+
+export function friendGuessKeyFor(args: { day: string; ip: string; salt: string; anonId: string }): string {
+  return `books:friend-guess:ip:${args.day}:${hashIp(ipBucket(args.ip, args.anonId), args.salt)}`;
+}
+
+// True when the submitted code is valid and the guess budget remains.
+// Anything else is false, never an error: the upload keeps the normal
+// quota. Never logs or returns the code itself.
+export async function acceptFriendCode(
+  kv: KV,
+  submitted: unknown,
+  codes: string[],
+  guessKey: string,
+): Promise<boolean> {
+  if (typeof submitted !== "string") return false;
+  const code = submitted.trim();
+  if (code.length === 0 || code.length > FRIEND_CODE_MAX_LEN) return false;
+  if (codes.length === 0) return false;
+  let guesses = 0;
+  try {
+    const raw = await kv.get(guessKey);
+    guesses = raw === null ? 0 : Number(raw);
+    if (!Number.isFinite(guesses) || guesses < 0) guesses = 0;
+  } catch {
+    return false; // Redis down: no friend path, the normal quota still applies.
+  }
+  if (guesses >= FRIEND_WRONG_GUESSES_PER_DAY) return false;
+  if (matchFriendCode(code, codes)) return true;
+  try {
+    await kv.incr(guessKey);
+    await kv.expire(guessKey, BOOK_QUOTA_TTL_SEC);
+  } catch {
+    // Best effort; the guess just goes uncounted.
+  }
+  return false;
 }

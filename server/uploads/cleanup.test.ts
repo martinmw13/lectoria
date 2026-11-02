@@ -48,6 +48,49 @@ describe("cleanupUploads", () => {
     const out = await cleanupUploads(store, now);
     expect(out.deleted).toBe(1);
   });
+
+  it("sweeps old upload pictures but never shelf books", async () => {
+    const now = Date.now();
+    const old = "images/u-AAAAAAAAAAAAAAAAAAAAAA/v1/v5/p1.webp";
+    const fresh = "images/u-AAAAAAAAAAAAAAAAAAAAAA/v1/v5/p2.webp";
+    const shelf = "images/oz/v5/p1.webp";
+    const images = memoryStore(
+      new Map([
+        [old, now - 31 * DAY_MS],
+        [fresh, now - 2 * DAY_MS],
+        [shelf, now - 60 * DAY_MS],
+      ]),
+    );
+    await images.saveJson(old, "x");
+    await images.saveJson(fresh, "x");
+    await images.saveJson(shelf, "x");
+    const out = await cleanupUploads(memoryStore(), now, { imageStore: images });
+    expect(out.deleted).toBe(1);
+    expect(images.files.has(old)).toBe(false);
+    expect(images.files.has(fresh)).toBe(true);
+    expect(images.files.has(shelf)).toBe(true);
+  });
+
+  it("keeps sweeping when one image delete fails", async () => {
+    const now = Date.now();
+    const images = memoryStore(
+      new Map([
+        ["images/u-AAAAAAAAAAAAAAAAAAAAAA/v1/v5/a.webp", now - 40 * DAY_MS],
+        ["images/u-AAAAAAAAAAAAAAAAAAAAAA/v1/v5/b.webp", now - 40 * DAY_MS],
+      ]),
+    );
+    await images.saveJson("images/u-AAAAAAAAAAAAAAAAAAAAAA/v1/v5/a.webp", "x");
+    await images.saveJson("images/u-AAAAAAAAAAAAAAAAAAAAAA/v1/v5/b.webp", "x");
+    let calls = 0;
+    const real = images.remove.bind(images);
+    images.remove = async (path: string) => {
+      calls += 1;
+      if (calls === 1) throw new Error("blob down");
+      await real(path);
+    };
+    const out = await cleanupUploads(memoryStore(), now, { imageStore: images });
+    expect(out.deleted).toBe(1);
+  });
 });
 
 describe("cleanupUploads stale jobs", () => {
@@ -152,7 +195,7 @@ describe("handleCleanup", () => {
   it("sweeps with the secret", async () => {
     const store = memoryStore(new Map([["uploads/u-old/book.json", Date.now() - 40 * DAY_MS]]));
     await store.saveJson("uploads/u-old/book.json", "{}");
-    const res = await handleCleanup(req("Bearer s3cr3t"), { store, secret: "s3cr3t" });
+    const res = await handleCleanup(req("Bearer s3cr3t"), { store, secret: "s3cr3t", imageStore: memoryStore() });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "ok", deleted: 1 });
   });

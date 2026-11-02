@@ -128,3 +128,9 @@ html[data-skin="chihiro"] .ob-input { border: 0; border-bottom: 2px solid rgba(1
 html .ob-desk .ob-keyrow input:focus-visible { outline: none; border-bottom-color: var(--color-accent); box-shadow: 0 1px 0 var(--color-accent); }
 html[data-skin="comic"] .ob-keyrow input:focus-visible { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
 .ob-keybox .ob-fine { margin-top: 1px; }
+/* Optional friend code: a boxless link until opened, then one small row. */
+.ob-friend { margin-top: 6px; text-align: center; }
+.ob-friendrow { display: inline-flex; gap: 8px; align-items: baseline; font-size: 13px; color: var(--muted); }
+.ob-friendrow .ob-input { width: 13em; }
+/* Friend-code welcome: small warm note, shown only after the server accepts the code. */
+.ob-friend-ok { margin: 8px auto 0; padding: 8px 12px; max-width: 34em; border-left: 3px solid #0866FF; background: #F0F6FF; color: #1C2B33; border-radius: 8px; font-size: 13px; line-height: 1.45; }

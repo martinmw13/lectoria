@@ -1,6 +1,7 @@
 import "server-only";
 import { parseCapUsd, turnstilePair, usable } from "@/server/guard/env";
 import type { TurnstilePair } from "@/server/guard/env";
+import { parseFriendCodes } from "@/server/guard/quota";
 
 // Upload env, read once per request. Jev is optional: without a usable key
 // the free path classifies with the contributor model alone. Missing
@@ -14,6 +15,9 @@ export interface UploadEnv extends TurnstilePair {
   sessionSecret: string;
   ipSalt: string;
   spendCapMicro: number;
+  // Valid friend codes raising the free path to five books a day.
+  // Empty when LECTORIA_FRIEND_CODES is unset: the feature is off.
+  friendCodes?: string[];
 }
 
 const URL_NAMES = "UPSTASH_REDIS_REST_URL|KV_REST_API_URL";
@@ -49,6 +53,7 @@ export function readUploadEnv(from: NodeJS.ProcessEnv = process.env): UploadEnv 
     sessionSecret: from.SESSION_SECRET as string,
     ipSalt: from.IP_HASH_SALT as string,
     spendCapMicro: Math.round(parseCapUsd(from.SPEND_CAP_USD, 10) * 1_000_000),
+    friendCodes: parseFriendCodes(usable(from.LECTORIA_FRIEND_CODES)),
     ...turnstilePair(from),
   };
 }

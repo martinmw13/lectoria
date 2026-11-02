@@ -1,15 +1,22 @@
+import { BYOK_HEADER } from "@/core/chat";
 import { MSG_FAILED, MSG_HUMAN, MSG_RETRY } from "@/core/images";
 import type { ImageErrorCode, ImageResponse } from "@/core/images";
+import { getReaderKey } from "../leer/reader-key";
 
 const POLL_MS = 3000;
 const POLL_MAX = 40;
 
 async function postImage(body: unknown): Promise<ImageResponse> {
+  // Uploads finished with the reader's own Meta key send it along, so
+  // pictures bill that key; without it the server uses ours. The key
+  // lives in module memory only and never reaches shelf-book requests.
+  const bookId = (body as { bookId?: unknown }).bookId;
+  const key = typeof bookId === "string" ? getReaderKey(bookId) : null;
   // One generating request runs up to the 120 s server budget, so this
   // outlasts it; a timeout surfaces as the friendly retry state below.
   const res = await fetch("/api/images", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(key ? { [BYOK_HEADER]: key } : {}) },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(130_000),
   });

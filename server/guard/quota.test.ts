@@ -5,8 +5,14 @@ import {
   BOOK_QUOTA_TTL_SEC,
   BYOK_UPLOADS_PER_PERSON,
   FREE_BOOKS_PER_PERSON,
+  FRIEND_BOOKS_PER_PERSON,
+  FRIEND_WRONG_GUESSES_PER_DAY,
+  acceptFriendCode,
   bookQuotaKeysFor,
   checkBookQuota,
+  friendGuessKeyFor,
+  matchFriendCode,
+  parseFriendCodes,
   refundBookQuota,
   refundDualQuota,
   takeDualQuota,
@@ -106,37 +112,34 @@ describe("free book quota", () => {
   const SALT = "test-salt";
   const DAY = "2026-10-30";
 
-  it("allows two books a day", async () => {
+  it("allows one book a day", async () => {
     const kv = createMemoryKV();
     const keys = bookQuotaKeysFor({ day: DAY, ip: "1.2.3.4", salt: SALT, anonId: "anon-1" });
-    expect(await checkBookQuota(kv, keys)).toEqual({ ok: true });
     expect(await checkBookQuota(kv, keys)).toEqual({ ok: true });
     expect(await checkBookQuota(kv, keys)).toEqual({ ok: false });
   });
 
-  it("blocks a third book on a new cookie from the same IP", async () => {
+  it("blocks a second book on a new cookie from the same IP", async () => {
     const kv = createMemoryKV();
     const first = bookQuotaKeysFor({ day: DAY, ip: "1.2.3.4", salt: SALT, anonId: "anon-1" });
     expect(await checkBookQuota(kv, first)).toEqual({ ok: true });
-    expect(await checkBookQuota(kv, first)).toEqual({ ok: true });
-    const third = bookQuotaKeysFor({ day: DAY, ip: "1.2.3.4", salt: SALT, anonId: "anon-2" });
-    expect(await checkBookQuota(kv, third)).toEqual({ ok: false });
+    const second = bookQuotaKeysFor({ day: DAY, ip: "1.2.3.4", salt: SALT, anonId: "anon-2" });
+    expect(await checkBookQuota(kv, second)).toEqual({ ok: false });
   });
 
-  it("blocks a third book on a new IP with the same cookie", async () => {
+  it("blocks a second book on a new IP with the same cookie", async () => {
     const kv = createMemoryKV();
     const first = bookQuotaKeysFor({ day: DAY, ip: "1.2.3.4", salt: SALT, anonId: "anon-1" });
     expect(await checkBookQuota(kv, first)).toEqual({ ok: true });
-    expect(await checkBookQuota(kv, first)).toEqual({ ok: true });
-    const third = bookQuotaKeysFor({ day: DAY, ip: "9.9.9.9", salt: SALT, anonId: "anon-1" });
-    expect(await checkBookQuota(kv, third)).toEqual({ ok: false });
+    const second = bookQuotaKeysFor({ day: DAY, ip: "9.9.9.9", salt: SALT, anonId: "anon-1" });
+    expect(await checkBookQuota(kv, second)).toEqual({ ok: false });
   });
 
   it("starts fresh the next day", async () => {
     const kv = createMemoryKV();
     const today = bookQuotaKeysFor({ day: DAY, ip: "1.2.3.4", salt: SALT, anonId: "anon-1" });
     expect(await checkBookQuota(kv, today)).toEqual({ ok: true });
-    expect(await checkBookQuota(kv, today)).toEqual({ ok: true });
+    expect(await checkBookQuota(kv, today)).toEqual({ ok: false });
     const tomorrow = bookQuotaKeysFor({ day: "2026-10-31", ip: "1.2.3.4", salt: SALT, anonId: "anon-1" });
     expect(await checkBookQuota(kv, tomorrow)).toEqual({ ok: true });
   });
@@ -154,8 +157,9 @@ describe("free book quota", () => {
     await expect(refundBookQuota(kv, KEYS)).resolves.toBeUndefined();
   });
 
-  it("caps two free books per person per day", () => {
-    expect(FREE_BOOKS_PER_PERSON).toBe(2);
+  it("caps one free book per person per day", () => {
+    expect(FREE_BOOKS_PER_PERSON).toBe(1);
+    expect(FRIEND_BOOKS_PER_PERSON).toBe(5);
     expect(BYOK_UPLOADS_PER_PERSON).toBe(10);
     expect(BOOK_QUOTA_TTL_SEC).toBe(48 * 3600);
   });
@@ -164,5 +168,65 @@ describe("free book quota", () => {
     const keys = bookQuotaKeysFor({ day: DAY, ip: "1.2.3.4", salt: SALT, anonId: "anon-1", prefix: "upload:byok" });
     expect(keys.ip.startsWith("upload:byok:ip:")).toBe(true);
     expect(keys.anon.startsWith("upload:byok:anon:")).toBe(true);
+  });
+});
+
+describe("friend codes", () => {
+  const SALT = "test-salt";
+  const DAY = "2026-10-30";
+  const CODES = ["maple", "river-lantern"];
+  const guessKey = (anonId = "anon-1"): string =>
+    friendGuessKeyFor({ day: DAY, ip: "1.2.3.4", salt: SALT, anonId });
+
+  it("parses comma-separated codes, trims, and drops empties", () => {
+    expect(parseFriendCodes(undefined)).toEqual([]);
+    expect(parseFriendCodes("")).toEqual([]);
+    expect(parseFriendCodes("  , ,")).toEqual([]);
+    expect(parseFriendCodes(" maple ,, river-lantern ")).toEqual(["maple", "river-lantern"]);
+  });
+
+  it("matches any of several codes, nothing else", () => {
+    expect(matchFriendCode("maple", CODES)).toBe(true);
+    expect(matchFriendCode("river-lantern", CODES)).toBe(true);
+    expect(matchFriendCode("Maple", CODES)).toBe(false);
+    expect(matchFriendCode("maple ", CODES)).toBe(false);
+    expect(matchFriendCode("", CODES)).toBe(false);
+    expect(matchFriendCode("maple", [])).toBe(false);
+  });
+
+  it("accepts a valid code without spending the guess budget", async () => {
+    const kv = createMemoryKV();
+    expect(await acceptFriendCode(kv, "maple", CODES, guessKey())).toBe(true);
+    expect(await kv.get(guessKey())).toBeNull();
+  });
+
+  it("ignores codes when none are configured", async () => {
+    const kv = createMemoryKV();
+    expect(await acceptFriendCode(kv, "maple", [], guessKey())).toBe(false);
+  });
+
+  it("rejects missing, blank, and over-long codes without counting a guess", async () => {
+    const kv = createMemoryKV();
+    for (const submitted of [undefined, null, 42, "", "   ", "x".repeat(65)]) {
+      expect(await acceptFriendCode(kv, submitted, CODES, guessKey())).toBe(false);
+    }
+    expect(await kv.get(guessKey())).toBeNull();
+  });
+
+  it("counts wrong guesses and then stops checking for the day", async () => {
+    expect(FRIEND_WRONG_GUESSES_PER_DAY).toBe(10);
+    const kv = createMemoryKV();
+    for (let i = 0; i < FRIEND_WRONG_GUESSES_PER_DAY; i++) {
+      expect(await acceptFriendCode(kv, `nope-${i}`, CODES, guessKey())).toBe(false);
+    }
+    expect(Number(await kv.get(guessKey()))).toBe(FRIEND_WRONG_GUESSES_PER_DAY);
+    // Even the right code is no longer checked once the budget is spent.
+    expect(await acceptFriendCode(kv, "maple", CODES, guessKey())).toBe(false);
+  });
+
+  it("treats Redis failure as no code, never an error", async () => {
+    const kv = createMemoryKV();
+    const failing: KV = { ...kv, get: async () => { throw new Error("redis down"); } };
+    await expect(acceptFriendCode(failing, "maple", CODES, guessKey())).resolves.toBe(false);
   });
 });

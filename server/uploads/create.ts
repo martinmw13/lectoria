@@ -8,8 +8,10 @@ import { paragraphId } from "@/core/ids";
 import {
   BYOK_BOOK_MAX_WORDS,
   FREE_BOOK_MAX_WORDS,
+  FRIEND_UPLOAD_RESERVE_MICRO,
   UPLOAD_MAX_CHAPTERS,
   UPLOAD_DAILY_SPEND_CAP_MICRO,
+  UPLOAD_RESERVE_MICRO,
   countChapterWords,
   newUploadId,
   splitChapterParts,
@@ -22,6 +24,7 @@ import {
   BOOK_QUOTA_TTL_SEC,
   BYOK_UPLOADS_PER_PERSON,
   FREE_BOOKS_PER_PERSON,
+  FRIEND_BOOKS_PER_PERSON,
   refundDualQuota,
   takeDualQuota,
 } from "@/server/guard/quota";
@@ -77,6 +80,9 @@ export interface CreateArgs {
   quotaKeys: { ip: string; anon: string } | null;
   spendCapMicro: number;
   judgeBudgetMs?: number;
+  // True when a valid friend code was accepted for this create: the
+  // free path uses the friend limit on the same quota keys.
+  friendAccepted?: boolean;
 }
 
 // Total wall clock the cleaning judge may take inside the create request.
@@ -119,7 +125,8 @@ export async function createUpload(args: CreateArgs): Promise<{ id: string; chap
   if (preview.chapters.length === 0 || preview.chapters.length > UPLOAD_MAX_CHAPTERS) {
     throw new UploadFailure("bad_request");
   }
-  const limit = args.path === "free" ? FREE_BOOK_MAX_WORDS : BYOK_BOOK_MAX_WORDS;
+  // friendAccepted was re-validated in the handler; the client hint is never trusted.
+  const limit = args.path === "free" && !args.friendAccepted ? FREE_BOOK_MAX_WORDS : BYOK_BOOK_MAX_WORDS;
   const previewWords = countChapterWords(preview.chapters);
   if (previewWords > limit) throw new UploadFailure("too_long");
 
@@ -129,13 +136,22 @@ export async function createUpload(args: CreateArgs): Promise<{ id: string; chap
   try {
     if (args.quotaKeys) {
       const taken = await takeDualQuota(args.kv, args.quotaKeys, {
-        limit: args.path === "free" ? FREE_BOOKS_PER_PERSON : BYOK_UPLOADS_PER_PERSON,
+        limit:
+          args.path === "free"
+            ? args.friendAccepted
+              ? FRIEND_BOOKS_PER_PERSON
+              : FREE_BOOKS_PER_PERSON
+            : BYOK_UPLOADS_PER_PERSON,
         ttlSec: BOOK_QUOTA_TTL_SEC,
       });
       if (!taken.ok) throw new UploadFailure("daily_books_reached");
       quotaTaken = true;
       if (args.path === "free") {
-        reservedMicro = uploadReserveMicro(estimatePartCount(preview.chapters), previewWords);
+        reservedMicro = uploadReserveMicro(
+          estimatePartCount(preview.chapters),
+          previewWords,
+          args.friendAccepted ? FRIEND_UPLOAD_RESERVE_MICRO : UPLOAD_RESERVE_MICRO,
+        );
         const spent = await reserveSpend(args.kv, {
           amountMicro: reservedMicro,
           day: args.day,

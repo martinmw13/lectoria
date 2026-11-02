@@ -31,4 +31,13 @@ describe("readUploadEnv", () => {
   it("needs no public image token", () => {
     expect(() => readUploadEnv({ ...FULL })).not.toThrow();
   });
+
+  it("parses friend codes, off when unset", () => {
+    expect(readUploadEnv({ ...FULL }).friendCodes).toEqual([]);
+    expect(readUploadEnv({ ...FULL, LECTORIA_FRIEND_CODES: "  , ," }).friendCodes).toEqual([]);
+    expect(readUploadEnv({ ...FULL, LECTORIA_FRIEND_CODES: " maple ,, river " }).friendCodes).toEqual([
+      "maple",
+      "river",
+    ]);
+  });
 });

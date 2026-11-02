@@ -2,12 +2,9 @@
 // splitting, key builders, error codes. No env reads, no network, no
 // secrets. Server modules in server/uploads/ build on it.
 import type { RawSection } from "./clean-types";
-import { FREE_BOOK_MAX_WORDS } from "./upload-policy";
+import { BYOK_BOOK_MAX_WORDS, FREE_BOOK_MAX_WORDS } from "./upload-policy";
 
-export { FREE_BOOK_MAX_WORDS };
-
-// BYOK books pay with the reader's key, so the ceiling is the 4 MB body.
-export const BYOK_BOOK_MAX_WORDS = 400_000;
+export { BYOK_BOOK_MAX_WORDS, FREE_BOOK_MAX_WORDS };
 // Under the Hobby 4.5 MB request limit with JSON overhead to spare.
 export const UPLOAD_MAX_BODY_BYTES = 4_000_000;
 export const UPLOAD_STEP_BODY_BYTES = 4096;
@@ -22,15 +19,19 @@ export const UPLOAD_MAX_PART_PARAGRAPHS = 150;
 export const UPLOAD_DAILY_SPEND_CAP_MICRO = 1_000_000;
 // Ceiling on the per-book hold; the real cost reconciles at finalize.
 export const UPLOAD_RESERVE_MICRO = 250_000;
+// Friend books run longer, so their hold gets a higher ceiling.
+export const FRIEND_UPLOAD_RESERVE_MICRO = 500_000;
 export const UPLOAD_RESERVE_FLOOR_MICRO = 50_000;
 export const UPLOAD_RESERVE_PER_PART_MICRO = 5_000;
 
 // Measured: a 3,955-word book cost USD 0.0027 (~0.7 micro/word). The hold
 // prices 1 micro/word plus 5k micro/part for the judge and retries, so a
-// 50k-word book holds ~110k micro, well under the USD 1/day cap.
-export function uploadReserveMicro(parts: number, words: number): number {
+// 50k-word book holds ~110k micro, well under the USD 1/day cap. A
+// 250k-word friend book costs ~175k micro, but its sized hold is
+// ~350k, so friend books hold against the higher friend ceiling.
+export function uploadReserveMicro(parts: number, words: number, ceiling = UPLOAD_RESERVE_MICRO): number {
   const sized = Math.max(UPLOAD_RESERVE_FLOOR_MICRO, parts * UPLOAD_RESERVE_PER_PART_MICRO + Math.max(0, Math.round(words)));
-  return Math.min(UPLOAD_RESERVE_MICRO, sized);
+  return Math.min(ceiling, sized);
 }
 export const UPLOAD_TTL_DAYS = 30;
 export const UPLOAD_JOB_TTL_SEC = 30 * 24 * 3600;
@@ -49,7 +50,7 @@ export type UploadErrorCode =
 
 export const UPLOAD_MESSAGES: Record<UploadErrorCode, string> = {
   too_long: "This one is longer than the free book covers. With your own Meta key you can still read it with a soundtrack.",
-  daily_books_reached: "That's two free books for today. More tomorrow, or use your own key for this one.",
+  daily_books_reached: "That's your free book for today. More tomorrow, or use your own key for this one.",
   daily_budget_reached: "So many people loved this that we've run out of credits to share today. Try again tomorrow, or bring your own key.",
   human_required: "One quick check that you're a person first.",
   bad_request: "Something went wrong there. Try again?",
@@ -114,7 +115,12 @@ export interface UploadCreateBody {
   author: string | null;
   sections: RawSection[];
   turnstileToken?: string;
+  friendCode?: string;
 }
+
+// Optional friend code on the create body: checked server-side only,
+// never logged or echoed back. Longer than this is rejected outright.
+export const FRIEND_CODE_MAX_LEN = 64;
 
 function isRecord(json: unknown): json is Record<string, unknown> {
   return typeof json === "object" && json !== null && !Array.isArray(json);
@@ -134,7 +140,16 @@ export function parseUploadCreate(json: unknown): UploadCreateBody {
   if (!isRecord(json)) throw new UploadValidationError();
   const keys = Object.keys(json).sort().join(",");
   const base = "author,sections,title";
-  if (keys !== base && keys !== "sections,title" && keys !== `${base},turnstileToken` && keys !== "sections,title,turnstileToken") {
+  if (
+    keys !== base &&
+    keys !== "sections,title" &&
+    keys !== `${base},turnstileToken` &&
+    keys !== "sections,title,turnstileToken" &&
+    keys !== "author,friendCode,sections,title" &&
+    keys !== "friendCode,sections,title" &&
+    keys !== "author,friendCode,sections,title,turnstileToken" &&
+    keys !== "friendCode,sections,title,turnstileToken"
+  ) {
     throw new UploadValidationError();
   }
   const title = json.title;
@@ -198,6 +213,12 @@ export function parseUploadCreate(json: unknown): UploadCreateBody {
       throw new UploadValidationError();
     }
     out.turnstileToken = json.turnstileToken;
+  }
+  if (json.friendCode !== undefined) {
+    if (typeof json.friendCode !== "string" || json.friendCode.length > FRIEND_CODE_MAX_LEN) {
+      throw new UploadValidationError();
+    }
+    out.friendCode = json.friendCode;
   }
   return out;
 }

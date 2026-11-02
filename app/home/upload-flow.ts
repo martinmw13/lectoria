@@ -23,11 +23,13 @@ export interface DriveOpts {
   sections: RawSection[];
   key: string | null;
   token: string | null;
+  friendCode?: string | null;
   jobId: string | null;
   fetchFn?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   signal?: AbortSignal;
   onProgress?: (progress: FlowProgress) => void;
+  onFriendAccepted?: (accepted: boolean) => void;
 }
 
 export class UploadFlowError extends Error {
@@ -143,6 +145,7 @@ export async function driveUpload(opts: DriveOpts): Promise<{ id: string; chapte
           author: opts.author,
           sections: opts.sections,
           ...(token ? { turnstileToken: token } : {}),
+          ...(opts.friendCode ? { friendCode: opts.friendCode } : {}),
         }),
         signal: opts.signal,
       });
@@ -164,6 +167,8 @@ export async function driveUpload(opts: DriveOpts): Promise<{ id: string; chapte
     }
     jobId = body.id;
     chapters = body.chapters;
+    // Only an exact true counts; the code itself never leaves this boolean.
+    opts.onFriendAccepted?.(body.friendAccepted === true);
     opts.onProgress?.({ jobId, done: 0, total: body.parts, chapters });
   }
   for (;;) {

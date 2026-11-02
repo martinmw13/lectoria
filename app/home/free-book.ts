@@ -1,4 +1,4 @@
-// UI hint only; the server enforces the real 2/day quota. Counts how
+// UI hint only; the server enforces the real 1/day quota. Counts how
 // many free books started today (UTC), so the route matches the server.
 const KEY = "lectoria.freeBooks.v2";
 

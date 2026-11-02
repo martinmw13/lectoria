@@ -58,6 +58,8 @@ export interface OrchestrateDeps {
   // Human gate, checked once on the cache-miss path after the lock.
   // Absent in tests that do not cover the check.
   human?: HumanCheckInput;
+  // The reader's own key pays: quota still applies, our spend does not.
+  byok?: boolean;
   // Receives the issued human cookie, if any; the handler sets it.
   humanOut?: { setCookie?: string };
 }
@@ -200,23 +202,25 @@ export async function orchestrate(
     }
     quotaTaken = true;
 
-    // Both caps apply only to requests paid with our key. The future
-    // BYOK path must skip these reserves and check its own key instead.
-    const spent = await reserveSpend(deps.kv, {
-      amountMicro: imageCostMicro(),
-      day: deps.day,
-      spendCapMicro: deps.env.spendCapMicro,
-      dailySpendCapMicro: deps.env.dailySpendCapMicro,
-    });
-    if (!spent.ok) {
-      await releaseSpendOnce();
-      await refundQuotaOnce();
-      await release();
-      return spent.which === "total"
-        ? { status: "error", code: "budget", message: MSG_CREDITS_OUT }
-        : { status: "error", code: "daily_budget", message: MSG_CREDITS_OUT };
+    // Both caps apply only to requests paid with our key; the reader's
+    // own key skips them while the per-person quota above still applies.
+    if (!deps.byok) {
+      const spent = await reserveSpend(deps.kv, {
+        amountMicro: imageCostMicro(),
+        day: deps.day,
+        spendCapMicro: deps.env.spendCapMicro,
+        dailySpendCapMicro: deps.env.dailySpendCapMicro,
+      });
+      if (!spent.ok) {
+        await releaseSpendOnce();
+        await refundQuotaOnce();
+        await release();
+        return spent.which === "total"
+          ? { status: "error", code: "budget", message: MSG_CREDITS_OUT }
+          : { status: "error", code: "daily_budget", message: MSG_CREDITS_OUT };
+      }
+      reservation = spent.reservation;
     }
-    reservation = spent.reservation;
 
     let bytes: Uint8Array;
     try {
