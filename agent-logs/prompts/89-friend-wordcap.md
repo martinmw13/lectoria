@@ -1,0 +1,25 @@
+# Task: a valid friend code also lifts the free word cap (same branch, build on current changes)
+
+Context: branch feat/upload-pictures already has friend codes (server-only `LECTORIA_FRIEND_CODES`, `acceptFriendCode` in server/guard/quota.ts, `friendAccepted` passed into `createUpload` in server/uploads/create.ts, which raises the free path to FRIEND_BOOKS_PER_PERSON books/day). There are also uncommitted changes in the worktree from a previous step (chat for uploads, friend field after pick): keep them, don't revert anything.
+
+New requirement: with an accepted friend code, the free path (our key) accepts books up to BYOK_BOOK_MAX_WORDS (400k words) instead of FREE_BOOK_MAX_WORDS (50k). No friend code / wrong code: unchanged (50k, then too_long → BYOK step). BYOK path unchanged.
+
+1. Server enforces it: in `server/uploads/create.ts`, the word limit for path "free" is BYOK_BOOK_MAX_WORDS when `args.friendAccepted`, else FREE_BOOK_MAX_WORDS. The server re-validates the code itself (it already does via acceptFriendCode in server/uploads/handler.ts); the client hint is never trusted.
+2. Spend hold for big friend books: `uploadReserveMicro(parts, words)` in core/uploads.ts caps the hold at UPLOAD_RESERVE_MICRO (250k micro = USD 0.25). Measured cost is ~0.7 micro/word, so a 250k-word book costs ~175k+ micro, and its sized hold (1 micro/word + 5k/part) is ~335k–400k, which the 250k cap would under-hold. Add `FRIEND_UPLOAD_RESERVE_MICRO = 500_000` and an optional ceiling param: `uploadReserveMicro(parts, words, ceiling = UPLOAD_RESERVE_MICRO)`; create.ts passes the friend ceiling when friendAccepted. Keep the hold reserved against the global UPLOAD_DAILY_SPEND_CAP_MICRO (USD 1/day) via the existing reserveSpend, so an in-flight big book counts against the cap up front, and settleSpendOnce reconciles to the real cost at finalize/fail. Update the cost comment above uploadReserveMicro.
+3. Client hint: `core/upload-policy.ts` `uploadRoute(words, freeBooksToday, friend = false)`: with `friend` true the word ceiling is the BYOK ceiling (400k) and the free-used check is skipped (server rules). Move `BYOK_BOOK_MAX_WORDS` into core/upload-policy.ts (client-safe) and re-export it from core/uploads.ts so existing imports keep working. In `app/home/upload.tsx`, replace `uploadRoute(words, friendCode.trim() ? 0 : freeCount)` with `uploadRoute(words, freeCount, friendCode.trim() !== "")`. If a wrong code comes back from the server as too_long or daily_books_reached, the existing FailedView BYOK step handles it. Check that nothing else on the client caps or truncates free books at 50k words (e.g. app/home/upload-flow.ts or parse code); if something does, apply the same friend rule. Any free-path copy that mentions page counts stays correct for non-friends.
+4. Tests (mock Meta/Blob/Redis):
+   - core/upload-policy test: friend flag routes a 200k-word book to free; above 400k → byok too_long; without flag 60k → byok too_long.
+   - core/uploads test: uploadReserveMicro for a 250k-word, 20-part book is 350k with the friend ceiling and 250k with the default ceiling; still floors at 50k.
+   - server create test (server/uploads/handler-create.test.ts or a new small file if near the size limit): with a valid friend code a ~60k-word free book is created and holds the friend-sized reserve; with a wrong code the same book answers too_long (413) and takes no quota/spend; with a valid code but the daily spend counter already at e.g. 800k micro, a book whose hold would exceed the USD 1 cap answers daily_budget_reached and leaves the counters unchanged; and settleSpendOnce reconciles a held 350k down to an actual 180k (counters end at actual). Keep tests fast (build big books cheaply, e.g. few long paragraphs).
+## Rules (all mandatory)
+- Repo: lectoria (Next.js 16, React 19, vitest). Read AGENTS.md first and follow it.
+- Do NOT commit, push, deploy or create branches. Just edit files in this worktree; I review and commit.
+- Never read, print or copy .env* files or any secret. Tests must mock Meta, Blob, Redis, Turnstile; no real network calls.
+- Never load production music. Do not start dev/prod servers (I do browser checks myself). Don't kill any process you didn't start.
+- Keep every file under the repo's size limit (run `npm run check:size`). Split modules if needed.
+- UI rules: light mode default, Meta blue #0866FF, never purple. English, warm copy, never the word "Generated". Boxless buttons that still read as clickable. Animate only on hover/click/state change; respect prefers-reduced-motion (no transition under reduce). Keep the string "Bring your own key!" exactly as is.
+- Small, focused diff. No unrelated refactors. Add/adjust unit tests for behavior you change.
+- Before finishing run: `npm run typecheck`, `npx vitest run`, `npm run check:size`, `npm run check:secrets`. All must pass.
+- Final answer: a short summary of what you changed (files) and anything you skipped and why.
+- Also run `npx eslint <files you touched>`: introduce no new lint errors in files you touch.
+- Be economical: explore only what you need, don't re-read big files repeatedly, don't print huge outputs.

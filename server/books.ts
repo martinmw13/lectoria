@@ -93,8 +93,8 @@ function readPayload(id: string): Promise<BookPayload> {
 // Processed data for any known id. Chat uses this: a question about a
 // processed book is answerable whether the shelf lists it or not.
 // Unknown ids throw notFound() synchronously, before any work starts.
-// Uploads never load here, so chat stays shelf-only; pictures load
-// uploads through loadBook below instead.
+// Uploads never load here; chat and pictures load them through loadBook
+// below instead.
 export function loadBookData(bookId: string): Promise<BookPayload> {
   if (!isKnownBookId(bookId)) notFound();
   return readPayload(bookId);

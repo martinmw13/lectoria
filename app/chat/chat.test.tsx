@@ -6,6 +6,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { ByokStep } from "../home/byok";
+import { setReaderKey } from "../leer/reader-key";
 import { ReaderChat } from "./reader-chat";
 import { SUGGESTED_QUESTIONS } from "./suggestions";
 
@@ -377,6 +378,24 @@ describe("suggestions", () => {
     expect(SUGGESTED_QUESTIONS).toHaveLength(3);
     const names = /Dorothy|Toto|Scarecrow|Tin|Lion|Oz|Witch|Kansas|Emerald/i;
     for (const q of SUGGESTED_QUESTIONS) expect(q).not.toMatch(names);
+  });
+});
+
+describe("reader key", () => {
+  test("an upload finished with the reader key sends it as BYOK", async () => {
+    setReaderKey("u-AAAAAAAAAAAAAAAAAAAAAA", "reader-secret-key");
+    render(
+      <ReaderChat bookId="u-AAAAAAAAAAAAAAAAAAAAAA" upToN={7} chapter={1} chapterTitle="Early" />,
+    );
+    const spy = mockFetch(() => sse(ANSWER));
+    click(launcher());
+    typeInto(textarea(), "What happened here?");
+    click(container.querySelector(".chat-send") as Element);
+    await flush();
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(headersOf(spy)["x-byok-key"]).toBe("reader-secret-key");
+    expect(container.querySelector(".chat-foot")?.textContent).toContain("Using your key");
   });
 });
 

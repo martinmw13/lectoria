@@ -8,8 +8,10 @@ import { paragraphId } from "@/core/ids";
 import {
   BYOK_BOOK_MAX_WORDS,
   FREE_BOOK_MAX_WORDS,
+  FRIEND_UPLOAD_RESERVE_MICRO,
   UPLOAD_MAX_CHAPTERS,
   UPLOAD_DAILY_SPEND_CAP_MICRO,
+  UPLOAD_RESERVE_MICRO,
   countChapterWords,
   newUploadId,
   splitChapterParts,
@@ -123,7 +125,8 @@ export async function createUpload(args: CreateArgs): Promise<{ id: string; chap
   if (preview.chapters.length === 0 || preview.chapters.length > UPLOAD_MAX_CHAPTERS) {
     throw new UploadFailure("bad_request");
   }
-  const limit = args.path === "free" ? FREE_BOOK_MAX_WORDS : BYOK_BOOK_MAX_WORDS;
+  // friendAccepted was re-validated in the handler; the client hint is never trusted.
+  const limit = args.path === "free" && !args.friendAccepted ? FREE_BOOK_MAX_WORDS : BYOK_BOOK_MAX_WORDS;
   const previewWords = countChapterWords(preview.chapters);
   if (previewWords > limit) throw new UploadFailure("too_long");
 
@@ -144,7 +147,11 @@ export async function createUpload(args: CreateArgs): Promise<{ id: string; chap
       if (!taken.ok) throw new UploadFailure("daily_books_reached");
       quotaTaken = true;
       if (args.path === "free") {
-        reservedMicro = uploadReserveMicro(estimatePartCount(preview.chapters), previewWords);
+        reservedMicro = uploadReserveMicro(
+          estimatePartCount(preview.chapters),
+          previewWords,
+          args.friendAccepted ? FRIEND_UPLOAD_RESERVE_MICRO : UPLOAD_RESERVE_MICRO,
+        );
         const spent = await reserveSpend(args.kv, {
           amountMicro: reservedMicro,
           day: args.day,

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-// Uploads read without chat but with pictures: the launcher mounts for
-// shelf books and stays out for u- ids, where chat on our key must not run;
-// picture surfaces mount for uploads too and the images API serves them.
+// Uploads read with chat and pictures: the launcher mounts for shelf
+// books and u- ids alike (an upload finished with the reader's own key
+// asks on that key); picture surfaces mount for uploads too and the
+// images API serves them.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -128,9 +129,9 @@ describe("reader chat gate", () => {
     expect(container.querySelector('[data-testid="reader-chat"]')).toBeTruthy();
   });
 
-  test("hides chat for an upload id", async () => {
+  test("mounts chat for an upload id", async () => {
     await renderReader("u-AAAAAAAAAAAAAAAAAAAAAA");
-    expect(container.querySelector('[data-testid="reader-chat"]')).toBeNull();
+    expect(container.querySelector('[data-testid="reader-chat"]')).toBeTruthy();
     expect(container.textContent).toContain("story");
   });
 });

@@ -29,6 +29,7 @@ export interface DriveOpts {
   sleep?: (ms: number) => Promise<void>;
   signal?: AbortSignal;
   onProgress?: (progress: FlowProgress) => void;
+  onFriendAccepted?: (accepted: boolean) => void;
 }
 
 export class UploadFlowError extends Error {
@@ -166,6 +167,8 @@ export async function driveUpload(opts: DriveOpts): Promise<{ id: string; chapte
     }
     jobId = body.id;
     chapters = body.chapters;
+    // Only an exact true counts; the code itself never leaves this boolean.
+    opts.onFriendAccepted?.(body.friendAccepted === true);
     opts.onProgress?.({ jobId, done: 0, total: body.parts, chapters });
   }
   for (;;) {

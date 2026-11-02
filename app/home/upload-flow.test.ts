@@ -264,4 +264,34 @@ describe("driveUpload", () => {
       drive(fetchFn, { signal: ctrl.signal, sleep: async () => {} }),
     ).rejects.toThrow("aborted");
   });
+
+  it("surfaces friendAccepted true only on an exact true", async () => {
+    const cases: [unknown, boolean][] = [
+      [true, true],
+      [false, false],
+      ["yes", false],
+      [1, false],
+    ];
+    for (const [value, want] of cases) {
+      const fetchFn = mockFetch(async (url: string) =>
+        url === "/api/uploads"
+          ? json({ status: "created", id: ID, chapters: 1, parts: 1, friendAccepted: value })
+          : json({ status: "done", id: ID, done: 1, total: 1 }),
+      );
+      const seen: boolean[] = [];
+      await drive(fetchFn, { onFriendAccepted: (accepted: boolean) => void seen.push(accepted) });
+      expect(seen).toEqual([want]);
+    }
+  });
+
+  it("surfaces friendAccepted false when the field is missing", async () => {
+    const fetchFn = mockFetch(async (url: string) =>
+      url === "/api/uploads"
+        ? json({ status: "created", id: ID, chapters: 1, parts: 1 })
+        : json({ status: "done", id: ID, done: 1, total: 1 }),
+    );
+    const seen: boolean[] = [];
+    await drive(fetchFn, { onFriendAccepted: (accepted: boolean) => void seen.push(accepted) });
+    expect(seen).toEqual([false]);
+  });
 });

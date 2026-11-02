@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BYOK_BOOK_MAX_WORDS,
   FREE_BOOK_MAX_WORDS,
+  FRIEND_UPLOAD_RESERVE_MICRO,
   UPLOAD_DAILY_SPEND_CAP_MICRO,
   UPLOAD_HTTP_STATUS,
   UPLOAD_MESSAGES,
@@ -171,5 +172,12 @@ describe("uploadReserveMicro", () => {
 
   it("covers the measured cost many times over", () => {
     expect(uploadReserveMicro(4, 3955)).toBeGreaterThan(2700);
+  });
+
+  it("holds big friend books against the friend ceiling", () => {
+    expect(FRIEND_UPLOAD_RESERVE_MICRO).toBe(500_000);
+    expect(uploadReserveMicro(20, 250_000, FRIEND_UPLOAD_RESERVE_MICRO)).toBe(350_000);
+    expect(uploadReserveMicro(20, 250_000)).toBe(250_000);
+    expect(uploadReserveMicro(2, 60, FRIEND_UPLOAD_RESERVE_MICRO)).toBe(50_000);
   });
 });

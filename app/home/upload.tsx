@@ -11,6 +11,7 @@ import { TurnstileWidget } from "../turnstile";
 import { BookCard } from "./book-card";
 import { ByokStep } from "./byok";
 import { countFreeBookToday, getFreeBooksToday } from "./free-book";
+import { FRIEND_WELCOME, FriendCode } from "./friend-code";
 import { HomeIcon } from "./home-icons";
 import { saveMyBook } from "./my-books";
 import { driveUpload, UploadFlowError, type FlowCode, type FlowProgress } from "./upload-flow";
@@ -58,8 +59,8 @@ export function UploadSection() {
   const [freeCount, setFreeCount] = useState(0);
   // Friend code lives in state only: never stored, never logged. When
   // one is entered the server decides the quota, not the local hint.
-  const [friendOpen, setFriendOpen] = useState(false);
   const [friendCode, setFriendCode] = useState("");
+  const [friendWelcome, setFriendWelcome] = useState(false);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [keyOpen, setKeyOpen] = useState(false);
   // Tab-only scratch: never stored, logged, or sent; dies with this component.
@@ -103,6 +104,7 @@ export function UploadSection() {
   }, [book]);
 
   async function openFile(file: File) {
+    setFriendWelcome(false);
     setStatus({ step: "reading" });
     try {
       const { book: parsedBook, sections } = await readEpubFileWithSections(file);
@@ -121,6 +123,7 @@ export function UploadSection() {
     if (inputRef.current) inputRef.current.value = "";
     setIdleKey("");
     setShowKey(false);
+    setFriendWelcome(false);
     setStatus({ step: "idle" });
   }
 
@@ -136,6 +139,8 @@ export function UploadSection() {
     const key = opts.key;
     let counted = opts.jobId != null;
     let latest = opts.progress ?? null;
+    // A fresh create re-validates the code; until it answers, no welcome.
+    if (opts.jobId == null) setFriendWelcome(false);
     setStatus({ step: "working", parsed: next, key, progress: latest });
     void driveUpload({
       title: next.book.title,
@@ -146,6 +151,9 @@ export function UploadSection() {
       token: opts.token ?? null,
       jobId: opts.jobId ?? null,
       signal: ctrl.signal,
+      onFriendAccepted: (accepted) => {
+        if (alive()) setFriendWelcome(accepted);
+      },
       onProgress: (progress) => {
         if (!alive()) return;
         if (!counted) {
@@ -184,11 +192,11 @@ export function UploadSection() {
     );
   }
 
-  // With a code entered, skip the local hint and let the server rule:
-  // a wrong code still lands on the BYOK step via daily_books_reached.
+  // With a code entered, the server decides; a wrong code still lands
+  // on the BYOK step via too_long or daily_books_reached.
   const route =
     status.step === "parsed"
-      ? uploadRoute(status.parsed.book.words, friendCode.trim() ? 0 : freeCount)
+      ? uploadRoute(status.parsed.book.words, freeCount, friendCode.trim() !== "")
       : null;
 
   if (status.step === "working" || status.step === "finishing") {
@@ -210,6 +218,11 @@ export function UploadSection() {
           <p className="ob-note" aria-live="polite">
             {progressCopy(progress)}
           </p>
+          {friendWelcome && (
+            <p className="ob-friend-ok" role="status">
+              {FRIEND_WELCOME}
+            </p>
+          )}
         </div>
       </section>
     );
@@ -223,6 +236,9 @@ export function UploadSection() {
           <FailedView
             status={status}
             idleKey={idleKey}
+            friendCode={friendCode}
+            friendWelcome={friendWelcome}
+            onFriendCode={setFriendCode}
             onRetryKey={(key) =>
               startDrive(status.parsed, { key, progress: null })
             }
@@ -253,6 +269,7 @@ export function UploadSection() {
       {status.step === "parsed" && route ? (
         <div ref={resultRef} tabIndex={-1}>
           <BookCard book={status.parsed.book} coverUrl={coverUrl} />
+          <FriendCode code={friendCode} onCode={setFriendCode} />
           {route.kind === "free" ? (
             <div className="ob-actions">
               <button
@@ -411,28 +428,7 @@ export function UploadSection() {
             </div>
             <p className="ob-fine">It stays in this tab only. We never save it.</p>
           </div>
-          <div className="ob-friend">
-            {friendOpen ? (
-              <label className="ob-friendrow" htmlFor="obFriend">
-                <span>Friend code</span>
-                <input
-                  id="obFriend"
-                  className="ob-input"
-                  type="text"
-                  value={friendCode}
-                  onChange={(event) => setFriendCode(event.target.value)}
-                  autoComplete="off"
-                  spellCheck={false}
-                  maxLength={64}
-                  placeholder="If a friend shared one with you"
-                />
-              </label>
-            ) : (
-              <button type="button" className="ob-quiet" onClick={() => setFriendOpen(true)}>
-                Have a friend code?
-              </button>
-            )}
-          </div>
+          <FriendCode code={friendCode} onCode={setFriendCode} />
         </div>
       )}
     </section>
@@ -443,6 +439,9 @@ export function UploadSection() {
 function FailedView({
   status,
   idleKey,
+  friendCode,
+  friendWelcome,
+  onFriendCode,
   onRetryKey,
   onRetryToken,
   onRetry,
@@ -450,13 +449,50 @@ function FailedView({
 }: {
   status: Extract<Status, { step: "failed" }>;
   idleKey: string;
+  friendCode: string;
+  friendWelcome: boolean;
+  onFriendCode: (code: string) => void;
   onRetryKey: (key: string) => void;
   onRetryToken: (token: string) => void;
   onRetry: () => void;
   onReset: () => void;
 }) {
   const code = status.code;
-  if (code === "too_long" || code === "daily_books_reached" || code === "daily_budget_reached") {
+  // A spent free book, or one over 50k words, still reads free with a
+  // friend's code: the retry sends no key, and the server rules on it.
+  if (code === "daily_books_reached" || code === "too_long") {
+    return (
+      <div>
+        <ByokStep
+          metaOnly
+          note={UPLOAD_MESSAGES[code]}
+          initialKey={idleKey}
+          actionLabel="Bring your own key!"
+          onSubmit={onRetryKey}
+        />
+        <FriendCode code={friendCode} onCode={onFriendCode} />
+        {friendWelcome && (
+          <p className="ob-friend-ok" role="status">
+            {FRIEND_WELCOME}
+          </p>
+        )}
+        <div className="ob-actions">
+          <button
+            className="ob-quiet"
+            type="button"
+            onClick={onRetry}
+            disabled={friendCode.trim() === ""}
+          >
+            Try with friend code
+          </button>
+          <button className="ob-quiet" type="button" onClick={onReset}>
+            Choose another book
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (code === "daily_budget_reached") {
     return (
       <div>
         <ByokStep

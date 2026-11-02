@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approxPages, FREE_BOOK_MAX_WORDS, FREE_BOOKS_PER_DAY, uploadRoute, WORDS_PER_PAGE } from "./upload-policy";
+import { approxPages, BYOK_BOOK_MAX_WORDS, FREE_BOOK_MAX_WORDS, FREE_BOOKS_PER_DAY, uploadRoute, WORDS_PER_PAGE } from "./upload-policy";
 
 describe("upload-policy", () => {
   it("derives about 200 free pages from the constants", () => {
@@ -18,5 +18,13 @@ describe("upload-policy", () => {
   it("routes long books to BYOK, long first", () => {
     expect(uploadRoute(FREE_BOOK_MAX_WORDS + 1, 0)).toEqual({ kind: "byok", reason: "too_long" });
     expect(uploadRoute(FREE_BOOK_MAX_WORDS + 1, 1)).toEqual({ kind: "byok", reason: "too_long" });
+  });
+
+  it("lifts the word cap and the used check for friends", () => {
+    expect(uploadRoute(200_000, 0, true)).toEqual({ kind: "free" });
+    expect(uploadRoute(200_000, 1, true)).toEqual({ kind: "free" });
+    expect(uploadRoute(BYOK_BOOK_MAX_WORDS, 0, true)).toEqual({ kind: "free" });
+    expect(uploadRoute(BYOK_BOOK_MAX_WORDS + 1, 0, true)).toEqual({ kind: "byok", reason: "too_long" });
+    expect(uploadRoute(60_000, 0)).toEqual({ kind: "byok", reason: "too_long" });
   });
 });

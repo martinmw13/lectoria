@@ -410,6 +410,52 @@ describe("upload flow", () => {
     expect(storageText()).not.toContain("meta-rescue-key");
   });
 
+  test("the friend field is reachable after a file is picked", async () => {
+    await chooseFile();
+    expect(container.querySelector(".ob-mini-title")?.textContent).toBe("Middlemarch");
+    const card = container.querySelector(".ob-mini");
+    const friend = container.querySelector(".ob-friend");
+    const actions = container.querySelector(".ob-actions");
+    expect(card).not.toBeNull();
+    expect(friend).not.toBeNull();
+    expect(actions).not.toBeNull();
+    expect(card!.compareDocumentPosition(friend!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(friend!.compareDocumentPosition(actions!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    click(quietButton("Have a friend code?"));
+    const input = container.querySelector("#obFriend");
+    if (!(input instanceof HTMLInputElement)) throw new Error("friend code input missing");
+    expect(input.type).toBe("text");
+    expect(input.getAttribute("autocomplete")).toBe("off");
+    expect(input.getAttribute("maxlength")).toBe("64");
+    typeInto(input, "maple");
+    expect(input.value).toBe("maple");
+    expect(container.querySelector(".ob-byok-t")).toBeNull();
+    expect(storageText()).not.toContain("maple");
+  });
+
+  test("daily_books_reached offers a friend-code retry without a key", async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url !== "/api/uploads") return json({ status: "done", id: UPLOAD_ID, done: 2, total: 2 });
+      const body = JSON.parse((init?.body as string) ?? "{}") as { friendCode?: string };
+      if (body.friendCode === "maple") return created();
+      return serverError("daily_books_reached", 429);
+    });
+    await chooseFile();
+    click(actionButton("Read with soundtrack"));
+    await settle();
+    expect(container.textContent).toContain(UPLOAD_MESSAGES.daily_books_reached);
+    expect(quietButton("Try with friend code").disabled).toBe(true);
+    click(quietButton("Have a friend code?"));
+    const input = container.querySelector("#obFriend");
+    if (!(input instanceof HTMLInputElement)) throw new Error("friend code input missing");
+    typeInto(input, "maple");
+    expect(quietButton("Try with friend code").disabled).toBe(false);
+    click(quietButton("Try with friend code"));
+    await settle();
+    expect(pushMock).toHaveBeenCalledWith(`/read/${UPLOAD_ID}`);
+    expect(storageText()).not.toContain("maple");
+  });
+
   test("a friend code reveals one field and lets the server decide the route", async () => {
     window.localStorage.setItem(
       "lectoria.freeBooks.v2",
