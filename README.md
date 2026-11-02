@@ -4,7 +4,14 @@
 
 Lectoria is an e-reader that plays orchestral music matched to the emotion of each scene of a public-domain book. Readers can also illustrate a passage or a scene and talk with a spoiler-free companion about the book.
 
-Status: a working e-reader, live at https://lectoria-meta.vercel.app, with The Wonderful Wizard of Oz preprocessed, music matched to each scene's emotion, rain ambience, Picture this images and a read-aloud narrator that highlights each word as it speaks (the music ducks under the voice).
+Status: live at https://lectoria-meta.vercel.app with ten public-domain books on the shelf (Oz, Alice, Frankenstein, Pride and Prejudice, Sherlock Holmes, Dracula, Peter Pan, Treasure Island, The Jungle Book and A Christmas Carol). Every book has music matched to each scene's emotion, rain ambience, Picture this images, chapter panels and a spoiler-free "Ask the book" companion. Oz also has a read-aloud narrator with two voices that highlights each word as it speaks (the music ducks under the voice). Readers can upload their own EPUB, free for short books or with their own Meta key.
+
+### Try it in two minutes
+
+1. Open the site and pick a style under "Pick your style": Engraving, Watercolor, Ink doodle, Pencil, Comic book or Lantern dusk.
+2. Open The Wonderful Wizard of Oz. The music follows the emotion of each scene as you turn pages.
+3. Press Read aloud, then try Picture this on a passage or Relive this chapter in panels.
+4. Press Ask the book and ask what happens next: it answers only from the pages you have read.
 
 ## Setup
 
@@ -46,7 +53,7 @@ Meta's Muse built this repo and runs inside it.
 - Re-splits: where the emotion shift inside a scene is borderline, Muse Spark decides whether to split it and records why ([pipeline/resplit.ts](pipeline/resplit.ts)).
 - Images: "Picture this" illustrations come from Muse Image (`muse-image-1.0`) ([server/images/meta.ts](server/images/meta.ts)).
 
-**Dev and production models.** Development, tests and the pipeline default use `muse-spark-1.3-contributor`, the cheaper development model. Muse Spark 1.3 Standard (`muse-spark-1.3`) is reserved for final passes and the public chat, which is not built yet (see [AGENTS.md](AGENTS.md)).
+**Dev and production models.** Development, tests and the pipeline default use `muse-spark-1.3-contributor`, the cheaper development model. Muse Spark 1.3 Standard (`muse-spark-1.3`) is reserved for final passes and the public "Ask the book" chat ([core/chat.ts](core/chat.ts), [server/chat/](server/chat/)), which only sees the text up to the reader's page unless spoiler mode is on (see [AGENTS.md](AGENTS.md)).
 
 ## Docs
 

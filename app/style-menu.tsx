@@ -12,7 +12,7 @@ export const SKIN_NAMES: Record<SkinId, string> = {
   ink: "Ink doodle",
   pencil: "Pencil",
   comic: "Comic book",
-  chihiro: "Chihiro",
+  chihiro: "Lantern dusk",
 };
 
 // Text dropdown "Style: <Name> ▾" (option D). The name is set in the live
