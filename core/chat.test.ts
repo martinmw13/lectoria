@@ -172,11 +172,11 @@ describe("token budget", () => {
 
 describe("cost math", () => {
   it("estimates the reserve from chars plus a full output budget", () => {
-    expect(estimateCostMicro(400)).toBe(125 + 8500);
+    expect(estimateCostMicro(400)).toBe(10 + 400);
   });
 
   it("prices cached input below fresh input", () => {
-    expect(usageCostMicro({ promptTokens: 1000, cachedTokens: 800, completionTokens: 50 })).toBe(583);
+    expect(usageCostMicro({ promptTokens: 1000, cachedTokens: 800, completionTokens: 50 })).toBe(32);
     expect(usageCostMicro({ promptTokens: 1000, cachedTokens: 0, completionTokens: 0 })).toBeGreaterThan(
       usageCostMicro({ promptTokens: 1000, cachedTokens: 1000, completionTokens: 0 }),
     );

@@ -53,7 +53,7 @@ Meta's Muse built this repo and runs inside it.
 - Re-splits: where the emotion shift inside a scene is borderline, Muse Spark decides whether to split it and records why ([pipeline/resplit.ts](pipeline/resplit.ts)).
 - Images: "Picture this" illustrations come from Muse Image (`muse-image-1.0`) ([server/images/meta.ts](server/images/meta.ts)).
 
-**Dev and production models.** Development, tests and the pipeline default use `muse-spark-1.3-contributor`, the cheaper development model. Muse Spark 1.3 Standard (`muse-spark-1.3`) is reserved for final passes and the public "Ask the book" chat ([core/chat.ts](core/chat.ts), [server/chat/](server/chat/)), which only sees the text up to the reader's page unless spoiler mode is on (see [AGENTS.md](AGENTS.md)).
+**Dev and production models.** Development, tests and the pipeline default use `muse-spark-1.3-contributor`, the cheaper development model. The public "Ask the book" chat also runs on Contributor ([core/chat.ts](core/chat.ts), [server/chat/](server/chat/)), the same Muse Spark 1.3 model at a fraction of the Standard price; Muse Spark 1.3 Standard (`muse-spark-1.3`) is reserved for final passes. The chat only sees the text up to the reader's page unless spoiler mode is on (see [AGENTS.md](AGENTS.md)).
 
 ## Docs
 

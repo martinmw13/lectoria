@@ -13,7 +13,7 @@ Desktop only, like the reader. Below 1024 px wide the launcher is not rendered.
 - Context is the book text from the first paragraph up to the reader's current position.
 - The system prompt allows answers only from that text.
 - A spoiler toggle in the panel header widens the context to the whole book.
-- Public questions run server-side on `muse-spark-1.3` (Standard) with our Meta key.
+- Public questions run server-side on `muse-spark-1.3-contributor` with our Meta key (Standard until 2026-11-02; Contributor is the same model, 12-20x cheaper).
 - Per-person quota: about 15 questions a day, counted by hashed IP and by the anonymous cookie, whichever runs out first (same scheme as images).
 - Turnstile guards the endpoint.
 - After the global spend cap, the panel asks for the reader's own key. The key lives in memory only.
@@ -108,7 +108,7 @@ type ChatRequest = {
 - Order of checks: body cap and shape, Turnstile, per-person quota, global caps, upstream. Same refund-on-failure pattern as `server/images/orchestrate.ts`; a question that never produced a token is refunded.
 - Quota keys: `chat:quota:<utc day>:ip:<hmac ip>` and `chat:quota:<utc day>:anon:<anon id>`, reusing `hashIp`, the signed anonymous cookie and `checkQuota` with a chat limit of 15.
 - Global caps: reserve an estimated cost before the call, settle with the real `usage` from the last chunk. BYOK requests skip our caps but still pass a per-person abuse limit.
-- Upstream: `https://api.meta.ai/v1/chat/completions`, `model: "muse-spark-1.3"`, `stream: true`, `max_tokens: 400`, low reasoning. Timeouts: 20 s to first token, 60 s total, aborted when the client disconnects.
+- Upstream: `https://api.meta.ai/v1/chat/completions`, `model: "muse-spark-1.3-contributor"`, `stream: true`, `max_tokens: 400`, low reasoning. Timeouts: 20 s to first token, 60 s total, aborted when the client disconnects.
 - Book text goes first in the prompt and in a stable order so repeated questions from the same position can reuse the provider's prompt cache.
 - Logs carry only the error class, book id and chapter. Never the question, the answer, the key or the raw IP.
 
@@ -118,7 +118,7 @@ type ChatRequest = {
 
 ## Size of the context
 
-Oz is about 39,000 words, roughly 52,000 tokens for the whole book. A question near the end with spoilers on is the worst case. At about 15 questions a day per person, cost depends on the Standard input price and how much the prompt cache absorbs; the global cap is the safety net.
+Oz is about 39,000 words, roughly 52,000 tokens for the whole book. A question near the end with spoilers on is the worst case. At about 15 questions a day per person, cost depends on the Contributor input price ($0.10/M fresh, $0.002/M cached, $0.20/M output) and how much the prompt cache absorbs; the global cap is the safety net.
 
 ## Out of scope
 
