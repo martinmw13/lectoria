@@ -63,4 +63,29 @@ describe("home backdrop", () => {
     const page = rules(home).find(([sel]) => sel === ".ob-page");
     expect(page?.[1]).toMatch(/color-mix\(in srgb, var\(--paper\) var\(--page-alpha, 9\d%\), transparent\)/);
   });
+
+  it.each(["chihiro", "comic", "engraving", "watercolor", "ink", "pencil"])("paints the %s reader with the home painting", (skin) => {
+    const rule = rules(backdrop).find(([sel]) => sel === `html[data-skin="${skin}"] :is(.ob-desk, .folio)::before`);
+    expect(rule?.[1]).toMatch(skin === "chihiro" ? /sky-lantern\.jpg/ : new RegExp(`/art/skins/${skin}/home\\.jpg`));
+  });
+
+  it("shows the reader backdrop on desktop light only, masked off the folio column", () => {
+    const media = backdrop.slice(backdrop.indexOf("@media (min-width: 1024px)"));
+    expect(media.length).toBeGreaterThan(0);
+    const layer = rules(media).find(([sel]) => sel.endsWith('html:not([data-theme="dark"]) .folio::before'));
+    expect(layer?.[1]).toMatch(/content:\s*""/);
+    expect(layer?.[1]).toMatch(/position:\s*fixed/);
+    expect(layer?.[1]).toMatch(/z-index:\s*-1/);
+    expect(layer?.[1]).toMatch(/pointer-events:\s*none/);
+    expect(layer?.[1]).toMatch(/(^|[^-])mask-image:[^;]*transparent calc\(50% - var\(--hole\)\), transparent calc\(50% \+ var\(--hole\)\)/);
+    // Outside the desktop block no rule gives the reader layer content.
+    const before = backdrop.slice(0, backdrop.indexOf("@media (min-width: 1024px)"));
+    for (const [sel, body] of rules(before)) if (sel.includes(".folio")) expect(body).not.toMatch(/content:/);
+  });
+
+  it("loads the backdrop in the reader layout", () => {
+    const layout = readFileSync(new URL("../read/[bookId]/layout.tsx", import.meta.url), "utf8");
+    expect(layout).toContain('import "../../home/home-backdrop.css"');
+  });
 });
+

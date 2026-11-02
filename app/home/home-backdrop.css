@@ -1,7 +1,9 @@
-/* Home backdrop: one full-bleed layer per skin, pinned to the viewport,
+/* Skin backdrop: one full-bleed layer per skin, pinned to the viewport,
    so the painting runs edge to edge with no step where the 1280px desk
    starts. The desk itself is transparent and the pages are slightly
-   translucent, so the backdrop also shows softly through the middle. */
+   translucent, so the backdrop also shows softly through the middle.
+   The reader (/read) reuses the same paintings behind its folio; see the
+   reader block at the end. */
 
 .ob-desk::before {
   content: "";
@@ -14,28 +16,28 @@
 }
 
 /* Pencil: a graphite library study, shelves at the edges. */
-html[data-skin="pencil"] .ob-desk::before {
+html[data-skin="pencil"] :is(.ob-desk, .folio)::before {
   background: url("/art/skins/pencil/home.jpg") center / cover no-repeat, #e4e5e3;
 }
 
 /* Chihiro: the lantern-dusk painting is the whole backdrop. */
-html[data-skin="chihiro"] .ob-desk::before {
+html[data-skin="chihiro"] :is(.ob-desk, .folio)::before {
   background: url("/art/skins/chihiro/sky-lantern.jpg") center / cover no-repeat, #f6be78;
 }
 
 /* Comic, engraving, watercolor and ink: one painted scene per skin
    (ink is a blue Victorian etching), detail at the edges and a calm
    middle, under the skin's paper. */
-html[data-skin="comic"] .ob-desk::before {
+html[data-skin="comic"] :is(.ob-desk, .folio)::before {
   background: url("/art/skins/comic/home.jpg") center / cover no-repeat, #fffdf4;
 }
-html[data-skin="engraving"] .ob-desk::before {
+html[data-skin="engraving"] :is(.ob-desk, .folio)::before {
   background: url("/art/skins/engraving/home.jpg") center / cover no-repeat, #efe6ce;
 }
-html[data-skin="watercolor"] .ob-desk::before {
+html[data-skin="watercolor"] :is(.ob-desk, .folio)::before {
   background: url("/art/skins/watercolor/home.jpg") center / cover no-repeat, #fbf8f1;
 }
-html[data-skin="ink"] .ob-desk::before {
+html[data-skin="ink"] :is(.ob-desk, .folio)::before {
   background: url("/art/skins/ink/home.jpg") center / cover no-repeat, #eae6dc;
 }
 
@@ -53,3 +55,37 @@ html[data-skin="comic"] .ob-desk,
 html[data-skin="engraving"] .ob-desk,
 html[data-skin="watercolor"] .ob-desk,
 html[data-skin="ink"] .ob-desk { --page-alpha: 88%; }
+
+/* Reader: the same painting behind the folio, desktop and light theme
+   only. The layer is masked out over the folio column, so the text, the
+   margin, the chat and the player keep the skin's own paper exactly as
+   before (same contrast) and the warmth layer still tints that paper.
+   The painting shows in the side gutters and fades into the paper over
+   the last 28px. Static: nothing to calm for reduced motion. */
+@media (min-width: 1024px) {
+  html:not([data-theme="dark"]) .folio::before {
+    --hole: calc(min(100vw, 1200px) / 2);
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(50% - var(--hole) - 28px), transparent calc(50% - var(--hole)), transparent calc(50% + var(--hole)), #000 calc(50% + var(--hole) + 28px));
+    mask-image: linear-gradient(to right, #000 calc(50% - var(--hole) - 28px), transparent calc(50% - var(--hole)), transparent calc(50% + var(--hole)), #000 calc(50% + var(--hole) + 28px));
+  }
+
+  /* Chihiro keeps its dusk sky over the top line, now the same painting
+     as the gutters, fading into cream before the text starts. */
+  html[data-skin="chihiro"]:not([data-theme="dark"]) .folio::before {
+    -webkit-mask-image:
+      linear-gradient(to right, #000 calc(50% - var(--hole) - 28px), transparent calc(50% - var(--hole)), transparent calc(50% + var(--hole)), #000 calc(50% + var(--hole) + 28px)),
+      linear-gradient(to bottom, #000 215px, transparent 320px);
+    mask-image:
+      linear-gradient(to right, #000 calc(50% - var(--hole) - 28px), transparent calc(50% - var(--hole)), transparent calc(50% + var(--hole)), #000 calc(50% + var(--hole) + 28px)),
+      linear-gradient(to bottom, #000 215px, transparent 320px);
+  }
+
+  html[data-skin="chihiro"]:not([data-theme="dark"]) body:has(.folio) {
+    background: #fff7ec;
+  }
+}
