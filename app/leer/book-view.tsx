@@ -6,7 +6,6 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { ReaderModel } from "@/core/reader";
-import { isUploadId } from "@/core/uploads";
 import { effectiveImageStylePref, loadImageStylePref, saveImageStylePref } from "../image-style";
 import type { ImageStylePref } from "../image-style";
 import { useSkin } from "../use-skin";
@@ -44,9 +43,9 @@ export function BookView({
   panelsByChapter: { ch: number; panels: ChapterPanel[] }[];
   visualsOn?: boolean;
 }) {
-  // Uploads keep the text only: the images API rejects u- ids, so every
-  // picture surface stays unmounted and no request goes out.
-  const visualsOn = visualsOnProp ?? !isUploadId(model.bookId);
+  // Pictures serve uploads too; the vault and panels stay mounted and
+  // the images API fills them from the uploaded text.
+  const visualsOn = visualsOnProp ?? true;
   const [storedPref, setStoredPref] = useState<ImageStylePref | null>(null);
   // Server render uses the default so hydration matches; the live skin
   // applies on mount via useSyncExternalStore.

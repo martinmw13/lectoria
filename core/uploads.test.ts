@@ -70,6 +70,15 @@ describe("parseUploadCreate", () => {
     expect(parsed.turnstileToken).toBe("tok");
   });
 
+  it("accepts an optional friend code within its length cap", () => {
+    expect(parseUploadCreate(body({ friendCode: "maple" })).friendCode).toBe("maple");
+    expect(parseUploadCreate(body({ author: undefined, friendCode: "maple", turnstileToken: "tok" })).friendCode).toBe(
+      "maple",
+    );
+    expect(() => parseUploadCreate(body({ friendCode: "x".repeat(65) }))).toThrow(UploadValidationError);
+    expect(() => parseUploadCreate(body({ friendCode: 42 }))).toThrow(UploadValidationError);
+  });
+
   it("rejects unknown fields and bad shapes", () => {
     expect(() => parseUploadCreate(body({ extra: 1 }))).toThrow(UploadValidationError);
     expect(() => parseUploadCreate(body({ title: "  " }))).toThrow(UploadValidationError);

@@ -108,6 +108,18 @@ describe("driveUpload", () => {
     }
   });
 
+  it("sends a friend code on create only when one is entered", async () => {
+    const fetchFn = mockFetch(async (url: string) =>
+      url === "/api/uploads"
+        ? json({ status: "created", id: ID, chapters: 1, parts: 1 })
+        : json({ status: "done", id: ID, done: 1, total: 1 }),
+    );
+    await drive(fetchFn, { friendCode: "maple" });
+    const bodies = fetchFn.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string));
+    expect(bodies[0]).toEqual(expect.objectContaining({ friendCode: "maple" }));
+    expect(bodies.slice(1)).toEqual([{}]);
+  });
+
   it("sends the human token once, on the first call", async () => {
     const fetchFn = mockFetch();
     let steps = 0;

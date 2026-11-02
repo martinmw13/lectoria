@@ -7,6 +7,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { BYOK_HEADER } from "@/core/chat";
 import { UPLOAD_MESSAGES, type UploadErrorCode } from "@/core/uploads";
+import { getReaderKey } from "../leer/reader-key";
 import { UploadSection } from "./upload";
 import { ByokStep } from "./byok";
 
@@ -272,6 +273,8 @@ describe("upload flow", () => {
       { id: UPLOAD_ID, title: "Middlemarch", author: "George Eliot", savedAt: expect.any(Number) },
     ]);
     expect(window.localStorage.getItem("lectoria.freeBooks.v2")).toContain('"count":1');
+    // Free path: no reader key to picture with.
+    expect(getReaderKey(UPLOAD_ID)).toBeNull();
   });
 
   test("shows a progress bar and live copy mid-flight", async () => {
@@ -383,6 +386,8 @@ describe("upload flow", () => {
     }
     expect(storageText()).not.toContain("meta-secret-key");
     expect(window.localStorage.getItem("lectoria.freeBooks.v2")).toContain('"count":2');
+    // Meta key stays in module memory for the reader's picture requests.
+    expect(getReaderKey(UPLOAD_ID)).toBe("meta-secret-key");
   });
 
   test("a failed free upload recovers through Bring your own key!", async () => {
@@ -403,5 +408,34 @@ describe("upload flow", () => {
     expect(pushMock).toHaveBeenCalledWith(`/read/${UPLOAD_ID}`);
     expect(window.localStorage.getItem("lectoria.freeBooks.v2") ?? "").not.toContain('"count":1');
     expect(storageText()).not.toContain("meta-rescue-key");
+  });
+
+  test("a friend code reveals one field and lets the server decide the route", async () => {
+    window.localStorage.setItem(
+      "lectoria.freeBooks.v2",
+      JSON.stringify({ day: new Date().toISOString().slice(0, 10), count: 1 }),
+    );
+    act(() => {
+      root?.unmount();
+      root = createRoot(container);
+    });
+    render(<UploadSection />);
+    expect(container.querySelector("#obFriend")).toBeNull();
+    click(quietButton("Have a friend code?"));
+    const input = container.querySelector("#obFriend");
+    if (!(input instanceof HTMLInputElement)) throw new Error("friend code input missing");
+    expect(input.type).toBe("text");
+    expect(input.getAttribute("autocomplete")).toBe("off");
+    typeInto(input, "maple");
+    stepsThenDone();
+    await chooseFile();
+    // The local hint says the free book is used, but the code keeps the free route.
+    expect(container.querySelector(".ob-byok-t")).toBeNull();
+    click(actionButton("Read with soundtrack"));
+    await settle();
+    expect(pushMock).toHaveBeenCalledWith(`/read/${UPLOAD_ID}`);
+    const [, createInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(createInit.body as string)).toEqual(expect.objectContaining({ friendCode: "maple" }));
+    expect(storageText()).not.toContain("maple");
   });
 });

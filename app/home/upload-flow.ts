@@ -23,6 +23,7 @@ export interface DriveOpts {
   sections: RawSection[];
   key: string | null;
   token: string | null;
+  friendCode?: string | null;
   jobId: string | null;
   fetchFn?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
@@ -143,6 +144,7 @@ export async function driveUpload(opts: DriveOpts): Promise<{ id: string; chapte
           author: opts.author,
           sections: opts.sections,
           ...(token ? { turnstileToken: token } : {}),
+          ...(opts.friendCode ? { friendCode: opts.friendCode } : {}),
         }),
         signal: opts.signal,
       });

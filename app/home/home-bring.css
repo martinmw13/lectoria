@@ -128,3 +128,7 @@ html[data-skin="chihiro"] .ob-input { border: 0; border-bottom: 2px solid rgba(1
 html .ob-desk .ob-keyrow input:focus-visible { outline: none; border-bottom-color: var(--color-accent); box-shadow: 0 1px 0 var(--color-accent); }
 html[data-skin="comic"] .ob-keyrow input:focus-visible { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
 .ob-keybox .ob-fine { margin-top: 1px; }
+/* Optional friend code: a boxless link until opened, then one small row. */
+.ob-friend { margin-top: 6px; text-align: center; }
+.ob-friendrow { display: inline-flex; gap: 8px; align-items: baseline; font-size: 13px; color: var(--muted); }
+.ob-friendrow .ob-input { width: 13em; }

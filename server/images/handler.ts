@@ -1,6 +1,9 @@
 import "server-only";
+import { BYOK_HEADER } from "@/core/chat";
 import { classifyInputOf } from "@/core/fingerprint";
-import { isReadyBookId, loadBookData } from "@/server/books";
+import { isUploadId } from "@/core/uploads";
+import { isReadyBookId, loadBook } from "@/server/books";
+import type { BookPayload } from "@/server/books";
 import {
   ImageStyleError,
   MAX_IMAGE_BODY_BYTES,
@@ -39,6 +42,11 @@ export interface ImagesHandlerDeps {
   store?: ImageStore;
   generate?: ImageGenerator;
   fetchFn?: typeof fetch;
+  loadBook?: (bookId: string) => Promise<BookPayload>;
+}
+
+function isAsciiPrintable(text: string): boolean {
+  return /^[\x20-\x7E]+$/.test(text);
 }
 
 export async function handleImagesPost(req: Request, deps: ImagesHandlerDeps = {}): Promise<Response> {
@@ -73,9 +81,10 @@ export async function handleImagesPost(req: Request, deps: ImagesHandlerDeps = {
     );
   }
 
-  // Pictures and chapter panels serve every ready shelf book. Unknown
-  // or not-ready ids stop here, before env, quota, or spend are touched.
-  if (!isReadyBookId(parsed.bookId)) {
+  // Pictures and chapter panels serve every ready shelf book plus
+  // finished uploads. Unknown or not-ready ids stop here, before env,
+  // quota, or spend are touched.
+  if (!isReadyBookId(parsed.bookId) && !isUploadId(parsed.bookId)) {
     return Response.json(
       { status: "error", code: "bad_request", message: MSG_BAD_REQUEST } satisfies ImageResponse,
       { status: 400 },
@@ -98,8 +107,35 @@ export async function handleImagesPost(req: Request, deps: ImagesHandlerDeps = {
     }
   }
 
+  // The reader's own key pays for this picture; without it ours does
+  // and the spend reserve applies. Trimmed and shaped like the chat
+  // route's key, never logged or echoed.
+  const rawByok = req.headers.get(BYOK_HEADER);
+  let byokKey: string | null = null;
+  if (rawByok !== null) {
+    const trimmed = rawByok.trim();
+    if (trimmed.length < 8 || trimmed.length > 400 || !isAsciiPrintable(trimmed)) {
+      return Response.json(
+        { status: "error", code: "bad_request", message: MSG_BAD_REQUEST } satisfies ImageResponse,
+        { status: 400 },
+      );
+    }
+    byokKey = trimmed;
+  }
+
   try {
-    const { book, scenes } = await loadBookData(parsed.bookId);
+    let book: BookPayload["book"];
+    let scenes: BookPayload["scenes"];
+    try {
+      // Missing, unfinished, or expired uploads answer 400 like unknown
+      // ids, never a 404 throw or a 503.
+      ({ book, scenes } = await (deps.loadBook ?? loadBook)(parsed.bookId));
+    } catch {
+      return Response.json(
+        { status: "error", code: "bad_request", message: MSG_BAD_REQUEST } satisfies ImageResponse,
+        { status: 400 },
+      );
+    }
     try {
       validateAgainstBook(
         parsed,
@@ -200,8 +236,9 @@ export async function handleImagesPost(req: Request, deps: ImagesHandlerDeps = {
     const res = await orchestrate(parsed, {
       kv: deps.kv ?? createRestKV(env.upstashUrl, env.upstashToken),
       store: deps.store ?? createBlobStore(),
-      generate: deps.generate ?? createMetaClient(env.metaKey),
+      generate: deps.generate ?? createMetaClient(byokKey ?? env.metaKey),
       env,
+      byok: byokKey !== null,
       content: {
         ...content,
         reference,

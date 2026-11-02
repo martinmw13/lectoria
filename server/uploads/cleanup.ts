@@ -2,6 +2,7 @@ import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import type { KV } from "@/core/types";
 import { UPLOAD_TTL_DAYS, isUploadId } from "@/core/uploads";
+import { createImageCleanupStore, type ImageCleanupStore } from "@/server/images/blob";
 import { usable } from "@/server/guard/env";
 import { createRestKV } from "@/server/guard/kv";
 import { createUploadStore, type UploadStore } from "./blob";
@@ -50,12 +51,13 @@ async function reconcileStaleJobs(kv: KV, store: UploadStore, paths: string[], n
 
 // Deletes upload blobs older than the TTL and settles stale working jobs
 // plus unmarked failed jobs to their recorded usage. Job state in Redis
-// expires on its own; only Blob needs sweeping. One failure never stops
-// the rest.
+// expires on its own; only Blob needs sweeping. Upload pictures live in
+// the public image store under images/u-... and sweep with the same TTL.
+// One failure never stops the rest.
 export async function cleanupUploads(
   store: UploadStore,
   nowMs: number = Date.now(),
-  deps: { kv?: KV } = {},
+  deps: { kv?: KV; imageStore?: ImageCleanupStore } = {},
 ): Promise<{ deleted: number; reconciled: number }> {
   const cutoff = nowMs - UPLOAD_TTL_DAYS * 24 * 3600 * 1000;
   const blobs = await store.listAll("uploads/");
@@ -67,6 +69,25 @@ export async function cleanupUploads(
       deleted += 1;
     } catch {
       // The next daily run retries.
+    }
+  }
+  if (deps.imageStore) {
+    let images: { pathname: string; uploadedAt: number }[];
+    try {
+      images = await deps.imageStore.listAll("images/u-");
+    } catch {
+      images = [];
+    }
+    for (const blob of images) {
+      const id = blob.pathname.split("/")[1];
+      if (!id || !isUploadId(id)) continue;
+      if (blob.uploadedAt >= cutoff) continue;
+      try {
+        await deps.imageStore.remove(blob.pathname);
+        deleted += 1;
+      } catch {
+        // The next daily run retries.
+      }
     }
   }
   const reconciled = deps.kv ? await reconcileStaleJobs(deps.kv, store, blobs.map((b) => b.pathname), nowMs) : 0;
@@ -83,7 +104,7 @@ function matchesBearer(auth: string, secret: string): boolean {
 // auth failure answers 404 so the route stays hidden.
 export async function handleCleanup(
   req: Request,
-  deps: { store?: UploadStore; secret?: string; token?: string; kv?: KV } = {},
+  deps: { store?: UploadStore; secret?: string; token?: string; kv?: KV; imageStore?: ImageCleanupStore } = {},
 ): Promise<Response> {
   const secret = deps.secret ?? usable(process.env.CRON_SECRET);
   if (!secret || !matchesBearer(req.headers.get("authorization") ?? "", secret)) {
@@ -103,7 +124,12 @@ export async function handleCleanup(
     // Without Redis the cron still sweeps blobs and skips the reconcile.
   }
   try {
-    const out = await cleanupUploads(deps.store ?? createUploadStore(token as string), Date.now(), kv ? { kv } : {});
+    // Upload pictures sweep from the default image store, never the
+    // private uploads token.
+    const out = await cleanupUploads(deps.store ?? createUploadStore(token as string), Date.now(), {
+      ...(kv ? { kv } : {}),
+      imageStore: deps.imageStore ?? createImageCleanupStore(),
+    });
     return Response.json({ status: "ok", deleted: out.deleted });
   } catch {
     console.error("upload cleanup failed");

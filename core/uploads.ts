@@ -49,7 +49,7 @@ export type UploadErrorCode =
 
 export const UPLOAD_MESSAGES: Record<UploadErrorCode, string> = {
   too_long: "This one is longer than the free book covers. With your own Meta key you can still read it with a soundtrack.",
-  daily_books_reached: "That's two free books for today. More tomorrow, or use your own key for this one.",
+  daily_books_reached: "That's your free book for today. More tomorrow, or use your own key for this one.",
   daily_budget_reached: "So many people loved this that we've run out of credits to share today. Try again tomorrow, or bring your own key.",
   human_required: "One quick check that you're a person first.",
   bad_request: "Something went wrong there. Try again?",
@@ -114,7 +114,12 @@ export interface UploadCreateBody {
   author: string | null;
   sections: RawSection[];
   turnstileToken?: string;
+  friendCode?: string;
 }
+
+// Optional friend code on the create body: checked server-side only,
+// never logged or echoed back. Longer than this is rejected outright.
+export const FRIEND_CODE_MAX_LEN = 64;
 
 function isRecord(json: unknown): json is Record<string, unknown> {
   return typeof json === "object" && json !== null && !Array.isArray(json);
@@ -134,7 +139,16 @@ export function parseUploadCreate(json: unknown): UploadCreateBody {
   if (!isRecord(json)) throw new UploadValidationError();
   const keys = Object.keys(json).sort().join(",");
   const base = "author,sections,title";
-  if (keys !== base && keys !== "sections,title" && keys !== `${base},turnstileToken` && keys !== "sections,title,turnstileToken") {
+  if (
+    keys !== base &&
+    keys !== "sections,title" &&
+    keys !== `${base},turnstileToken` &&
+    keys !== "sections,title,turnstileToken" &&
+    keys !== "author,friendCode,sections,title" &&
+    keys !== "friendCode,sections,title" &&
+    keys !== "author,friendCode,sections,title,turnstileToken" &&
+    keys !== "friendCode,sections,title,turnstileToken"
+  ) {
     throw new UploadValidationError();
   }
   const title = json.title;
@@ -198,6 +212,12 @@ export function parseUploadCreate(json: unknown): UploadCreateBody {
       throw new UploadValidationError();
     }
     out.turnstileToken = json.turnstileToken;
+  }
+  if (json.friendCode !== undefined) {
+    if (typeof json.friendCode !== "string" || json.friendCode.length > FRIEND_CODE_MAX_LEN) {
+      throw new UploadValidationError();
+    }
+    out.friendCode = json.friendCode;
   }
   return out;
 }

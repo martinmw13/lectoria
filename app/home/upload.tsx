@@ -6,6 +6,7 @@ import type { RawSection } from "@/core/clean-types";
 import { EPUB_ERROR_MESSAGES, EpubError, readEpubFileWithSections, type EpubBook } from "@/core/epub";
 import { UPLOAD_MESSAGES } from "@/core/uploads";
 import { approxPages, FREE_BOOK_MAX_WORDS, uploadRoute } from "@/core/upload-policy";
+import { setReaderKey } from "../leer/reader-key";
 import { TurnstileWidget } from "../turnstile";
 import { BookCard } from "./book-card";
 import { ByokStep } from "./byok";
@@ -55,6 +56,10 @@ export function UploadSection() {
   const [status, setStatus] = useState<Status>({ step: "idle" });
   const [dragging, setDragging] = useState(false);
   const [freeCount, setFreeCount] = useState(0);
+  // Friend code lives in state only: never stored, never logged. When
+  // one is entered the server decides the quota, not the local hint.
+  const [friendOpen, setFriendOpen] = useState(false);
+  const [friendCode, setFriendCode] = useState("");
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [keyOpen, setKeyOpen] = useState(false);
   // Tab-only scratch: never stored, logged, or sent; dies with this component.
@@ -137,6 +142,7 @@ export function UploadSection() {
       author: next.book.author,
       sections: next.sections,
       key,
+      friendCode: key ? null : friendCode.trim() || null,
       token: opts.token ?? null,
       jobId: opts.jobId ?? null,
       signal: ctrl.signal,
@@ -155,6 +161,9 @@ export function UploadSection() {
     }).then(
       ({ id, chapters }) => {
         if (!alive()) return;
+        // Every key in this flow is Meta (the steps are metaOnly), so the
+        // reader can picture the book on it; module memory dies on reload.
+        if (key) setReaderKey(id, key);
         saveMyBook({ id, title: next.book.title, author: next.book.author ?? "Unknown author", savedAt: Date.now() });
         setStatus({
           step: "finishing",
@@ -175,7 +184,12 @@ export function UploadSection() {
     );
   }
 
-  const route = status.step === "parsed" ? uploadRoute(status.parsed.book.words, freeCount) : null;
+  // With a code entered, skip the local hint and let the server rule:
+  // a wrong code still lands on the BYOK step via daily_books_reached.
+  const route =
+    status.step === "parsed"
+      ? uploadRoute(status.parsed.book.words, friendCode.trim() ? 0 : freeCount)
+      : null;
 
   if (status.step === "working" || status.step === "finishing") {
     const progress = status.progress;
@@ -344,7 +358,7 @@ export function UploadSection() {
               </span>
               <span>
                 <b>Free</b>
-                <small>Two books a day are on us, up to about {freePages} pages each.</small>
+                <small>One free book a day is on us, up to about {freePages} pages each.</small>
               </span>
             </button>
             <button
@@ -396,6 +410,28 @@ export function UploadSection() {
               </button>
             </div>
             <p className="ob-fine">It stays in this tab only. We never save it.</p>
+          </div>
+          <div className="ob-friend">
+            {friendOpen ? (
+              <label className="ob-friendrow" htmlFor="obFriend">
+                <span>Friend code</span>
+                <input
+                  id="obFriend"
+                  className="ob-input"
+                  type="text"
+                  value={friendCode}
+                  onChange={(event) => setFriendCode(event.target.value)}
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={64}
+                  placeholder="If a friend shared one with you"
+                />
+              </label>
+            ) : (
+              <button type="button" className="ob-quiet" onClick={() => setFriendOpen(true)}>
+                Have a friend code?
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -5,7 +5,7 @@ type Provider = "meta" | "openai";
 
 const REASONS: Record<"too_long" | "free_used", (pages: number) => string> = {
   too_long: (pages) => `This one is longer than about ${pages} pages, so it needs your own key.`,
-  free_used: () => "You've used your two free books for today, so this one needs your own key.",
+  free_used: () => "You've used your free book for today, so this one needs your own key.",
 };
 
 // Key step only: no network call. The key lives in state and is cleared

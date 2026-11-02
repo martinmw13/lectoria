@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Uploads read without chat and without pictures: the launcher mounts for
+// Uploads read without chat but with pictures: the launcher mounts for
 // shelf books and stays out for u- ids, where chat on our key must not run;
-// the images API rejects u- ids, so no picture surface mounts for them either.
+// picture surfaces mount for uploads too and the images API serves them.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -136,22 +136,16 @@ describe("reader chat gate", () => {
 });
 
 describe("reader visuals gate", () => {
-  test("hides every picture surface for an upload id", async () => {
+  test("shows every picture surface for an upload id", async () => {
     await renderBook(UPLOAD_ID);
-    expect(container.querySelector(".img-pane")).toBeNull();
-    expect(container.querySelector(".pane-divider")).toBeNull();
-    expect(container.querySelector(".vault")).toBeNull();
-    expect(container.querySelector(".panels-link")).toBeNull();
-    expect(container.querySelector(".panels-modal")).toBeNull();
-    expect(document.querySelector(".picture-float")).toBeNull();
-    expect(container.querySelector(".folio")?.classList.contains("no-visuals")).toBe(true);
+    expect(container.querySelector(".img-pane")).not.toBeNull();
+    expect(container.querySelector(".pane-divider")).not.toBeNull();
+    expect(container.querySelector(".vault")).not.toBeNull();
+    expect(container.querySelector(".panels-link")).not.toBeNull();
+    expect(container.querySelector(".folio")?.classList.contains("no-visuals")).toBe(false);
     expect(container.textContent).toContain("Words 1.");
-    expect(container.textContent).not.toContain("Picture this");
-    expect(container.textContent).not.toContain("Relive this chapter in panels");
-    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
-    expect(urls.filter((u) => u.includes("/api/images") || u.includes("/api/pictures") || u.includes("/api/panels"))).toEqual(
-      [],
-    );
+    expect(container.textContent).toContain("Picture this");
+    expect(container.textContent).toContain("Relive this chapter in panels");
   });
 
   test("keeps picture surfaces for a shelf book", async () => {

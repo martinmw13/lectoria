@@ -3,7 +3,7 @@
 export const FREE_BOOK_MAX_WORDS = 50_000; // provisional, may change once we know the processing cost
 export const WORDS_PER_PAGE = 250;
 // Mirror of FREE_BOOKS_PER_PERSON in server/guard/quota.ts.
-export const FREE_BOOKS_PER_DAY = 2;
+export const FREE_BOOKS_PER_DAY = 1;
 
 export function approxPages(words: number): number {
   return Math.max(1, Math.round(words / WORDS_PER_PAGE));

@@ -23,7 +23,7 @@ import {
 import { readBodyCapped } from "@/server/guard/body";
 import { checkHuman } from "@/server/guard/human";
 import { createRestKV } from "@/server/guard/kv";
-import { bookQuotaKeysFor } from "@/server/guard/quota";
+import { acceptFriendCode, bookQuotaKeysFor, friendGuessKeyFor } from "@/server/guard/quota";
 import { clientIp, rejectsCrossSite, utcDay } from "@/server/guard/request";
 import { createJevClient, type JevClient } from "../../pipeline/jev";
 import { createMetaClient, type MetaClient } from "../../pipeline/meta";
@@ -139,6 +139,16 @@ export async function handleUploadsCreate(req: Request, deps: UploadHandlerDeps 
   if (!meta) return fail("unavailable", cookies);
   const kv = deps.kv ?? createRestKV(env.upstashUrl, env.upstashToken);
   const day = utcDay(deps.now ?? new Date());
+  // BYOK spends the reader's key, so friend codes never apply there.
+  // Any other outcome keeps the normal quota; only a boolean travels back.
+  const friendAccepted = byokKey
+    ? false
+    : await acceptFriendCode(
+        kv,
+        body.friendCode,
+        env.friendCodes ?? [],
+        friendGuessKeyFor({ day, ip, salt: env.ipSalt, anonId }),
+      );
   try {
     const out = await createUpload({
       kv,
@@ -150,9 +160,10 @@ export async function handleUploadsCreate(req: Request, deps: UploadHandlerDeps 
       day,
       quotaKeys: bookQuotaKeysFor({ day, ip, salt: env.ipSalt, anonId, ...(byokKey ? { prefix: "upload:byok" } : {}) }),
       spendCapMicro: env.spendCapMicro,
+      ...(friendAccepted ? { friendAccepted: true as const } : {}),
     });
     return Response.json(
-      { status: "created", id: out.id, chapters: out.chapters, parts: out.parts },
+      { status: "created", id: out.id, chapters: out.chapters, parts: out.parts, friendAccepted },
       { status: 200, headers: withCookies(cookies) },
     );
   } catch (e) {

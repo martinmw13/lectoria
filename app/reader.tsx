@@ -399,12 +399,9 @@ export function Reader({
 
   // Chat runs on our key for shelf books only, so uploads read without it.
   const chatOn = !isUploadId(bookId);
-  // Pictures serve shelf books only: the images API rejects upload ids.
-  // The book view defaults to the same flag from its own model id.
-  const visualsOn = !isUploadId(bookId);
   return (
     <NarrationProvider entries={narration} scenes={scenes}>
-      <div className={visualsOn ? "folio" : "folio no-visuals"}>
+      <div className="folio">
         <a href="#story" className="skip-link">
           Skip to the story
         </a>
