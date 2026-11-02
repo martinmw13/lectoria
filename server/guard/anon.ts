@@ -39,3 +39,13 @@ export function parseAnonCookie(header: string | null | undefined): string | nul
 export function serializeAnonCookie(value: string): string {
   return `${ANON_COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=31536000`;
 }
+
+// The id behind the anon cookie, issuing and setting one when the request
+// has none valid. The id itself is never logged.
+export function ensureAnon(cookieHeader: string | null, secret: string, cookies: string[]): string {
+  const found = verifyAnonCookie(parseAnonCookie(cookieHeader), secret);
+  if (found) return found;
+  const issued = issueAnonId(secret);
+  cookies.push(serializeAnonCookie(issued.value));
+  return issued.id;
+}

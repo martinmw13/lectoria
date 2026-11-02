@@ -61,6 +61,11 @@ export function UploadSection() {
   // one is entered the server decides the quota, not the local hint.
   const [friendCode, setFriendCode] = useState("");
   const [friendWelcome, setFriendWelcome] = useState(false);
+  // Typing after a result clears it: the welcome note follows the code.
+  const onFriendCode = (value: string) => {
+    setFriendCode(value);
+    setFriendWelcome(false);
+  };
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [keyOpen, setKeyOpen] = useState(false);
   // Tab-only scratch: never stored, logged, or sent; dies with this component.
@@ -238,7 +243,8 @@ export function UploadSection() {
             idleKey={idleKey}
             friendCode={friendCode}
             friendWelcome={friendWelcome}
-            onFriendCode={setFriendCode}
+            onFriendCode={onFriendCode}
+            onFriendAccepted={() => setFriendWelcome(true)}
             onRetryKey={(key) =>
               startDrive(status.parsed, { key, progress: null })
             }
@@ -269,7 +275,12 @@ export function UploadSection() {
       {status.step === "parsed" && route ? (
         <div ref={resultRef} tabIndex={-1}>
           <BookCard book={status.parsed.book} coverUrl={coverUrl} />
-          <FriendCode code={friendCode} onCode={setFriendCode} />
+          <FriendCode
+            code={friendCode}
+            onCode={onFriendCode}
+            welcome={friendWelcome}
+            onAccepted={() => setFriendWelcome(true)}
+          />
           {route.kind === "free" ? (
             <div className="ob-actions">
               <button
@@ -428,7 +439,12 @@ export function UploadSection() {
             </div>
             <p className="ob-fine">It stays in this tab only. We never save it.</p>
           </div>
-          <FriendCode code={friendCode} onCode={setFriendCode} />
+          <FriendCode
+            code={friendCode}
+            onCode={onFriendCode}
+            welcome={friendWelcome}
+            onAccepted={() => setFriendWelcome(true)}
+          />
         </div>
       )}
     </section>
@@ -442,6 +458,7 @@ function FailedView({
   friendCode,
   friendWelcome,
   onFriendCode,
+  onFriendAccepted,
   onRetryKey,
   onRetryToken,
   onRetry,
@@ -452,6 +469,7 @@ function FailedView({
   friendCode: string;
   friendWelcome: boolean;
   onFriendCode: (code: string) => void;
+  onFriendAccepted: () => void;
   onRetryKey: (key: string) => void;
   onRetryToken: (token: string) => void;
   onRetry: () => void;
@@ -470,12 +488,12 @@ function FailedView({
           actionLabel="Bring your own key!"
           onSubmit={onRetryKey}
         />
-        <FriendCode code={friendCode} onCode={onFriendCode} />
-        {friendWelcome && (
-          <p className="ob-friend-ok" role="status">
-            {FRIEND_WELCOME}
-          </p>
-        )}
+        <FriendCode
+          code={friendCode}
+          onCode={onFriendCode}
+          welcome={friendWelcome}
+          onAccepted={onFriendAccepted}
+        />
         <div className="ob-actions">
           <button
             className="ob-quiet"

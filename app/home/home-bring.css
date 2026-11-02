@@ -88,6 +88,8 @@ html[data-skin="chihiro"] .ob-foot { border-top: 1.5px solid rgba(156, 47, 30, .
 a.ob-action { text-decoration: underline; }
 .ob-quiet { background: none; border: 0; padding: 0; color: var(--muted); font-size: 14px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .ob-quiet:hover { color: var(--color-accent); }
+.ob-quiet:disabled { text-decoration: none; cursor: default; }
+.ob-quiet:disabled:hover { color: var(--muted); }
 .ob-note { font-size: 14px; line-height: 1.5; margin: 6px 0 0; font-family: var(--note); font-style: var(--note-style); }
 .ob-mini { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; align-items: start; margin-top: 4px; }
 .ob-mini-cover { width: 56px; height: 56px; border-radius: 6px; object-fit: cover; display: block; }
