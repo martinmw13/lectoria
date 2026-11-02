@@ -6,20 +6,25 @@ import { useState } from "react";
 export const FRIEND_WELCOME =
   "Hola, escofletudo, te estaba esperando. Mirá cómo te gusta gastarme los créditos. No pinta, amigo. Literalmente una escofleta.";
 
-// One instant check against the server: true only for a 200 with ok ===
-// true, false for anything else (network error included). Never logs the code.
-export async function checkFriendCode(code: string, fetchFn: typeof fetch = fetch): Promise<boolean> {
+export type FriendCheck = "ok" | "wrong" | "unavailable";
+
+// One instant check against the server. "ok" only for a 200 with ok ===
+// true; "wrong" for a 200 or 400 answer saying no; "unavailable" for a
+// 5xx, rate limit, or network error, so a server hiccup never reads as a
+// bad code. Never logs the code.
+export async function checkFriendCode(code: string, fetchFn: typeof fetch = fetch): Promise<FriendCheck> {
   try {
     const res = await fetchFn("/api/uploads/friend-code", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ code }),
     });
-    if (res.status !== 200) return false;
+    if (res.status === 400) return "wrong";
+    if (res.status !== 200) return "unavailable";
     const json: unknown = await res.json();
-    return typeof json === "object" && json !== null && (json as { ok?: unknown }).ok === true;
+    return typeof json === "object" && json !== null && (json as { ok?: unknown }).ok === true ? "ok" : "wrong";
   } catch {
-    return false;
+    return "unavailable";
   }
 }
 
@@ -41,15 +46,15 @@ export function FriendCode({
 }) {
   const [open, setOpen] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<"wrong" | "unavailable" | null>(null);
   const empty = code.trim() === "";
   async function apply() {
     if (empty || checking) return;
     setChecking(true);
-    const ok = await checkFriendCode(code);
+    const result = await checkFriendCode(code);
     setChecking(false);
-    setFailed(!ok);
-    if (ok) onAccepted?.();
+    setFailed(result === "ok" ? null : result);
+    if (result === "ok") onAccepted?.();
   }
   return (
     <div className="ob-friend">
@@ -64,7 +69,7 @@ export function FriendCode({
               value={code}
               onChange={(event) => {
                 onCode(event.target.value);
-                setFailed(false);
+                setFailed(null);
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -88,7 +93,9 @@ export function FriendCode({
           </div>
           {failed && (
             <p className="ob-fine" role="status">
-              That code didn&apos;t work.
+              {failed === "wrong"
+                ? "That code didn't work."
+                : "We couldn't check that code right now. Try again?"}
             </p>
           )}
           {welcome && (

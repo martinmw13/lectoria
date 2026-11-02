@@ -149,13 +149,26 @@ describe("friend-code apply", () => {
     );
     expect(miss).toBeTruthy();
     expect(container.querySelector(".ob-friend-ok")).toBeNull();
-    // A network error reads the same as a miss.
+    // A network error is not a wrong code: it asks to try again.
     fetchMock.mockRejectedValue(new Error("down"));
     typeInto(input, `${CODE}!`);
     click(quietButton("Apply"));
     await settle();
     expect(container.querySelector(".ob-friend-ok")).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain("We couldn't check that code right now. Try again?");
+    expect(container.textContent).not.toContain("That code didn't work.");
+  });
+
+  test("a 503 says the check is unavailable, not that the code is wrong", async () => {
+    fetchMock.mockResolvedValue(json({ ok: false }, 503));
+    const input = friendInput();
+    typeInto(input, CODE);
+    click(quietButton("Apply"));
+    await settle();
+    expect(container.textContent).toContain("We couldn't check that code right now. Try again?");
+    expect(container.textContent).not.toContain("That code didn't work.");
+    expect(container.querySelector(".ob-friend-ok")).toBeNull();
   });
 
   test("empty code keeps Apply disabled", () => {

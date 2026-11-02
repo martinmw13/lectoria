@@ -96,3 +96,39 @@ describe("friend-code check", () => {
     expect(await res.json()).toEqual({ ok: false });
   });
 });
+
+describe("friend-code check env", () => {
+  it("works without the uploads blob token or Meta key", async () => {
+    const saved = { ...process.env };
+    try {
+      for (const k of ["UPLOADS_BLOB_READ_WRITE_TOKEN", "META_API_KEY", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"]) delete process.env[k];
+      Object.assign(process.env, {
+        KV_REST_API_URL: "https://kv.test",
+        KV_REST_API_TOKEN: "kv-token",
+        SESSION_SECRET: "session-secret",
+        IP_HASH_SALT: SALT,
+        LECTORIA_FRIEND_CODES: CODE,
+      });
+      const res = await handleFriendCodeCheck(postRequest(URL, { code: CODE }, { "x-real-ip": IP }), {
+        kv: createMemoryKV(),
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ ok: true });
+    } finally {
+      process.env = saved;
+    }
+  });
+
+  it("answers 503 when the KV store fails", async () => {
+    const broken = createMemoryKV();
+    broken.get = async () => {
+      throw new Error("kv down");
+    };
+    const res = await handleFriendCodeCheck(postRequest(URL, { code: CODE }, { "x-real-ip": IP }), {
+      env: withCodes(),
+      kv: broken,
+    });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ ok: false });
+  });
+});
