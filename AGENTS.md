@@ -79,7 +79,7 @@ Save every Muse Code session transcript as JSONL in `agent-logs/NN-<step>.jsonl`
 - Public-domain books only.
 - Images follow the book text and the W. W. Denslow 1900 illustrations: silver shoes, nothing from the 1939 MGM film.
 - Never copy code from github.com/martinmw13/lectoria.
-- Test with the cheapest models (Contributor). Use Standard for the final pass and the public chat.
+- Test with the cheapest models (Contributor). Use Standard for the final pass. The public chat runs on Contributor.
 
 ## Product rules
 

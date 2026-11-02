@@ -14,12 +14,7 @@ import {
   type UploadCreateBody,
   type UploadErrorCode,
 } from "@/core/uploads";
-import {
-  issueAnonId,
-  parseAnonCookie,
-  serializeAnonCookie,
-  verifyAnonCookie,
-} from "@/server/guard/anon";
+import { ensureAnon } from "@/server/guard/anon";
 import { readBodyCapped } from "@/server/guard/body";
 import { checkHuman } from "@/server/guard/human";
 import { createRestKV } from "@/server/guard/kv";
@@ -86,14 +81,6 @@ function buildJev(
   if (deps.jev !== undefined) return deps.jev;
   if (!env.jevKey) return null;
   return createJevClient({ fetchFn: fetchWithTimeout(fetchFn, JEV_CALL_TIMEOUT_MS), apiKey: env.jevKey, model: UPLOAD_JEV_MODEL });
-}
-
-async function ensureAnon(cookieHeader: string | null, secret: string, cookies: string[]): Promise<string> {
-  const found = verifyAnonCookie(parseAnonCookie(cookieHeader), secret);
-  if (found) return found;
-  const issued = issueAnonId(secret);
-  cookies.push(serializeAnonCookie(issued.value));
-  return issued.id;
 }
 
 // Order: same-origin, body cap, strict parse, env, Turnstile, anon cookie,

@@ -163,25 +163,36 @@ export async function acceptFriendCode(
   codes: string[],
   guessKey: string,
 ): Promise<boolean> {
-  if (typeof submitted !== "string") return false;
+  return (await judgeFriendCode(kv, submitted, codes, guessKey)) === "ok";
+}
+
+// Same rules as acceptFriendCode, but tells "Redis down" apart from a miss
+// so the Apply button can say "try again" instead of "wrong code".
+export async function judgeFriendCode(
+  kv: KV,
+  submitted: unknown,
+  codes: string[],
+  guessKey: string,
+): Promise<"ok" | "wrong" | "unavailable"> {
+  if (typeof submitted !== "string") return "wrong";
   const code = submitted.trim();
-  if (code.length === 0 || code.length > FRIEND_CODE_MAX_LEN) return false;
-  if (codes.length === 0) return false;
+  if (code.length === 0 || code.length > FRIEND_CODE_MAX_LEN) return "wrong";
+  if (codes.length === 0) return "wrong";
   let guesses = 0;
   try {
     const raw = await kv.get(guessKey);
     guesses = raw === null ? 0 : Number(raw);
     if (!Number.isFinite(guesses) || guesses < 0) guesses = 0;
   } catch {
-    return false; // Redis down: no friend path, the normal quota still applies.
+    return "unavailable"; // Redis down: no friend path, the normal quota still applies.
   }
-  if (guesses >= FRIEND_WRONG_GUESSES_PER_DAY) return false;
-  if (matchFriendCode(code, codes)) return true;
+  if (guesses >= FRIEND_WRONG_GUESSES_PER_DAY) return "wrong";
+  if (matchFriendCode(code, codes)) return "ok";
   try {
     await kv.incr(guessKey);
     await kv.expire(guessKey, BOOK_QUOTA_TTL_SEC);
   } catch {
     // Best effort; the guess just goes uncounted.
   }
-  return false;
+  return "wrong";
 }

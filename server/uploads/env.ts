@@ -33,15 +33,39 @@ const REQUIRED = [
   "IP_HASH_SALT",
 ] as const;
 
-export function readUploadEnv(from: NodeJS.ProcessEnv = process.env): UploadEnv {
+// Only what the friend-code check touches: codes, the anon cookie secret,
+// the IP salt and the KV limiter. No blob or Meta key, so a box without the
+// private uploads store can still check a code.
+export type FriendCodeEnv = Pick<UploadEnv, "upstashUrl" | "upstashToken" | "sessionSecret" | "ipSalt" | "friendCodes">;
+
+const FRIEND_REQUIRED = ["SESSION_SECRET", "IP_HASH_SALT"] as const;
+
+function readKv(from: NodeJS.ProcessEnv): { upstashUrl?: string; upstashToken?: string; missing: string[] } {
   const candidate = usable(from.UPSTASH_REDIS_REST_URL) ?? usable(from.KV_REST_API_URL);
   const upstashUrl = candidate?.startsWith("https://") ? candidate : undefined;
   const upstashToken = usable(from.UPSTASH_REDIS_REST_TOKEN) ?? usable(from.KV_REST_API_TOKEN);
-  const missing = [
-    upstashUrl ? null : URL_NAMES,
-    upstashToken ? null : TOKEN_NAMES,
-    ...REQUIRED.filter((k) => !usable(from[k])),
-  ].filter((m): m is string => m !== null);
+  const missing = [upstashUrl ? null : URL_NAMES, upstashToken ? null : TOKEN_NAMES].filter(
+    (m): m is string => m !== null,
+  );
+  return { upstashUrl, upstashToken, missing };
+}
+
+export function readFriendCodeEnv(from: NodeJS.ProcessEnv = process.env): FriendCodeEnv {
+  const { upstashUrl, upstashToken, missing: kvMissing } = readKv(from);
+  const missing = [...kvMissing, ...FRIEND_REQUIRED.filter((k) => !usable(from[k]))];
+  if (missing.length > 0) throw new Error(`missing friend-code env: ${missing.join(",")}`);
+  return {
+    upstashUrl: upstashUrl as string,
+    upstashToken: upstashToken as string,
+    sessionSecret: from.SESSION_SECRET as string,
+    ipSalt: from.IP_HASH_SALT as string,
+    friendCodes: parseFriendCodes(usable(from.LECTORIA_FRIEND_CODES)),
+  };
+}
+
+export function readUploadEnv(from: NodeJS.ProcessEnv = process.env): UploadEnv {
+  const { upstashUrl, upstashToken, missing: kvMissing } = readKv(from);
+  const missing = [...kvMissing, ...REQUIRED.filter((k) => !usable(from[k]))];
   if (missing.length > 0) throw new Error(`missing upload env: ${missing.join(",")}`);
   const jevKey = usable(from.JEV_API_KEY);
   return {

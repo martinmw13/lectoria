@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readUploadEnv } from "./env";
+import { readFriendCodeEnv, readUploadEnv } from "./env";
 
 const FULL: NodeJS.ProcessEnv = {
   NODE_ENV: "test",
@@ -39,5 +39,26 @@ describe("readUploadEnv", () => {
       "maple",
       "river",
     ]);
+  });
+});
+
+describe("readFriendCodeEnv", () => {
+  it("needs no blob store or Meta key", () => {
+    const env = readFriendCodeEnv({
+      NODE_ENV: "test",
+      KV_REST_API_URL: "https://kv.test",
+      KV_REST_API_TOKEN: "kv-token",
+      SESSION_SECRET: "session-secret",
+      IP_HASH_SALT: "ip-salt",
+      LECTORIA_FRIEND_CODES: "maple",
+    });
+    expect(env.friendCodes).toEqual(["maple"]);
+    expect(env.upstashUrl).toBe("https://kv.test");
+  });
+
+  it("names what is missing without values", () => {
+    expect(() => readFriendCodeEnv({ NODE_ENV: "test", SESSION_SECRET: "s" })).toThrow(
+      /KV_REST_API_URL.*KV_REST_API_TOKEN.*IP_HASH_SALT/,
+    );
   });
 });

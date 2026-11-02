@@ -38,7 +38,7 @@ describe("createChatStreamer", () => {
     expect(init.method).toBe("POST");
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer k");
     expect(JSON.parse(init.body as string)).toEqual({
-      model: "muse-spark-1.3",
+      model: "muse-spark-1.3-contributor",
       messages: MESSAGES,
       stream: true,
       stream_options: { include_usage: true },

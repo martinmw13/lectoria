@@ -12,7 +12,9 @@ export const CHAT_MAX_BODY_BYTES = 16_384;
 // Meta counts reasoning tokens inside max_tokens: a short question can use
 // 250+ of them before the first answer token, so keep room for both.
 export const CHAT_MAX_TOKENS = 2000;
-export const CHAT_MODEL = "muse-spark-1.3";
+// Contributor mode: same Muse Spark 1.3 model, 12-20x cheaper than
+// Standard. Meta may train on what Contributor requests send.
+export const CHAT_MODEL = "muse-spark-1.3-contributor";
 export const BYOK_HEADER = "x-byok-key";
 
 export type ChatRole = "user" | "assistant";
@@ -206,10 +208,16 @@ export function buildChatSystemPrompt(args: {
   );
 }
 
-// Reserve math in integer micro-dollars: input $1.25/M, cached input
-// $0.15/M, output $4.25/M. max_tokens already includes reasoning.
+// Contributor prices in micro-dollars per token (= USD per 1M tokens):
+// input $0.10/M, cached input $0.002/M, output $0.20/M. Keep in step with
+// CHAT_MODEL and pipeline/prices.ts.
+const INPUT_MICRO = 0.1;
+const CACHED_MICRO = 0.002;
+const OUTPUT_MICRO = 0.2;
+
+// Reserve math in integer micro-dollars. max_tokens already includes reasoning.
 export function estimateCostMicro(promptChars: number): number {
-  return Math.ceil((promptChars / 4) * 1.25) + Math.ceil(CHAT_MAX_TOKENS * 4.25);
+  return Math.ceil((promptChars / 4) * INPUT_MICRO) + Math.ceil(CHAT_MAX_TOKENS * OUTPUT_MICRO);
 }
 
 export function usageCostMicro(args: {
@@ -218,7 +226,7 @@ export function usageCostMicro(args: {
   completionTokens: number;
 }): number {
   const fresh = Math.max(0, args.promptTokens - args.cachedTokens);
-  return Math.ceil(fresh * 1.25 + args.cachedTokens * 0.15 + args.completionTokens * 4.25);
+  return Math.ceil(fresh * INPUT_MICRO + args.cachedTokens * CACHED_MICRO + args.completionTokens * OUTPUT_MICRO);
 }
 
 export function encodeSse(event: string, data: unknown): string {
