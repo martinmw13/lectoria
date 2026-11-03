@@ -70,8 +70,8 @@ describe("narrow chat sheet", () => {
     );
   });
 
-  it("keeps the desktop panel size", () => {
-    expect(chat).toContain("width: 380px");
+  it("keeps the desktop panel size (default, user-resizable)", () => {
+    expect(chat).toContain("width: var(--chat-w, 380px)");
   });
 });
 

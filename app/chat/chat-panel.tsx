@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CHAT_MAX_QUESTION_CHARS } from "@/core/chat";
 import { ByokStep } from "../home/byok";
 import { CHAT_COPY } from "./copy";
@@ -11,6 +11,38 @@ import { Icon } from "../icons";
 type Chat = ReturnType<typeof useChat>;
 
 const COUNTER_FROM = 400;
+
+// Desktop panel size, dragged from the top-left handle. Bounds keep the
+// reader visible; CSS max-height still caps it to the viewport.
+export const CHAT_SIZE_KEY = "lectoria.chatSize";
+const SIZE = { minW: 320, maxW: 720, minH: 360, maxH: 820, w: 380, h: 560 } as const;
+type Size = { w: number; h: number };
+
+export function clampSize(w: number, h: number): Size {
+  const maxW = typeof window === "undefined" ? SIZE.maxW : Math.min(SIZE.maxW, window.innerWidth * 0.6);
+  return {
+    w: Math.round(Math.min(Math.max(w, SIZE.minW), Math.max(SIZE.minW, maxW))),
+    h: Math.round(Math.min(Math.max(h, SIZE.minH), SIZE.maxH)),
+  };
+}
+
+function loadSize(): Size {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(CHAT_SIZE_KEY) ?? "null") as Partial<Size> | null;
+    if (v && Number.isFinite(v.w) && Number.isFinite(v.h)) return clampSize(v.w as number, v.h as number);
+  } catch {
+    // Corrupt or blocked storage: default size.
+  }
+  return { w: SIZE.w, h: SIZE.h };
+}
+
+function saveSize(size: Size) {
+  try {
+    window.localStorage.setItem(CHAT_SIZE_KEY, JSON.stringify(size));
+  } catch {
+    // Blocked storage: the size lasts for this visit.
+  }
+}
 
 export function ChatPanel({
   chapter,
@@ -41,6 +73,7 @@ export function ChatPanel({
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const tryAgainRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLElement | null>(null);
+  const [size, setSize] = useState<Size>(loadSize);
 
   const { messages, status, remaining, spoilers, busy } = chat;
   const empty = messages.length === 0 && !chat.byok && !chat.needHuman && status !== "error";
@@ -122,10 +155,40 @@ export function ChatPanel({
     }
   }
 
-  function autoGrow(el: HTMLTextAreaElement) {
+  // Grow with the draft (typed or prefilled); CSS max-height caps it at
+  // about eight lines, then it scrolls.
+  useLayoutEffect(() => {
+    const el = composerRef.current;
+    if (!el) return;
     el.style.height = "auto";
-    const max = 4 * 20; // Four lines, then scroll.
-    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft, size.w]);
+
+  function resizeTo(w: number, h: number) {
+    const next = clampSize(w, h);
+    setSize(next);
+    saveSize(next);
+  }
+
+  function onResizeDown(e: React.PointerEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    const start = { x: e.clientX, y: e.clientY, ...size };
+    const move = (ev: PointerEvent) => resizeTo(start.w + start.x - ev.clientX, start.h + start.y - ev.clientY);
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+
+  function onResizeKey(e: React.KeyboardEvent<HTMLButtonElement>) {
+    const step = e.shiftKey ? 80 : 20;
+    const keys: Record<string, [number, number]> = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] };
+    const d = keys[e.key];
+    if (!d) return;
+    e.preventDefault();
+    resizeTo(size.w + d[0], size.h + d[1]);
   }
 
   return (
@@ -136,7 +199,16 @@ export function ChatPanel({
       role="dialog"
       aria-labelledby="chat-panel-title"
       onKeyDown={onPanelKey}
+      style={{ "--chat-w": `${size.w}px`, "--chat-h": `${size.h}px` } as React.CSSProperties}
     >
+      <button
+        type="button"
+        className="chat-resize"
+        aria-label={CHAT_COPY.resize}
+        title={CHAT_COPY.resize}
+        onPointerDown={onResizeDown}
+        onKeyDown={onResizeKey}
+      />
       <div className="chat-head">
         <div className="chat-head-row">
           <h3 id="chat-panel-title">{CHAT_COPY.title}</h3>
@@ -266,7 +338,6 @@ export function ChatPanel({
             aria-label={CHAT_COPY.placeholder}
             onChange={(e) => {
               setDraft(e.target.value);
-              autoGrow(e.target);
             }}
             onKeyDown={onComposerKey}
           />
