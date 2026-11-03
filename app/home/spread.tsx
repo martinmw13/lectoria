@@ -8,7 +8,6 @@ import { useSkin } from "../use-skin";
 import { shelf, shelfById } from "./shelf";
 import { coverFor, shelfCoverFor } from "./covers";
 import { CoverImage } from "./cover";
-import { StyleMenu } from "../style-menu";
 import { StylePicker } from "./style-picker";
 import { UploadSection } from "./upload";
 import { YourBooks } from "./your-books";
@@ -52,7 +51,6 @@ export function HomeSpread({ readHrefs = {} }: { readHrefs?: Readonly<Record<str
 
   return (
     <>
-      <StyleMenu placement="home" />
       <div className="ob-book">
         <section className="ob-page ob-left" aria-labelledby="obBrand">
           <div className="ob-rule" aria-hidden="true" />
