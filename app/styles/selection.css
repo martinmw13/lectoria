@@ -120,8 +120,7 @@ html[data-skin="chihiro"] ::highlight(lectoria-mark) {
 }
 
 .define-card,
-.note-editor,
-.marks-panel {
+.note-editor {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
@@ -219,82 +218,116 @@ html[data-skin="chihiro"] ::highlight(lectoria-mark) {
   gap: 4px;
 }
 
-/* Notes list: mirrors the chat launcher on the left edge (same inset,
-   label font and ink), so it reads as a margin label, not a stray link. */
-.marks-list {
-  --marks-label-font: var(--font-ui);
-  position: fixed;
-  left: max(40px, calc((100vw - 1200px) / 2 + 40px));
-  bottom: calc(96px + 16px);
-  z-index: 65;
-  font-family: var(--font-ui);
+/* Notes and highlights: a disclosure row in the margin column, under the
+   Picture Vault, opening into one card per mark. Uploads have no margin,
+   so there the same row docks at the bottom left. */
+.marks {
+  margin-top: 12px;
 }
 
-html[data-skin="engraving"] .marks-list {
-  --marks-label-font: var(--font-eng-label);
-}
-
-.marks-launch {
+.marks-row {
   all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   cursor: pointer;
-  font: 500 14px/1 var(--marks-label-font);
-  white-space: nowrap;
-  color: var(--color-text);
-  padding: 6px 4px 3px;
-  background: linear-gradient(var(--color-accent), var(--color-accent)) 0 100% / 0 1.5px no-repeat;
+  border-radius: 8px;
+  padding: 4px 6px;
+  margin: 0 -6px;
 }
 
-html[data-skin="comic"] .marks-launch {
-  font-weight: 800;
-  text-transform: uppercase;
-  font-size: 12.5px;
+.marks-row:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
 }
 
-.marks-launch:hover {
-  color: var(--color-accent);
-  background-size: 100% 1.5px;
-}
-
-.marks-launch:focus-visible {
+.marks-row:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
-.marks-panel {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 0;
-  width: min(340px, 86vw);
-  max-height: 50vh;
-  overflow-y: auto;
-  padding: 12px;
-  color: var(--color-text);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  box-shadow: 0 14px 40px rgba(20, 25, 40, 0.16);
+.marks-row:disabled {
+  cursor: default;
 }
 
-.marks-panel h2 {
-  margin: 0 0 8px;
-  font-size: 14px;
+.marks-row .mtool-text {
+  flex: 1;
+  min-width: 0;
 }
 
-.marks-panel ul {
+.marks-count {
+  font: 600 11px/1 var(--font-ui);
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-radius: 999px;
+  padding: 3px 7px;
+  margin-top: 2px;
+}
+
+.marks-chev {
+  width: 14px;
+  height: 14px;
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  transition: transform 0.2s;
+}
+
+.marks-row[aria-expanded="true"] .marks-chev {
+  transform: rotate(180deg);
+}
+
+.marks-cards {
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: 8px 0 0;
+  padding: 0 0 0 22px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
 }
 
-.marks-panel li {
-  padding-left: 10px;
-  border-left: 3px solid color-mix(in srgb, var(--color-accent-fill) 35%, transparent);
+.marks-card {
+  position: relative;
+  padding: 8px 10px 6px 13px;
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-text) 8%, transparent);
 }
 
-.marks-panel li.has-note {
-  border-left-color: var(--color-accent-fill);
+.marks-card::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-accent-fill) 35%, transparent);
+}
+
+.marks-card.has-note::before {
+  background: var(--color-accent-fill);
+}
+
+.marks-dock {
+  position: fixed;
+  left: max(40px, calc((100vw - 1200px) / 2 + 40px));
+  bottom: calc(96px + 16px);
+  z-index: 65;
+  width: 300px;
+  font-family: var(--font-ui);
+}
+
+.marks-dock .marks {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.marks-dock .marks-cards {
+  margin: 0 0 8px;
 }
 
 .marks-quote {
@@ -328,7 +361,7 @@ html[data-skin="comic"] .marks-launch {
 }
 
 @media (max-width: 1023px) {
-  .marks-list {
+  .marks-dock {
     left: 12px;
   }
 }

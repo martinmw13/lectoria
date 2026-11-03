@@ -1,18 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { Icon } from "../icons";
 import type { Mark } from "./marks";
 
 export const LIST_COPY = {
-  launch: (n: number) => `Notes and highlights · ${n}`,
-  title: "Your notes and highlights",
+  title: "Notes & highlights",
+  summary: (marks: Mark[]) => {
+    const notes = marks.filter((m) => m.note).length;
+    const lights = marks.length - notes;
+    return `${lights} ${lights === 1 ? "highlight" : "highlights"} · ${notes} ${notes === 1 ? "note" : "notes"}`;
+  },
+  empty: "Select a line to keep it here",
   go: "Go to passage",
   remove: "Remove",
-  close: "Close",
 } as const;
 
-// A quiet launcher, shown once the book has a mark; the panel lists them
-// in reading order with a jump and a remove for each.
+// A margin row under the Picture Vault. It opens into one card per mark,
+// in reading order, each with a jump and a remove.
 export function MarksList({
   marks,
   onGo,
@@ -23,36 +28,46 @@ export function MarksList({
   onRemove: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  if (marks.length === 0) return null;
+  const any = marks.length > 0;
   return (
-    <div className="marks-list">
-      {open ? (
-        <section id="marks-panel" className="marks-panel" aria-label={LIST_COPY.title}>
-          <h2>{LIST_COPY.title}</h2>
-          <ul>
-            {marks.map((m) => (
-              <li key={m.id} className={m.note ? "has-note" : undefined}>
-                <button type="button" className="marks-quote" onClick={() => onGo(m)} aria-label={`${LIST_COPY.go}: ${m.quote}`}>
-                  “{m.quote}”
-                </button>
-                {m.note ? <p className="marks-note">{m.note}</p> : null}
-                <button type="button" className="sel-btn marks-remove" onClick={() => onRemove(m.id)}>
-                  {LIST_COPY.remove}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+    <section className="marks" aria-label={LIST_COPY.title}>
       <button
         type="button"
-        className="marks-launch"
-        aria-expanded={open}
+        className="mtool marks-row"
+        aria-expanded={any && open}
         aria-controls="marks-panel"
+        disabled={!any}
         onClick={() => setOpen((v) => !v)}
       >
-        {open ? LIST_COPY.close : LIST_COPY.launch(marks.length)}
+        <span className="mtool-icon">
+          <Icon name="book" />
+        </span>
+        <span className="mtool-text">
+          <span className="mtool-title">{LIST_COPY.title}</span>
+          <span className="mtool-sub">{any ? LIST_COPY.summary(marks) : LIST_COPY.empty}</span>
+        </span>
+        {any ? (
+          <>
+            <span className="marks-count">{marks.length}</span>
+            <Icon name="chevron-down" className="marks-chev" />
+          </>
+        ) : null}
       </button>
-    </div>
+      {any && open ? (
+        <ul id="marks-panel" className="marks-cards">
+          {marks.map((m) => (
+            <li key={m.id} className={m.note ? "marks-card has-note" : "marks-card"}>
+              <button type="button" className="marks-quote" onClick={() => onGo(m)} aria-label={`${LIST_COPY.go}: ${m.quote}`}>
+                “{m.quote}”
+              </button>
+              {m.note ? <p className="marks-note">{m.note}</p> : null}
+              <button type="button" className="sel-btn marks-remove" onClick={() => onRemove(m.id)}>
+                {LIST_COPY.remove}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
 }

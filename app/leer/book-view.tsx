@@ -327,7 +327,9 @@ export function BookView({
           onOpen={pic.lightbox.open}
           pref={pref}
           onPrefChange={changePref}
-        />
+        >
+          <MarksList marks={marks.marks} onGo={gotoMark} onRemove={marks.remove} />
+        </PictureVault>
       ) : null}
       <BandPager
         k={info?.k ?? 1}
@@ -340,7 +342,11 @@ export function BookView({
         atBookEnd={bookIndex >= order.length - 1}
         chapterStarts={chapterStarts}
       />
-      <MarksList marks={marks.marks} onGo={gotoMark} onRemove={marks.remove} />
+      {visualsOn ? null : (
+        <div className="marks-dock">
+          <MarksList marks={marks.marks} onGo={gotoMark} onRemove={marks.remove} />
+        </div>
+      )}
       {noteFor ? <NoteEditor key={noteFor.draft.quote} target={noteFor} marks={marks} onClose={() => setNoteFor(null)} /> : null}
       <Lightbox item={pic.lightbox.item} onClose={pic.lightbox.close} />
       {visualsOn && panelsCh !== null ? (

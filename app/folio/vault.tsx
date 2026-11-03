@@ -96,6 +96,7 @@ export function PictureVault({
   onOpen,
   pref,
   onPrefChange,
+  children,
 }: {
   scene: { url: string; caption: string } | null;
   figures: InlineFigure[];
@@ -104,6 +105,8 @@ export function PictureVault({
   onOpen: (src: string, caption: string, opener: HTMLElement | null) => void;
   pref: ImageStylePref;
   onPrefChange: (pref: ImageStylePref) => void;
+  /** Extra margin rows under the vault, such as notes and highlights. */
+  children?: React.ReactNode;
 }) {
   const ready = figures.filter((f) => f.phase === "ready" && f.url !== null);
   const ordered = [...ready].sort((a, b) => a.endN - b.endN);
@@ -181,6 +184,7 @@ export function PictureVault({
           </div>
         </>
       )}
+      {children}
     </aside>
   );
 }
