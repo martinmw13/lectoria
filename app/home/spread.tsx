@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { hasPanels } from "@/core/book-capabilities";
 import { useSkin } from "../use-skin";
 import { shelf, shelfById } from "./shelf";
@@ -12,6 +13,7 @@ import { StylePicker } from "./style-picker";
 import { UploadSection } from "./upload";
 import { YourBooks } from "./your-books";
 import { HomeIcon } from "./home-icons";
+import { pageTurnClick } from "./page-turn";
 import { continueHref, loadAllProgress, type BookProgress } from "../reading-progress";
 
 // The open-book spread: shelf and drop zone on the left page, the
@@ -31,6 +33,7 @@ export function HomeSpread({ readHrefs = {} }: { readHrefs?: Readonly<Record<str
     setProgress(loadAllProgress());
   }, []);
   const resume = continueHref(book.id, progress);
+  const router = useRouter();
 
   function choose(id: string) {
     if (id === current) return;
@@ -159,6 +162,7 @@ export function HomeSpread({ readHrefs = {} }: { readHrefs?: Readonly<Record<str
                 className="ob-read"
                 href={resume ?? readHref(book.id)}
                 aria-label={`${resume ? "Continue reading" : "Start reading"} ${book.title}`}
+                onClick={pageTurnClick(router.push)}
               >
                 {resume ? "Continue reading" : "Start reading"}
                 <svg className="ob-arr ob-arr--e" viewBox="0 0 120 30" aria-hidden="true" focusable="false">

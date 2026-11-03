@@ -23,6 +23,7 @@
 @import "./styles/motion-icons.css";
 @import "./styles/warmth.css";
 @import "./styles/reading.css";
+@import "./styles/page-turn.css";
 
 * {
   box-sizing: border-box;

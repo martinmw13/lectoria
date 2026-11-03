@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { pageTurnClick } from "./page-turn";
 import { loadMyBooks, removeMyBook, type MyBook } from "./my-books";
 import { continueHref, loadAllProgress, type BookProgress } from "../reading-progress";
 
@@ -9,6 +11,7 @@ import { continueHref, loadAllProgress, type BookProgress } from "../reading-pro
 // Loads after mount so the server render matches everywhere.
 export function YourBooks() {
   const [books, setBooks] = useState<MyBook[] | null>(null);
+  const router = useRouter();
   const [progress, setProgress] = useState<Record<string, BookProgress>>({});
 
   useEffect(() => {
@@ -31,7 +34,7 @@ export function YourBooks() {
               </Link>
               <span className="ob-mini-meta">{entry.author}</span>
               {resume && (
-                <Link className="ob-mini-meta ob-continue" href={resume} aria-label={`Continue reading ${entry.title}`}>
+                <Link className="ob-mini-meta ob-continue" href={resume} aria-label={`Continue reading ${entry.title}`} onClick={pageTurnClick(router.push)}>
                   Continue reading
                 </Link>
               )}
