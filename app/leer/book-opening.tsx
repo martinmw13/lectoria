@@ -100,10 +100,28 @@ function layer(src: string, id?: string): HTMLDivElement {
   return div;
 }
 
+// The backdrop wears the page's own paper and skin painting (the home's
+// fixed .ob-desk::before), so the shelf dissolves into the backdrop the
+// reader shares instead of into a flat colour.
+function paintLike(el: HTMLElement): void {
+  const body = getComputedStyle(document.body);
+  el.style.backgroundColor = body.backgroundColor;
+  el.style.backgroundImage = body.backgroundImage;
+  const desk = document.querySelector(".ob-desk");
+  if (!desk) return;
+  const art = getComputedStyle(desk, "::before");
+  if (!art.backgroundImage || art.backgroundImage === "none") return;
+  el.style.backgroundImage = `${art.backgroundImage}, ${body.backgroundImage}`.replace(/, none$/, "");
+  el.style.backgroundSize = art.backgroundSize;
+  el.style.backgroundPosition = art.backgroundPosition;
+  el.style.backgroundRepeat = art.backgroundRepeat;
+  if (art.backgroundColor !== "rgba(0, 0, 0, 0)") el.style.backgroundColor = art.backgroundColor;
+}
+
 // Home half: navigates at once and, over the shelf, grows the cover to
-// fill the screen while it fades out. An opaque backdrop in the page colour
+// fill the screen while it fades out. An opaque backdrop in the page paint
 // fades in under it so the shelf leaves; the reader, rendered underneath,
-// fades that backdrop out, so the end is one cross fade. Returns false (and
+// fades in over that backdrop, so the end is one cross fade. Returns false (and
 // does nothing) when there is no flourish, so the caller navigates as usual.
 export function playOpening(bookId: string, img: HTMLImageElement | null, go: () => void): boolean {
   markOpening(bookId, img);
@@ -119,7 +137,7 @@ export function playOpening(bookId: string, img: HTMLImageElement | null, go: ()
   const cover = div.firstElementChild as HTMLImageElement;
   const backdrop = document.createElement("div");
   backdrop.className = "book-opening-backdrop";
-  backdrop.style.background = getComputedStyle(document.body).backgroundColor || "#fff";
+  paintLike(backdrop);
   div.prepend(backdrop);
   Object.assign(cover.style, { left: `${o.x}px`, top: `${o.y}px`, width: `${o.w}px`, height: `${o.h}px` });
   document.body.append(div);
@@ -150,8 +168,9 @@ export function playOpening(bookId: string, img: HTMLImageElement | null, go: ()
   return true;
 }
 
-// Reader half: before its first paint, take over the shelf's layer and fade
-// its backdrop out (the reader fading in) in step with the cover's fade.
+// Reader half: before its first paint, fade the whole reader in (the
+// .folio root, which carries the skin painting in its fixed ::before) over
+// the backdrop, now moved under the page, in step with the cover's fade.
 export function BookOpening({ bookId }: { bookId: string }) {
   useLayoutEffect(() => {
     const o = takeOpening(bookId);
@@ -164,18 +183,26 @@ export function BookOpening({ bookId }: { bookId: string }) {
     }
     // Finish together with the cover, but never faster than a soft fade.
     const left = Math.max(MIN_FADE_MS, o.at + TOTAL_MS - Date.now());
-    const anim = backdrop.animate([{ opacity: getComputedStyle(backdrop).opacity }, { opacity: 0 }], {
-      duration: left,
-      easing: "cubic-bezier(.4,0,.2,1)",
-      fill: "forwards",
-    });
-    const done = () => div.remove();
+    const timing = { duration: left, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" } as const;
+    // Below the reader, so the reader and its painting fade in over it.
+    backdrop.classList.add("book-opening-under");
+    backdrop.style.opacity = "1";
+    document.body.prepend(backdrop);
+    const folio = document.querySelector<HTMLElement>(".folio");
+    const reveal = folio?.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+    const anim = backdrop.animate([{ opacity: 1 }, { opacity: 0 }], timing);
+    const done = () => {
+      // Drop the held frame so the reader keeps no stacking context.
+      reveal?.cancel?.();
+      backdrop.remove();
+      div.remove();
+    };
     anim.onfinish = done;
     anim.oncancel = done;
     const guard = window.setTimeout(done, left + 300);
     return () => {
       window.clearTimeout(guard);
-      div.remove();
+      done();
     };
   }, [bookId]);
   return null;

@@ -19,6 +19,14 @@
   opacity: 0;
 }
 
+/* Moved under the reader for the cross fade: above the body's paper,
+ * below the folio and its painting. */
+.book-opening-backdrop.book-opening-under {
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .book-opening {
     display: none;

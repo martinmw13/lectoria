@@ -122,12 +122,20 @@ describe("book opening", () => {
     playOpening("oz", loadedCover(), () => {});
     const host = document.createElement("div");
     document.body.append(host);
+    host.className = "folio";
     await act(async () => createRoot(host).render(<BookOpening bookId="oz" />));
     // Still up during the cross fade, so the reader never flashes in.
     expect(document.getElementById(SHELF_LAYER_ID)).not.toBeNull();
-    expect(animate).toHaveBeenLastCalledWith([expect.anything(), { opacity: 0 }], expect.anything());
+    const under = document.body.firstElementChild;
+    expect(under?.classList.contains("book-opening-under")).toBe(true);
+    // The whole reader root (painting included) fades in over the backdrop.
+    const calls = animate.mock.calls as unknown as [Keyframe[]][];
+    const folioFade = animate.mock.contexts.findIndex((el) => el === host);
+    expect(calls[folioFade]?.[0]).toEqual([{ opacity: 0 }, { opacity: 1 }]);
+    expect(animate).toHaveBeenLastCalledWith([{ opacity: 1 }, { opacity: 0 }], expect.anything());
     await act(async () => anims.at(-1)?.onfinish?.());
     expect(document.getElementById(SHELF_LAYER_ID)).toBeNull();
+    expect(document.querySelector(".book-opening-backdrop")).toBeNull();
     delete (HTMLElement.prototype as { animate?: unknown }).animate;
   });
 });
