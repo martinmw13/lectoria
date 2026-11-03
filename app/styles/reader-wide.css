@@ -43,8 +43,8 @@
         color-mix(in srgb, var(--s) 78%, transparent) calc(var(--ribbon-l) - 56px),
         var(--s) var(--ribbon-l),
         var(--s) calc(100vw - var(--ribbon-r)),
-        color-mix(in srgb, var(--s) 78%, transparent) calc(100vw - var(--ribbon-r) + 56px),
-        color-mix(in srgb, var(--s) 30%, transparent) calc(100vw - var(--ribbon-r) + 160px),
+        color-mix(in srgb, var(--s) 88%, transparent) calc(100vw - var(--off) - 90px),
+        color-mix(in srgb, var(--s) 30%, transparent) calc(100vw - var(--off) + 40px),
         color-mix(in srgb, var(--s) 6%, transparent) 100%);
   }
 
@@ -127,6 +127,13 @@
     margin: 0;
     white-space: nowrap;
   }
+}
+@media (min-width: 1280px) and (max-width: 1599px) {
+  .top-line .sp-t {
+    display: none;
+  }
+}
+@media (min-width: 1280px) {
   .top-line .sp-row {
     gap: 4px;
   }
