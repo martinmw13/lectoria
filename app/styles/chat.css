@@ -124,7 +124,8 @@ html[data-skin="comic"] .chat-launch:hover .chat-launch-label {
   width: var(--chat-w, 380px);
   max-width: calc(100vw - 80px);
   height: var(--chat-h, 560px);
-  max-height: calc(100dvh - 260px);
+  /* Clears the header rule even when dragged to full size. */
+  max-height: calc(100dvh - 300px);
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
@@ -149,8 +150,8 @@ html[data-skin="comic"] .chat-launch:hover .chat-launch-label {
   top: 2px;
   left: 2px;
   z-index: 1;
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   cursor: nwse-resize;
   touch-action: none;
   border-radius: 3px;
@@ -158,7 +159,7 @@ html[data-skin="comic"] .chat-launch:hover .chat-launch-label {
     linear-gradient(135deg, currentColor 1.5px, transparent 1.5px) 3px 3px / 8px 8px no-repeat,
     linear-gradient(135deg, transparent 4px, currentColor 4px, currentColor 5.5px, transparent 5.5px) 3px 3px / 8px 8px no-repeat;
   color: var(--color-text-muted);
-  opacity: 0.6;
+  opacity: 0.85;
 }
 .chat-resize:hover,
 .chat-resize:focus-visible {
@@ -452,7 +453,7 @@ html[data-skin="comic"] .chat-note .ob-input {
   background: none;
   border: 0;
   border-radius: 0;
-  padding: 10px 0;
+  padding: 10px 10px;
   resize: none;
   overflow-y: auto;
 }
