@@ -281,7 +281,7 @@ html[data-skin="chihiro"] ::highlight(lectoria-mark) {
 .marks-cards {
   list-style: none;
   margin: 8px 0 0;
-  padding: 0 0 0 22px;
+  padding: 0 0 0 28px; /* Icon 18px + gap 10px: cards start on the title edge. */
   display: grid;
   gap: 8px;
   max-height: 46vh;
