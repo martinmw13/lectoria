@@ -40,7 +40,7 @@ export function MarksList({
         onClick={() => setOpen((v) => !v)}
       >
         <span className="mtool-icon">
-          <Icon name="book" />
+          <Icon name="book" width={18} height={18} />
         </span>
         <span className="mtool-text">
           <span className="mtool-title">{LIST_COPY.title}</span>
