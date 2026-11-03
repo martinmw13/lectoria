@@ -23,6 +23,18 @@ export class UploadFailure extends Error {
   }
 }
 
+// A step that hit a passing upstream failure: the job stays working and
+// the route answers an uncoded 503, which the client retries.
+export class UploadRetry extends Error {
+  constructor() {
+    super("upload step retry");
+    this.name = "UploadRetry";
+  }
+}
+
+// Tries per part before a passing failure fails the whole job.
+export const UPLOAD_PART_ATTEMPTS = 3;
+
 // Job state lives in Redis; book text lives in private Blob. The state
 // holds ordinals and money only, never text and never keys.
 export interface UploadUsage {
@@ -107,6 +119,8 @@ export interface UploadJob {
   quotaIp: string | null;
   quotaAnon: string | null;
   costMicro: number | null;
+  // Passing upstream failures per part key; absent on older jobs.
+  partAttempts?: Record<string, number>;
 }
 
 export function uploadJobKey(id: string): string {
@@ -126,10 +140,11 @@ export function uploadFinalizeKey(id: string): string {
   return `upload:finalized:${id}`;
 }
 
-export const UPLOAD_LOCK_TTL_SEC = 120;
-// Short lease, not a durable marker: a finalize killed at the 60 s limit
+// Both outlive the 120 s step route, so a slow step never overlaps itself.
+export const UPLOAD_LOCK_TTL_SEC = 150;
+// Short lease, not a durable marker: a finalize killed at the route limit
 // frees the key, and the settle guard below still keeps spend exactly-once.
-export const UPLOAD_FINALIZE_LEASE_SEC = 90;
+export const UPLOAD_FINALIZE_LEASE_SEC = 150;
 
 function isPart(value: unknown): value is UploadPart {
   if (typeof value !== "object" || value === null) return false;
@@ -178,6 +193,10 @@ export function parseUploadJob(raw: string | null): UploadJob | null {
   if (j.quotaIp !== null && typeof j.quotaIp !== "string") return null;
   if (j.quotaAnon !== null && typeof j.quotaAnon !== "string") return null;
   if (j.costMicro !== null && typeof j.costMicro !== "number") return null;
+  if (j.partAttempts !== undefined) {
+    if (typeof j.partAttempts !== "object" || j.partAttempts === null) return null;
+    if (!Object.values(j.partAttempts).every((n) => Number.isSafeInteger(n))) return null;
+  }
   for (const c of j.chapters) {
     if (typeof c !== "object" || c === null) return null;
     const ch = c as Record<string, unknown>;

@@ -32,6 +32,7 @@ import { createRestKV } from "@/server/guard/kv";
 import { CHAT_QUOTA_TTL_SEC, refundDualQuota, takeDualQuota } from "@/server/guard/quota";
 import { clientIp, hashIp, ipBucket, rejectsCrossSite, utcDay } from "@/server/guard/request";
 import { reserveSpend } from "@/server/guard/spend";
+import { upstreamKind } from "@/server/guard/upstream";
 import type { SpendReservation } from "@/server/guard/spend";
 import { readChatEnv } from "./env";
 import type { ChatEnv } from "./env";
@@ -242,6 +243,10 @@ export async function handleChatPost(req: Request, deps: ChatHandlerDeps = {}): 
       const reason = e instanceof Error && e.message.startsWith("chat upstream") ? e.message : "chat upstream error";
       console.warn(reason);
       await refundAll();
+      // Our Meta key out of credit reads like the spend cap: offer BYOK.
+      if (!byok && upstreamKind(e) === "credits") {
+        return fail("byok_required", chapter.ch, cookies, false, body.bookId);
+      }
       return fail("unavailable", chapter.ch, cookies, true, body.bookId);
     }
     if (headText === null) {

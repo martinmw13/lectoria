@@ -121,7 +121,7 @@ describe("friend-code check env", () => {
 
   it("answers 503 when the KV store fails", async () => {
     const broken = createMemoryKV();
-    broken.get = async () => {
+    broken.incr = async () => {
       throw new Error("kv down");
     };
     const res = await handleFriendCodeCheck(postRequest(URL, { code: CODE }, { "x-real-ip": IP }), {

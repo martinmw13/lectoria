@@ -22,11 +22,14 @@ import {
   UPLOAD_FINALIZE_LEASE_SEC,
   UPLOAD_LOCK_TTL_SEC,
   UploadFailure,
+  UploadRetry,
+  UPLOAD_PART_ATTEMPTS,
   usageCostMicro,
   usageCostUsd,
   type UploadJob,
   type UploadUsage,
 } from "./state";
+import { upstreamKind } from "@/server/guard/upstream";
 import { classifyPart, segmentPart, WorkError } from "./work";
 
 export interface StepArgs {
@@ -36,6 +39,8 @@ export interface StepArgs {
   jev: JevClient | null;
   id: string;
   chapter?: number;
+  // Aborts the step's model calls just before the route limit.
+  signal?: AbortSignal;
 }
 
 export type StepResult =
@@ -161,6 +166,25 @@ async function finalize(args: StepArgs, job: UploadJob): Promise<StepResult> {
   return doneResult(job);
 }
 
+// Keeps the job working after a passing failure: folds the part's spend
+// into the job usage and, when counted, bumps the part's attempt tally.
+// Returns the fresh job and whether the part may still be retried.
+async function deferPart(
+  args: StepArgs,
+  job: UploadJob,
+  key: string,
+  usage: UploadUsage,
+  counted: boolean,
+): Promise<{ job: UploadJob; retry: boolean }> {
+  const fresh = (await loadUploadJob(args.kv, job.id)) ?? job;
+  const attempts = (fresh.partAttempts?.[key] ?? 0) + (counted ? 1 : 0);
+  if (counted && attempts >= UPLOAD_PART_ATTEMPTS) return { job: fresh, retry: false };
+  fresh.usage = sumUsage([fresh.usage, usage]);
+  fresh.partAttempts = { ...fresh.partAttempts, [key]: attempts };
+  await saveUploadJob(args.kv, fresh);
+  return { job: fresh, retry: true };
+}
+
 // One idempotent unit of work: re-calling a finished part or a finished
 // job costs nothing. Usage accrues to this part's blob only, so parallel
 // drivers on different parts never overwrite each other. Any throw after
@@ -199,6 +223,8 @@ export async function stepUpload(args: StepArgs): Promise<StepResult> {
   const token = randomUUID();
   if (!(await args.kv.setNxEx(lock, token, UPLOAD_LOCK_TTL_SEC))) return workingResult(job);
   const partUsage = emptyUsage();
+  // Once the part blob holds its usage, deferring must not count it again.
+  let saved = false;
   try {
     if (parseStoredPart((await args.store.readText(path)) ?? "")) {
       return markDoneAndMaybeFinalize(args, job, key);
@@ -230,6 +256,9 @@ export async function stepUpload(args: StepArgs): Promise<StepResult> {
       { meta: args.meta, jev: args.jev },
       partUsage,
     );
+    // Classify keeps going per scene on errors; past the deadline those
+    // misses are the clock, not the book, so retry instead of saving them.
+    if (args.signal?.aborted) throw new Error("upload step deadline");
     const stored: StoredPart = {
       part: key,
       ch: part.ch,
@@ -245,10 +274,24 @@ export async function stepUpload(args: StepArgs): Promise<StepResult> {
       usage: partUsage,
     };
     await args.store.saveJson(path, JSON.stringify(stored));
+    saved = true;
     return await markDoneAndMaybeFinalize(args, job, key);
   } catch (e) {
     if (e instanceof UploadFailure) throw e;
-    await failUploadJob(args.kv, args.store, job, partUsage);
+    const kind = args.signal?.aborted ? "transient" : upstreamKind(e);
+    // Our key is out of credit: stop without burning the part's tries, so
+    // the book resumes once credit is back.
+    if (kind === "credits" && job.path === "free") {
+      await deferPart(args, job, key, saved ? emptyUsage() : partUsage, false);
+      throw new UploadFailure("daily_budget_reached");
+    }
+    let failing = job;
+    if (kind === "transient") {
+      const deferred = await deferPart(args, job, key, saved ? emptyUsage() : partUsage, true);
+      if (deferred.retry) throw new UploadRetry();
+      failing = deferred.job;
+    }
+    await failUploadJob(args.kv, args.store, failing, partUsage);
     throw new UploadFailure("unavailable");
   } finally {
     try {

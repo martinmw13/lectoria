@@ -456,7 +456,7 @@ describe("upload flow", () => {
     expect(storageText()).not.toContain("maple");
   });
 
-  test("a friend code reveals one field and lets the server decide the route", async () => {
+  test("a friend code lifts the route only once the server accepts it", async () => {
     window.localStorage.setItem(
       "lectoria.freeBooks.v2",
       JSON.stringify({ day: new Date().toISOString().slice(0, 10), count: 1 }),
@@ -474,14 +474,23 @@ describe("upload flow", () => {
     expect(input.getAttribute("autocomplete")).toBe("off");
     typeInto(input, "maple");
     stepsThenDone();
+    const steps = fetchMock.getMockImplementation() as (url: string) => Promise<Response>;
+    fetchMock.mockImplementation(async (url: string) =>
+      url === "/api/uploads/friend-code" ? json({ ok: true }) : steps(url),
+    );
     await chooseFile();
-    // The local hint says the free book is used, but the code keeps the free route.
+    // Typed but unchecked: the local hint still sends the book to BYOK.
+    expect(container.querySelector(".ob-byok-t")).not.toBeNull();
+    click(quietButton("Apply"));
+    await settle();
+    // Once the server accepts it, the code keeps the free route.
     expect(container.querySelector(".ob-byok-t")).toBeNull();
     click(actionButton("Read with soundtrack"));
     await settle();
     expect(pushMock).toHaveBeenCalledWith(`/read/${UPLOAD_ID}`);
-    const [, createInit] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(JSON.parse(createInit.body as string)).toEqual(expect.objectContaining({ friendCode: "maple" }));
+    const create = fetchMock.mock.calls.find(([url]) => url === "/api/uploads") as [string, RequestInit];
+    expect(JSON.parse(create[1].body as string)).toEqual(expect.objectContaining({ friendCode: "maple" }));
     expect(storageText()).not.toContain("maple");
   });
+
 });

@@ -1,7 +1,7 @@
 import { handleUploadStep } from "@/server/uploads/handler";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 // Thin shell: the full order of operations lives in
 // server/uploads/handler.ts so tests skip the network.

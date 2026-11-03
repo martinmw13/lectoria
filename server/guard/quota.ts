@@ -178,21 +178,21 @@ export async function judgeFriendCode(
   const code = submitted.trim();
   if (code.length === 0 || code.length > FRIEND_CODE_MAX_LEN) return "wrong";
   if (codes.length === 0) return "wrong";
-  let guesses = 0;
+  // Count before judging: one atomic incr per try, so parallel guesses
+  // cannot all read the same low count and slip past the daily limit.
+  let tries: number;
   try {
-    const raw = await kv.get(guessKey);
-    guesses = raw === null ? 0 : Number(raw);
-    if (!Number.isFinite(guesses) || guesses < 0) guesses = 0;
+    tries = await kv.incr(guessKey);
+    await kv.expire(guessKey, BOOK_QUOTA_TTL_SEC);
   } catch {
     return "unavailable"; // Redis down: no friend path, the normal quota still applies.
   }
-  if (guesses >= FRIEND_WRONG_GUESSES_PER_DAY) return "wrong";
-  if (matchFriendCode(code, codes)) return "ok";
+  if (tries > FRIEND_WRONG_GUESSES_PER_DAY) return "wrong";
+  if (!matchFriendCode(code, codes)) return "wrong";
   try {
-    await kv.incr(guessKey);
-    await kv.expire(guessKey, BOOK_QUOTA_TTL_SEC);
+    await kv.decr(guessKey); // Right codes do not count toward the limit.
   } catch {
-    // Best effort; the guess just goes uncounted.
+    // Best effort; the right guess just stays counted.
   }
-  return "wrong";
+  return "ok";
 }

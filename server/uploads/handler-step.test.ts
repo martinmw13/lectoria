@@ -351,7 +351,7 @@ describe("step concurrency", () => {
   });
 
   it("retakes a stale finalize lease", async () => {
-    expect(UPLOAD_FINALIZE_LEASE_SEC).toBe(90);
+    expect(UPLOAD_FINALIZE_LEASE_SEC).toBe(150);
     const flow = await createFlow();
     await drive(flow);
     // A finalize killed at the route limit leaves its lease behind; once

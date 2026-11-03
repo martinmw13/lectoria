@@ -22,12 +22,14 @@ import type { ParaRange } from "@/core/image-ranges";
 import type { ImageEnv } from "./env";
 import { errorTag } from "./errors";
 import { buildFinalPrompt } from "./final-prompt";
+import { isPolicyRejection } from "./meta";
 import { checkHuman } from "@/server/guard/human";
 import type { HumanCheckInput } from "@/server/guard/human";
 import { refundDualQuota, takeDualQuota } from "@/server/guard/quota";
 import { hashIp, ipBucket } from "@/server/guard/request";
 import { reserveSpend } from "@/server/guard/spend";
 import type { SpendReservation } from "@/server/guard/spend";
+import { upstreamKind } from "@/server/guard/upstream";
 
 export interface ImageContent {
   passageText: string;
@@ -241,6 +243,10 @@ export async function orchestrate(
       await refundQuotaOnce();
       await release();
       console.error(`image generate failed: ${errorTag(e)}`);
+      // Our Meta key out of credit reads like the spend cap: offer BYOK.
+      if (!deps.byok && !isPolicyRejection(e) && upstreamKind(e) === "credits") {
+        return { status: "error", code: "budget", message: MSG_CREDITS_OUT };
+      }
       return { status: "error", code: "unavailable", message: MSG_FAILED };
     }
 

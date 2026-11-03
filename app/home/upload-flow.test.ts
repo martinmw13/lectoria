@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BYOK_HEADER } from "@/core/chat";
 import type { RawSection } from "@/core/clean-types";
 import { UPLOAD_MESSAGES, type UploadErrorCode } from "@/core/uploads";
-import { driveUpload, STEP_RETRIES, UploadFlowError, type FlowProgress } from "./upload-flow";
+import { driveUpload, IDLE_MS, STEP_RETRIES, UploadFlowError, type FlowProgress } from "./upload-flow";
 
 const ID = "u-AAAAAAAAAAAAAAAAAAAAAA";
 const SECTIONS = [
@@ -159,6 +159,31 @@ describe("driveUpload", () => {
     expect(out.id).toBe(ID);
     expect(steps).toBe(3);
     expect(sleeps).toEqual([500, 1000]);
+  });
+
+  it("pauses when a step makes no progress, and not when it does", async () => {
+    const answers = [1, 1, 1, 2];
+    const fetchFn = mockFetch(async (url: string) => {
+      if (url === "/api/uploads") return json({ status: "created", id: ID, chapters: 1, parts: 3 });
+      const done = answers.shift() ?? 3;
+      return json({ status: done === 3 ? "done" : "working", id: ID, done, total: 3 });
+    });
+    const sleeps: number[] = [];
+    await drive(fetchFn, { sleep: async (ms: number) => void sleeps.push(ms) });
+    // Two stalled answers at done=1 each wait; real progress loops at once.
+    expect(sleeps).toEqual([IDLE_MS, IDLE_MS]);
+  });
+
+  it("retries an uncoded 503 the server sends for a passing failure", async () => {
+    let steps = 0;
+    const fetchFn = mockFetch(async (url: string) => {
+      if (url === "/api/uploads") return json({ status: "created", id: ID, chapters: 1, parts: 1 });
+      steps += 1;
+      return steps === 1 ? json({ status: "retry" }, 503) : json({ status: "done", id: ID, done: 1, total: 1 });
+    });
+    const { out } = await drive(fetchFn);
+    expect(out.id).toBe(ID);
+    expect(steps).toBe(2);
   });
 
   it("gives up after three step retries with a network error", async () => {
