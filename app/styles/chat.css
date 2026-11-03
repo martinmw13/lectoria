@@ -581,3 +581,54 @@ html[data-skin="comic"] .chat-note .ob-input {
     transform: none;
   }
 }
+
+/* Closed launcher: the skin's own "Ask the book" artwork. */
+.ask-art {
+  display: block;
+  line-height: 0;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.14));
+}
+.ask-art svg {
+  display: block;
+  overflow: visible;
+}
+.ask-art .a-lift {
+  transition: transform 0.28s cubic-bezier(0.3, 1.4, 0.5, 1);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.chat-launch:hover .a-lift {
+  transform: translateY(-2px) scale(1.03);
+}
+html[data-skin="comic"] .chat-launch:hover .a-lift {
+  transform: rotate(-4deg) scale(1.05);
+}
+html[data-skin="chihiro"] .ask-art .a-glow {
+  opacity: 0.75;
+  transition: opacity 0.3s;
+}
+html[data-skin="chihiro"] .chat-launch:hover .a-glow {
+  opacity: 1;
+  animation: ask-flicker 1.6s ease-in-out infinite;
+}
+@keyframes ask-flicker {
+  50% {
+    opacity: 0.8;
+  }
+}
+.chat-launch:active .a-lift {
+  transform: scale(0.96);
+}
+.chat-launch:has(.ask-art) {
+  padding: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ask-art .a-lift,
+  .ask-art .a-glow {
+    transition: none;
+    animation: none !important;
+  }
+  .chat-launch:hover .a-lift {
+    transform: none;
+  }
+}

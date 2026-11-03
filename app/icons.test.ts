@@ -16,6 +16,8 @@ import { DEFAULT_SKIN, SKINS } from "./skin";
 // underline, read arrows), shown per skin through page CSS.
 // app/chat/chat-bubble.tsx holds the chat launcher bubble, restyled per
 // skin by CSS classes on its paths, like picture-button.tsx.
+// app/chat/ask-art-print.tsx and ask-art-hand.tsx hold the per-skin
+// "Ask the book" launcher artwork, like spread.tsx.
 // app/folio/classic-music-fx.tsx holds the classic-skin music motion
 // overlay, rendered beside ButtonFx instead of an icon.
 const ALLOWLIST = new Set([
@@ -28,6 +30,8 @@ const ALLOWLIST = new Set([
   "app/home/home-defs.tsx",
   "app/home/spread.tsx",
   "app/chat/chat-bubble.tsx",
+  "app/chat/ask-art-print.tsx",
+  "app/chat/ask-art-hand.tsx",
 ]);
 
 function walk(dir: string, out: string[] = []): string[] {

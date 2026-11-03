@@ -8,6 +8,7 @@ import { CHAT_COPY, CHAT_LABEL } from "./copy";
 import { SUGGESTED_QUESTIONS } from "./suggestions";
 import { useChat } from "./use-chat";
 import { ChatBubble } from "./chat-bubble";
+import { AskArt } from "./ask-art";
 
 // Launcher + panel shell. Mounted once inside the reader folio; the key it
 // holds lives in state only, so reload and panel close clear it. For an
@@ -95,8 +96,17 @@ export function ReaderChat({
         aria-label={open ? CHAT_COPY.closeChat : undefined}
         onClick={() => (open ? close() : setOpen(true))}
       >
-        <span className="chat-launch-label">{open ? CHAT_COPY.close : CHAT_LABEL}</span>
-        <ChatBubble open={open} />
+        {open ? (
+          <>
+            <span className="chat-launch-label">{CHAT_COPY.close}</span>
+            <ChatBubble open />
+          </>
+        ) : (
+          <>
+            <span className="chat-launch-label sr-only">{CHAT_LABEL}</span>
+            <AskArt />
+          </>
+        )}
       </button>
     </div>
   );
