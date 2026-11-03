@@ -14,3 +14,20 @@ export function coverFor(
 ): string | null {
   return manifest[skin]?.[bookId] ?? null;
 }
+
+// The shelf grid shows covers small, so it reads the ~320 px copies
+// that `npm run shrink:covers` writes beside each full-size cover
+// (<skin>/sm/<file>). The plate's hero cover keeps the full-size file.
+export function shelfCoverFor(
+  bookId: string,
+  skin: SkinId,
+  manifest: Manifest = COVER_MANIFEST,
+): string | null {
+  const url = coverFor(bookId, skin, manifest);
+  return url ? smallCoverPath(url) : null;
+}
+
+export function smallCoverPath(url: string): string {
+  const cut = url.lastIndexOf("/");
+  return `${url.slice(0, cut)}/sm${url.slice(cut)}`;
+}

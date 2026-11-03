@@ -32,6 +32,8 @@ const nextConfig: NextConfig = {
         headers: [
           { key: 'Content-Security-Policy', value: csp },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // Older browsers ignore CSP frame-ancestors; same rule, legacy header.
+          { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],
@@ -58,6 +60,14 @@ const nextConfig: NextConfig = {
         // Placeholder art replaced at the same paths (see SOURCES.md),
         // so no immutable: a short cache with background refresh.
         source: '/art/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=3600, stale-while-revalidate=86400' },
+        ],
+      },
+      {
+        // Shelf covers can be repainted at the same paths by
+        // pregen:covers, so the same short cache as /art.
+        source: '/covers/:path*',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=3600, stale-while-revalidate=86400' },
         ],

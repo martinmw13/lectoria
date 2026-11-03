@@ -14,6 +14,7 @@
     "clean:epub": "tsx pipeline/clean-epub.ts",
     "narrate": "tsx pipeline/narrate-cli.ts",
     "pregen:covers": "tsx --conditions=react-server scripts/pregen-covers.ts",
+    "shrink:covers": "tsx scripts/shrink-covers.ts",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
