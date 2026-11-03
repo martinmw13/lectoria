@@ -86,9 +86,11 @@
   }
 }
 
-/* Bottom bar: same order and grouping as before (read aloud, transport,
-   music volume, music styles, rain with its own volume), every gap 1.5x
-   so the wider band breathes evenly. */
+/* Bottom bar: read aloud (button, voice, volume), then the music block
+   set a little to the right of it, music volume tight beside the track,
+   then the music styles spaced apart, and rain further right again. A
+   book without narration keeps the same disabled read-aloud controls, so
+   every book gets this one layout. */
 @media (min-width: 1024px) {
   html:is([data-skin], :not([data-skin])) .band-play {
     gap: 15px;
@@ -98,13 +100,30 @@
   }
   html:is([data-skin], :not([data-skin])) .band-play .player {
     gap: 15px;
+    margin-left: 40px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player .player-track {
+    flex: 0 1 320px;
+    max-width: 320px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player .player-track + .skip {
+    margin-left: -6px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player .player-volume {
+    margin-left: -9px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player .player-volume + * {
+    margin-left: 28px;
   }
   html:is([data-skin], :not([data-skin])) .band-play .stickers {
-    gap: 15px;
+    gap: 34px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .stickers + .sticker-wrap {
+    margin-left: 34px;
   }
   html:is([data-skin], :not([data-skin])) .band-play .player .rain-group {
     gap: 15px;
-    margin-left: 21px;
+    margin-left: 72px;
   }
 }
 
