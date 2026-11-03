@@ -123,6 +123,7 @@ html[data-skin="chihiro"] .ob-input { border: 0; border-bottom: 2px solid rgba(1
 .ob-mine-row .ob-action { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ob-mine-row .ob-mini-meta { margin: 0; flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ob-mine-row .ob-quiet { margin-left: auto; flex: none; }
+.ob-mine-row .ob-continue { color: var(--color-accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 
 /* Keybox stays compact so the open page never scrolls; focus thickens the underline in Meta blue. */
 .ob-keybox .ob-keyrow { margin-top: 0; }

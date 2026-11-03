@@ -8,6 +8,7 @@ import { Icon } from "../icons";
 import { StyleMenu } from "../style-menu";
 import { clampSplitWidth, SPLIT_MIN_PX } from "./helpers";
 import { WarmthControl } from "./warmth-control";
+import { ReadingControl } from "./reading-control";
 
 export { THEME_KEY } from "../theme";
 export const SPLIT_KEY = "lectoria.split";
@@ -60,6 +61,7 @@ export function TopLine({
           </select>
         </span>
       </div>
+      <ReadingControl />
       <WarmthControl />
       <button
         type="button"

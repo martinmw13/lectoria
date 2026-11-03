@@ -1,0 +1,315 @@
+/* Selection menu, dictionary card, notes. Tokens only, so all six skins
+   and both themes restyle it; Meta blue stays the single accent. */
+
+::highlight(lectoria-mark) {
+  background-color: color-mix(in srgb, var(--color-accent-fill) 20%, transparent);
+}
+
+::highlight(lectoria-note) {
+  background-color: color-mix(in srgb, var(--color-accent-fill) 14%, transparent);
+  text-decoration: underline 2px var(--color-accent-fill);
+  text-underline-offset: 3px;
+}
+
+.sel-menu,
+.note-editor {
+  position: absolute;
+  z-index: 60;
+  transform: translate(-50%, calc(-100% - 4px));
+  font-family: var(--font-ui);
+  color: var(--color-text);
+}
+
+.sel-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  animation: sel-in var(--motion-duration) ease-out;
+}
+
+@keyframes sel-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.sel-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: min(440px, 94vw);
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  box-shadow: 0 4px 16px rgb(28 43 51 / 0.14);
+}
+
+.sel-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--motion-duration) ease;
+}
+
+.sel-btn:hover {
+  background: var(--color-surface-soft);
+  color: var(--color-accent-hover);
+}
+
+.sel-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.sel-picture {
+  color: var(--color-accent);
+}
+
+.sel-picture svg {
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.sel-primary {
+  background: var(--color-accent-fill);
+  color: var(--color-on-accent);
+}
+
+.sel-primary:hover {
+  background: var(--color-accent-hover);
+  color: var(--color-on-accent);
+}
+
+.define-card,
+.note-editor,
+.marks-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgb(28 43 51 / 0.16);
+}
+
+.define-card {
+  width: min(340px, 86vw);
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.define-card p,
+.define-card ol {
+  margin: 0;
+}
+
+.define-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px !important;
+}
+
+.define-head strong {
+  font-family: var(--font-book);
+  font-size: 17px;
+}
+
+.define-phon,
+.define-ex,
+.define-note,
+.define-src {
+  color: var(--color-text-muted);
+}
+
+.define-pos {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-accent);
+  font-size: 12px;
+}
+
+.define-card ol {
+  padding-left: 18px;
+}
+
+.define-src {
+  margin-top: 8px !important;
+  font-size: 11px;
+}
+
+.note-editor {
+  width: min(360px, 90vw);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.note-quote {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--color-accent-fill);
+  font-family: var(--font-book);
+  font-size: 14px;
+  color: var(--color-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.note-editor textarea {
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px;
+  resize: vertical;
+}
+
+.note-editor textarea:focus-visible {
+  outline: 2px solid var(--color-accent);
+}
+
+.note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+/* Notes list: mirrors the chat launcher on the left edge (same inset,
+   label font and ink), so it reads as a margin label, not a stray link. */
+.marks-list {
+  --marks-label-font: var(--font-ui);
+  position: fixed;
+  left: max(40px, calc((100vw - 1200px) / 2 + 40px));
+  bottom: calc(96px + 16px);
+  z-index: 65;
+  font-family: var(--font-ui);
+}
+
+html[data-skin="engraving"] .marks-list {
+  --marks-label-font: var(--font-eng-label);
+}
+
+.marks-launch {
+  all: unset;
+  cursor: pointer;
+  font: 500 14px/1 var(--marks-label-font);
+  white-space: nowrap;
+  color: var(--color-text);
+  padding: 6px 4px 3px;
+  background: linear-gradient(var(--color-accent), var(--color-accent)) 0 100% / 0 1.5px no-repeat;
+}
+
+html[data-skin="comic"] .marks-launch {
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 12.5px;
+}
+
+.marks-launch:hover {
+  color: var(--color-accent);
+  background-size: 100% 1.5px;
+}
+
+.marks-launch:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.marks-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: min(340px, 86vw);
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 12px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 14px 40px rgba(20, 25, 40, 0.16);
+}
+
+.marks-panel h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.marks-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.marks-panel li {
+  padding-left: 10px;
+  border-left: 3px solid color-mix(in srgb, var(--color-accent-fill) 35%, transparent);
+}
+
+.marks-panel li.has-note {
+  border-left-color: var(--color-accent-fill);
+}
+
+.marks-quote {
+  all: unset;
+  cursor: pointer;
+  font-family: var(--font-book);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.marks-quote:hover {
+  color: var(--color-accent-hover);
+}
+
+.marks-quote:focus-visible {
+  outline: 2px solid var(--color-accent);
+}
+
+.marks-note {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.marks-remove {
+  min-height: 26px;
+  padding: 0 8px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 1023px) {
+  .marks-list {
+    left: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sel-menu {
+    animation: none;
+  }
+}
