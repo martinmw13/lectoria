@@ -1,0 +1,76 @@
+/* Wide reader with soft ribbons ("cintas suave"), desktop only.
+   The folio grows to 1640px and the margin column to 280px. The skin
+   painting runs under the whole page; one fixed veil fades it to paper
+   behind the text column and leaves it faint in the side ribbons. Only
+   that background layer is translucent: text and controls stay opaque. */
+@media (min-width: 1024px) {
+  html:is([data-skin], :not([data-skin])) .folio {
+    --folio-max: 1640px;
+    --measure-reading: 66ch;
+    --off: calc((100vw - min(100vw, var(--folio-max))) / 2);
+    --ribbon-l: calc(var(--off) + 40px + var(--pane-w) + 6px);
+    --ribbon-r: calc(var(--off) + 30px + 280px);
+    max-width: var(--folio-max);
+    grid-template-columns: var(--pane-w) 12px minmax(0, 1fr) 280px;
+    position: relative;
+    background: none;
+  }
+
+  html:is([data-skin], :not([data-skin])) .folio .body-text {
+    font-size: calc(21px * var(--read-scale, 1));
+  }
+
+  html:not([data-theme="dark"]) .folio::before,
+  html[data-skin="chihiro"]:not([data-theme="dark"]) .folio::before {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  html:not([data-theme="dark"]) .folio::after {
+    --s: var(--color-surface);
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    backdrop-filter: blur(2px) saturate(0.95);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--s) 50%, transparent) 0, transparent 64px),
+      linear-gradient(0deg, color-mix(in srgb, var(--s) 45%, transparent) 0, transparent 84px),
+      linear-gradient(90deg,
+        color-mix(in srgb, var(--s) 6%, transparent) 0,
+        color-mix(in srgb, var(--s) 30%, transparent) calc(var(--ribbon-l) - 160px),
+        color-mix(in srgb, var(--s) 78%, transparent) calc(var(--ribbon-l) - 56px),
+        var(--s) var(--ribbon-l),
+        var(--s) calc(100vw - var(--ribbon-r)),
+        color-mix(in srgb, var(--s) 78%, transparent) calc(100vw - var(--ribbon-r) + 56px),
+        color-mix(in srgb, var(--s) 30%, transparent) calc(100vw - var(--ribbon-r) + 160px),
+        color-mix(in srgb, var(--s) 6%, transparent) 100%);
+  }
+
+  /* The chrome sits on the painting now: no bands of its own, and a thin
+     paper halo keeps small type legible where a ribbon is busy. */
+  html:not([data-theme="dark"]) :is(.top-line, .band-play, .band-pager) {
+    background: none;
+    box-shadow: none;
+  }
+  html:not([data-theme="dark"]) :is(.top-line, .band-play, .vault) :is(*) {
+    text-shadow: 0 0 2px var(--color-surface), 0 0 4px var(--color-surface);
+  }
+  html:is([data-skin], :not([data-skin])) .folio .vault {
+    border-left: 0;
+    background: none;
+  }
+  html:not([data-theme="dark"]) .img-pane .frame {
+    background: color-mix(in srgb, var(--color-surface) 12%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--color-text) 30%, transparent);
+  }
+  html:not([data-theme="dark"]) .img-pane .paper-grain {
+    background-color: transparent;
+    opacity: 0.5;
+  }
+
+  .reader-chat {
+    right: max(40px, calc((100vw - 1640px) / 2 + 40px));
+  }
+}

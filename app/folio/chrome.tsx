@@ -80,7 +80,7 @@ export function TopLine({
 
 function defaultSplit(): number {
   if (typeof window === "undefined") return 320;
-  return clampSplitWidth(Math.round(Math.min(1200, window.innerWidth - 80) * 0.3), window.innerWidth);
+  return clampSplitWidth(Math.round(Math.min(1640, window.innerWidth - 80) * 0.27), window.innerWidth);
 }
 
 export function Divider() {
