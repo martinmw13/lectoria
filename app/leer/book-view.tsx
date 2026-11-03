@@ -63,6 +63,7 @@ export function BookView({
   const marks = useMarks(model.bookId, readColRef);
   const [noteFor, setNoteFor] = useState<NoteTarget | null>(null);
   const order = useMemo(() => model.chapters.flatMap((c) => c.scenes.map((s) => s.id)), [model]);
+  const chapterStarts = useMemo(() => model.chapters.map((c) => order.indexOf(c.scenes[0]?.id ?? "")), [model, order]);
   const sceneOf = useMemo(() => {
     const map = new Map<string, { ch: number; k: number; n: number; chapterTitle: string }>();
     for (const chapter of model.chapters) {
@@ -337,6 +338,7 @@ export function BookView({
         onNext={() => gotoScene(bookIndex < order.length - 1 ? order[bookIndex + 1] : undefined)}
         atStart={bookIndex <= 0}
         atBookEnd={bookIndex >= order.length - 1}
+        chapterStarts={chapterStarts}
       />
       <MarksList marks={marks.marks} onGo={gotoMark} onRemove={marks.remove} />
       {noteFor ? <NoteEditor key={noteFor.draft.quote} target={noteFor} marks={marks} onClose={() => setNoteFor(null)} /> : null}

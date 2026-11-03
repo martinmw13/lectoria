@@ -635,23 +635,38 @@ h2.chapter-title:focus-visible {
 }
 
 .ticks {
-  display: flex;
-  gap: 1px;
-  align-items: flex-end;
+  position: relative;
   height: 12px;
   width: 100%;
+  overflow: hidden;
 }
 
 .ticks i {
-  flex: 1;
-  min-width: 1px;
+  position: absolute;
+  left: 0;
+  bottom: 3px;
   height: 4px;
+  border-radius: 3px;
   background: var(--color-border);
 }
 
+.ticks i.tk-track {
+  right: 0;
+}
+
 .ticks i.on {
+  bottom: 2px;
+  height: 6px;
+  max-width: 100%;
   background: var(--color-accent);
-  height: 7px;
+}
+
+.ticks .tk-ch {
+  position: absolute;
+  bottom: 1px;
+  width: 1px;
+  height: 10px;
+  background: color-mix(in srgb, var(--color-text) 35%, transparent);
 }
 
 .tick-label {

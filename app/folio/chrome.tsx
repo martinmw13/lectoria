@@ -174,6 +174,7 @@ export function BandPager({
   onNext,
   atStart,
   atBookEnd,
+  chapterStarts = [],
 }: {
   k: number;
   n: number;
@@ -183,7 +184,10 @@ export function BandPager({
   onNext: () => void;
   atStart: boolean;
   atBookEnd: boolean;
+  /** Book index of each chapter's first scene; drawn as marks on the bar. */
+  chapterStarts?: number[];
 }) {
+  const pct = (i: number) => `${(i / Math.max(1, bookTotal)) * 100}%`;
   return (
     <div className="band-pager">
       <div className="pager-row">
@@ -198,9 +202,15 @@ export function BandPager({
         </button>
       </div>
       <div className="ticks" aria-hidden="true">
-        {Array.from({ length: bookTotal }, (_, i) => (
-          <i key={i} className={i <= bookIndex ? "on" : ""} />
-        ))}
+        {/* One track and one fill, not one tick per scene: a 1000-scene
+            book would otherwise overflow the bar. */}
+        <i className="tk-track" />
+        <i className="on tk-fill" style={{ width: pct(bookIndex + 1) }} />
+        {chapterStarts
+          .filter((i) => i > 0)
+          .map((i) => (
+            <b key={i} className="tk-ch" style={{ left: pct(i) }} />
+          ))}
       </div>
       <span className="tick-label">
         Scene {bookIndex + 1} of {bookTotal}
