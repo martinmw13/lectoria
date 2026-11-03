@@ -11,6 +11,31 @@
   text-underline-offset: 3px;
 }
 
+/* Each skin marks a highlight with its own medium. */
+html[data-skin="engraving"] ::highlight(lectoria-mark) {
+  background-color: rgba(150, 108, 48, 0.2);
+  text-decoration: underline 1px rgba(42, 36, 28, 0.7);
+}
+html[data-skin="watercolor"] ::highlight(lectoria-mark) {
+  background-color: rgba(127, 176, 245, 0.38);
+  text-decoration: underline wavy 1.5px rgba(8, 102, 255, 0.55);
+}
+html[data-skin="ink"] ::highlight(lectoria-mark) {
+  background-color: rgba(8, 102, 255, 0.12);
+  text-decoration: underline 2.5px #1b1f2a;
+}
+html[data-skin="pencil"] ::highlight(lectoria-mark) {
+  background-color: rgba(70, 72, 76, 0.14);
+  text-decoration: underline 1.5px rgba(43, 43, 43, 0.65);
+}
+html[data-skin="comic"] ::highlight(lectoria-mark) {
+  background-color: rgba(255, 228, 92, 0.75);
+}
+html[data-skin="chihiro"] ::highlight(lectoria-mark) {
+  background-color: rgba(255, 170, 70, 0.3);
+  text-decoration: underline 1.5px rgba(200, 64, 30, 0.6);
+}
+
 .sel-menu,
 .note-editor {
   position: absolute;

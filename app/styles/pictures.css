@@ -734,3 +734,14 @@ html[data-theme="dark"] .expand-img {
   border: 4px solid #14161c;
   pointer-events: none;
 }
+
+/* Wide reader: the two picture buttons read a size up. */
+@media (min-width: 1024px) {
+  .img-pane .pic-btn-art {
+    width: 52px;
+    height: 52px;
+  }
+  .img-pane .pic-btn-lbl {
+    font-size: 1.18em;
+  }
+}
