@@ -51,9 +51,9 @@ const nextConfig: NextConfig = {
         headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
       {
-        // Committed v1 loops with no in-place writer; a re-encode
+        // Committed v2 loops (v1 retired) with no in-place writer; a re-encode
         // gets a new version folder, same as music.
-        source: '/ambience/v1/:path*',
+        source: '/ambience/v2/:path*',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
       {
