@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Books without narration keep Read aloud in place: greyed out,
-// aria-disabled, with a "Coming soon" note that a click also opens.
+// aria-disabled, with its voice picker and volume disabled beside it,
+// and a "not available" note that a click also opens.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, test } from "vitest";
@@ -33,11 +34,24 @@ test("stays visible as a disabled Read aloud button", () => {
   expect(btn.hasAttribute("disabled")).toBe(false);
 });
 
-test("describes itself with a Coming soon tooltip", () => {
+test("keeps the voice picker and narration volume, disabled", () => {
+  const host = render();
+  const select = host.querySelector("select")!;
+  const range = host.querySelector('input[type="range"]') as HTMLInputElement;
+  expect(select.disabled).toBe(true);
+  expect(select.getAttribute("aria-label")).toBe("Narration voice");
+  expect(range.disabled).toBe(true);
+  expect(range.getAttribute("aria-label")).toBe("Narration volume");
+  const tipId = host.querySelector('[role="tooltip"]')!.id;
+  expect(select.getAttribute("aria-describedby")).toBe(tipId);
+  expect(range.getAttribute("aria-describedby")).toBe(tipId);
+});
+
+test("explains that read aloud is not available", () => {
   const host = render();
   const btn = host.querySelector("button")!;
   const tip = host.querySelector('[role="tooltip"]')!;
-  expect(tip.textContent).toBe("Coming soon");
+  expect(tip.textContent).toBe("Read aloud not available for this book");
   expect(btn.getAttribute("aria-describedby")).toBe(tip.id);
 });
 
