@@ -289,7 +289,6 @@ html[data-theme="dark"] :is(.narr-sen, .narr-on)[data-treatment="watercolor"] {
 /* html:is() outranks the per-skin label colours, which load later. */
 html:is([data-skin], :not([data-skin])) .read-aloud-soon .read-aloud-label {
   color: var(--color-text-muted);
-  opacity: 0.8;
 }
 
 /* No skin hover flourish on a control that does nothing yet. */

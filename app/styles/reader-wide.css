@@ -36,7 +36,7 @@
     backdrop-filter: blur(2px) saturate(0.95);
     background:
       linear-gradient(180deg, color-mix(in srgb, var(--s) 50%, transparent) 0, transparent 64px),
-      linear-gradient(0deg, color-mix(in srgb, var(--s) 45%, transparent) 0, transparent 84px),
+      linear-gradient(0deg, color-mix(in srgb, var(--s) 72%, transparent) 0, transparent 96px),
       linear-gradient(90deg,
         color-mix(in srgb, var(--s) 6%, transparent) 0,
         color-mix(in srgb, var(--s) 30%, transparent) calc(var(--ribbon-l) - 160px),
@@ -54,8 +54,19 @@
     background: none;
     box-shadow: none;
   }
+  /* Controls draw above every background layer: their own stacking
+     context over the veil, and no glyph halo (a blurred text-shadow made
+     labels like Read aloud look soft). The halo stays on plain text only. */
+  html:is([data-skin], :not([data-skin])) :is(.top-line, .band-play) {
+    position: relative;
+    z-index: 1;
+    isolation: isolate;
+  }
   html:not([data-theme="dark"]) :is(.top-line, .band-play, .vault) :is(*) {
-    text-shadow: 0 0 2px var(--color-surface), 0 0 4px var(--color-surface);
+    text-shadow: none;
+  }
+  html:not([data-theme="dark"]) :is(.top-line, .vault) :is(p, h1, h2, h3, small):not(:is(button, a, label) *) {
+    text-shadow: 0 0 3px var(--color-surface);
   }
   html:is([data-skin], :not([data-skin])) .folio .vault {
     border-left: 0;
