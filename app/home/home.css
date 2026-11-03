@@ -191,3 +191,8 @@ html[data-skin="chihiro"] .lb-item[aria-pressed="true"] img { outline: 2.5px sol
     transition: none !important;
   }
 }
+
+/* No one-word last lines on the home copy (e.g. "scene." alone). */
+.ob-intro {
+  text-wrap: balance;
+}
