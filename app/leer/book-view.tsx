@@ -12,7 +12,7 @@ import { useSkin } from "../use-skin";
 import { BandPager, Divider } from "../folio/chrome";
 import { figuresAfter, groupFiguresByEndN } from "../folio/figure-placement";
 import { ImagePane } from "../folio/image-pane";
-import { InlineFigureView, SelectionPopover } from "../folio/inline-figures";
+import { InlineFigureView } from "../folio/inline-figures";
 import { Lightbox } from "../folio/lightbox";
 import { usePictures } from "../folio/use-pictures";
 import type { InlineFigure } from "../folio/use-pictures";
@@ -23,6 +23,10 @@ import { PanelsModal } from "../folio/panels-modal";
 import { GOTO_SCENE_EVENT, setCurrentSceneId } from "./current-scene";
 import { attachFollowPause, noteUserScroll, pickCurrentScene, scrollToSceneId } from "./scroll-helpers";
 import { ReadAlong } from "../narration/read-along";
+import { MarksList } from "./marks-list";
+import type { Mark } from "./marks";
+import { NoteEditor, SelectionMenu, type NoteTarget } from "./selection-menu";
+import { useMarks } from "./use-marks";
 
 function pulse(el: HTMLElement | null) {
   if (!el) return;
@@ -56,6 +60,8 @@ export function BookView({
   const readColRef = useRef<HTMLElement | null>(null);
   const figEls = useRef(new Map<string, HTMLElement>());
   const pic = usePictures({ bookId: model.bookId, textVersion: model.textVersion, sceneId: currentId, pref });
+  const marks = useMarks(model.bookId, readColRef);
+  const [noteFor, setNoteFor] = useState<NoteTarget | null>(null);
   const order = useMemo(() => model.chapters.flatMap((c) => c.scenes.map((s) => s.id)), [model]);
   const sceneOf = useMemo(() => {
     const map = new Map<string, { ch: number; k: number; n: number; chapterTitle: string }>();
@@ -174,6 +180,14 @@ export function BookView({
     pulse(el);
   }
 
+  function gotoMark(mark: Mark) {
+    const col = readColRef.current;
+    const p = col?.querySelector<HTMLElement>(`p[data-n="${mark.startN}"]`) ?? null;
+    if (col) noteUserScroll(col);
+    p?.scrollIntoView({ block: "center" });
+    pulse(p);
+  }
+
   function gotoScenePicture() {
     const img = document.querySelector(".img-pane .pane-img");
     pulse(img instanceof HTMLElement ? img : null);
@@ -249,7 +263,7 @@ export function BookView({
                 >
                   <div
                     className={si === 0 ? "body-text dropcap" : "body-text"}
-                    ref={visualsOn && s.id === currentId ? pic.viewRef : undefined}
+                    ref={s.id === currentId ? pic.viewRef : undefined}
                   >
                     {s.paragraphs.map((p, i, arr) => (
                       <Fragment key={p.id}>
@@ -271,8 +285,16 @@ export function BookView({
                         ))}
                       </Fragment>
                     ))}
-                    {visualsOn && s.id === currentId && pic.popover !== null ? (
-                      <SelectionPopover pos={pic.popover} popRef={pic.popRef} onPick={() => pic.illustratePassage()} />
+                    {s.id === currentId && pic.popover !== null ? (
+                      <SelectionMenu
+                        pos={pic.popover}
+                        popRef={pic.popRef}
+                        marks={marks}
+                        showPicture={visualsOn}
+                        onPicture={() => pic.illustratePassage()}
+                        onNote={setNoteFor}
+                        onClose={pic.hidePopover}
+                      />
                     ) : null}
                   </div>
                 </section>
@@ -316,6 +338,8 @@ export function BookView({
         atStart={bookIndex <= 0}
         atBookEnd={bookIndex >= order.length - 1}
       />
+      <MarksList marks={marks.marks} onGo={gotoMark} onRemove={marks.remove} />
+      {noteFor ? <NoteEditor key={noteFor.draft.quote} target={noteFor} marks={marks} onClose={() => setNoteFor(null)} /> : null}
       <Lightbox item={pic.lightbox.item} onClose={pic.lightbox.close} />
       {visualsOn && panelsCh !== null ? (
         <PanelsModal

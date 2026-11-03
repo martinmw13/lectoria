@@ -7,6 +7,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { ByokStep } from "../home/byok";
 import { setReaderKey } from "../leer/reader-key";
+import { sendQuoteToChat } from "./chat-bridge";
 import { ReaderChat } from "./reader-chat";
 import { SUGGESTED_QUESTIONS } from "./suggestions";
 
@@ -396,6 +397,30 @@ describe("reader key", () => {
     expect(spy).toHaveBeenCalledTimes(1);
     expect(headersOf(spy)["x-byok-key"]).toBe("reader-secret-key");
     expect(container.querySelector(".chat-foot")?.textContent).toContain("Using your key");
+  });
+});
+
+describe("selection quotes", () => {
+  test("Explain opens the chat and sends the passage on the same chat route", async () => {
+    const spy = mockFetch(() => sse(ANSWER));
+    act(() => sendQuoteToChat("explain", "The cyclone  spun\nover the prairie."));
+    await flush();
+    expect(container.querySelector(".chat-panel")).not.toBeNull();
+    expect(spy.mock.calls[0]?.[0]).toBe("/api/chat");
+    expect(bodyOf(spy).messages).toEqual([
+      { role: "user", content: "Explain this passage in plain words: “The cyclone spun over the prairie.”" },
+    ]);
+  });
+
+  test("Ask opens the chat with the quote in the composer and sends nothing", async () => {
+    const spy = mockFetch(() => sse(ANSWER));
+    act(() => sendQuoteToChat("ask", "x".repeat(900)));
+    await flush();
+    expect(spy).not.toHaveBeenCalled();
+    const value = textarea().value;
+    expect(value.startsWith("About “x")).toBe(true);
+    expect(value.length).toBeLessThanOrEqual(500);
+    expect(document.activeElement).toBe(textarea());
   });
 });
 

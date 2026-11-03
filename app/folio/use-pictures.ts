@@ -126,7 +126,7 @@ export function usePictures({
     viewNodeRef.current = node;
     setViewEl(node);
   }, []);
-  const popRef = useRef<HTMLButtonElement | null>(null);
+  const popRef = useRef<HTMLElement | null>(null);
   // The selected range, kept so the portalled popover can follow it when
   // any scroll container (window or the reading column) moves the text.
   const rangeRef = useRef<Range | null>(null);
