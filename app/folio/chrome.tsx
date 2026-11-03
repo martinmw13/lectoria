@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { pressButton } from "../button-fx";
 import { Icon } from "../icons";
 import { StyleMenu } from "../style-menu";
+import { StylePicker } from "../home/style-picker";
 import { clampSplitWidth, SPLIT_MIN_PX } from "./helpers";
 import { WarmthControl } from "./warmth-control";
 import { ReadingControl } from "./reading-control";
@@ -74,6 +75,7 @@ export function TopLine({
         {theme === "dark" ? <Icon name="sun" /> : <Icon name="moon" />}
       </button>
       <StyleMenu />
+      <StylePicker />
     </header>
   );
 }

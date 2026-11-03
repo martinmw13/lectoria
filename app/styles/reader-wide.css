@@ -96,3 +96,56 @@
     margin-left: 21px;
   }
 }
+
+/* Header: a larger wordmark and, where it fits, the home's six-swatch
+   "Pick your style" row instead of the dropdown. */
+@media (min-width: 1024px) {
+  html:is([data-skin], :not([data-skin])) .top-line .wm-brand {
+    font-size: 36px;
+    line-height: 1;
+  }
+}
+.top-line .sp {
+  display: none;
+  --text: var(--color-text);
+  --muted: color-mix(in srgb, var(--color-text) 62%, transparent);
+  --paper: var(--color-surface);
+  --note: var(--font-book);
+  --note-style: italic;
+}
+@media (min-width: 1280px) {
+  .top-line .style-menu {
+    display: none;
+  }
+  .top-line .sp {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 0 6px;
+  }
+  .top-line .sp-t {
+    margin: 0;
+    white-space: nowrap;
+  }
+  .top-line .sp-row {
+    gap: 4px;
+  }
+  .top-line .sp-item {
+    width: 68px;
+    gap: 4px;
+  }
+  .top-line .sp-sw {
+    width: 52px;
+    height: 30px;
+  }
+  .top-line .sp-name {
+    font-size: 10.5px;
+  }
+  .top-line .sp-item:focus-visible {
+    outline: none;
+  }
+  .top-line .sp-item:focus-visible .sp-sw {
+    outline: 2px dashed #0866ff;
+    outline-offset: 5px;
+  }
+}
