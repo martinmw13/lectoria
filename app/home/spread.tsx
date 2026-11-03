@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { hasPanels } from "@/core/book-capabilities";
 import { useSkin } from "../use-skin";
 import { shelf, shelfById } from "./shelf";
@@ -13,7 +14,7 @@ import { UploadSection } from "./upload";
 import { YourBooks } from "./your-books";
 import { HomeIcon } from "./home-icons";
 import { continueHref, loadAllProgress, type BookProgress } from "../reading-progress";
-import { markOpening } from "../leer/book-opening";
+import { playOpening } from "../leer/book-opening";
 
 // The open-book spread: shelf and drop zone on the left page, the
 // chosen book's plate on the right. Oz is selected on load. readHrefs
@@ -32,11 +33,17 @@ export function HomeSpread({ readHrefs = {} }: { readHrefs?: Readonly<Record<str
     setProgress(loadAllProgress());
   }, []);
   const resume = continueHref(book.id, progress);
+  const router = useRouter();
 
   function open(e: MouseEvent<HTMLAnchorElement>) {
     // Plain clicks only: a new tab or window opens without the flourish.
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    markOpening(book.id, plateRef.current?.querySelector<HTMLImageElement>("img.ob-art") ?? null);
+    // The cover grows over the shelf first; the reader opens once it fills
+    // the screen. Reduced motion (or no cover) navigates straight away.
+    const href = e.currentTarget.getAttribute("href") ?? readHref(book.id);
+    router.prefetch(href);
+    const cover = plateRef.current?.querySelector<HTMLImageElement>("img.ob-art") ?? null;
+    if (playOpening(book.id, cover, () => router.push(href))) e.preventDefault();
   }
 
   function choose(id: string) {

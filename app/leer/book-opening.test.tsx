@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BookOpening, markOpening, OPENING_KEY, takeOpening } from "./book-opening";
+import { BookOpening, markOpening, OPENING_KEY, playOpening, SHELF_LAYER_ID, takeOpening } from "./book-opening";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -83,9 +83,32 @@ describe("book opening", () => {
     expect(sessionStorage.getItem(OPENING_KEY)).toBeNull();
   });
 
-  it("animates the cover from the shelf position and then clears", async () => {
+  it("grows the cover over the shelf before navigating", () => {
     motion(false);
-    markOpening("oz", loadedCover());
+    const anim: { onfinish: (() => void) | null; oncancel: (() => void) | null } = { onfinish: null, oncancel: null };
+    const animate = vi.fn(() => anim);
+    Object.defineProperty(HTMLElement.prototype, "animate", { value: animate, configurable: true });
+    const go = vi.fn();
+    expect(playOpening("oz", loadedCover(), go)).toBe(true);
+    // The reader is not opened while the cover is still growing.
+    expect(document.getElementById(SHELF_LAYER_ID)).not.toBeNull();
+    expect(go).not.toHaveBeenCalled();
+    anim.onfinish?.();
+    expect(go).toHaveBeenCalledOnce();
+    expect(sessionStorage.getItem(OPENING_KEY)).not.toBeNull();
+    delete (HTMLElement.prototype as { animate?: unknown }).animate;
+  });
+
+  it("goes straight to the reader under reduced motion", () => {
+    motion(true);
+    const go = vi.fn();
+    expect(playOpening("oz", loadedCover(), go)).toBe(false);
+    expect(go).not.toHaveBeenCalled();
+    expect(document.getElementById(SHELF_LAYER_ID)).toBeNull();
+  });
+
+  it("takes over the shelf's full-screen cover and fades it out", async () => {
+    motion(false);
     const anim: {
       onfinish: (() => void) | null;
       oncancel: (() => void) | null;
@@ -95,11 +118,14 @@ describe("book opening", () => {
       value: animate,
       configurable: true,
     });
+    playOpening("oz", loadedCover(), () => {});
+    anim.onfinish?.();
     const host = document.createElement("div");
     document.body.append(host);
     await act(async () => createRoot(host).render(<BookOpening bookId="oz" />));
+    expect(document.getElementById(SHELF_LAYER_ID)).toBeNull();
     expect(host.querySelector(".book-opening img")?.getAttribute("src")).toBe("/covers/oz.webp");
-    expect(animate).toHaveBeenCalledOnce();
+    expect(animate).toHaveBeenLastCalledWith([{ opacity: 1 }, { opacity: 0 }], expect.anything());
     await act(async () => anim.onfinish?.());
     expect(host.querySelector(".book-opening")).toBeNull();
     delete (HTMLElement.prototype as { animate?: unknown }).animate;

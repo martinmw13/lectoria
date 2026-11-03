@@ -2,12 +2,18 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 
-// Opening from the shelf: the shelf stores where its cover sits, and the
-// reader grows that same (already loaded) image to fill the screen, then
-// fades it into the text. Once per click; reduced motion skips it.
+
+// Opening from the shelf, in two halves. On the home, playOpening grows
+// the (already loaded) cover from its place to fill the screen and only
+// then lets the shelf navigate. The reader then finds that full-screen
+// cover still up and fades it into the text. Once per click; reduced
+// motion skips it and goes straight to the reader.
 export const OPENING_KEY = "lectoria.opening";
 const FRESH_MS = 5000;
-const DURATION_MS = 1100;
+const GROW_MS = 650;
+const FADE_MS = 450;
+// The home's layer lives outside React so it survives the route change.
+export const SHELF_LAYER_ID = "book-opening-shelf";
 
 export interface Opening {
   bookId: string;
@@ -82,45 +88,89 @@ export function takeOpening(bookId: string, now = Date.now()): Opening | null {
   }
 }
 
+function layer(src: string, id?: string): HTMLDivElement {
+  const div = document.createElement("div");
+  div.className = "book-opening";
+  div.setAttribute("aria-hidden", "true");
+  if (id) div.id = id;
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = "";
+  img.decoding = "sync";
+  div.append(img);
+  return div;
+}
+
+// Home half: grows the cover over the shelf, then calls go(). Returns false
+// (and does nothing) when there is no flourish, so the caller navigates as
+// usual. The layer stays up until the reader takes over, or a guard clears it.
+export function playOpening(bookId: string, img: HTMLImageElement | null, go: () => void): boolean {
+  markOpening(bookId, img);
+  const o = takeOpening(bookId);
+  if (!o) return false;
+  // Re-mark so the reader knows to fade the cover in.
+  try {
+    window.sessionStorage.setItem(OPENING_KEY, JSON.stringify(o));
+  } catch {
+    return false;
+  }
+  document.getElementById(SHELF_LAYER_ID)?.remove();
+  const div = layer(o.src, SHELF_LAYER_ID);
+  const cover = div.firstElementChild as HTMLImageElement;
+  Object.assign(cover.style, { left: `${o.x}px`, top: `${o.y}px`, width: `${o.w}px`, height: `${o.h}px` });
+  document.body.append(div);
+  window.setTimeout(() => div.remove(), GROW_MS + 5000);
+  let went = false;
+  const done = () => {
+    if (went) return;
+    went = true;
+    Object.assign(cover.style, { left: "0px", top: "0px", width: "100vw", height: "100dvh", borderRadius: "0px" });
+    go();
+  };
+  if (typeof cover.animate !== "function") {
+    done();
+    return true;
+  }
+  const anim = cover.animate(
+    [
+      { left: `${o.x}px`, top: `${o.y}px`, width: `${o.w}px`, height: `${o.h}px`, borderRadius: "6px" },
+      { left: "0px", top: "0px", width: "100vw", height: "100dvh", borderRadius: "0px" },
+    ],
+    { duration: GROW_MS, easing: "cubic-bezier(.5,0,.2,1)", fill: "forwards" },
+  );
+  anim.onfinish = done;
+  anim.oncancel = done;
+  window.setTimeout(done, GROW_MS + 300);
+  return true;
+}
+
+// Reader half: the cover is already full screen; take over from the home's
+// layer before first paint and fade it out to reveal the text.
 export function BookOpening({ bookId }: { bookId: string }) {
   const [opening, setOpening] = useState<Opening | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  // Layout effects run before the reader's first paint, so the cover is
-  // already on screen when the text appears under it.
   useLayoutEffect(() => {
     const o = takeOpening(bookId);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot read of the shelf's mark before first paint
     if (o && !reducedMotion()) setOpening(o);
+    else document.getElementById(SHELF_LAYER_ID)?.remove();
   }, [bookId]);
 
   useLayoutEffect(() => {
     const img = imgRef.current;
     if (!opening || !img) return;
+    document.getElementById(SHELF_LAYER_ID)?.remove();
     const done = () => setOpening(null);
     if (typeof img.animate !== "function") return done();
-    const from = {
-      left: `${opening.x}px`,
-      top: `${opening.y}px`,
-      width: `${opening.w}px`,
-      height: `${opening.h}px`,
-    };
-    const full = { left: "0px", top: "0px", width: "100vw", height: "100dvh" };
-    const anim = img.animate(
-      [
-        { ...from, opacity: 1, borderRadius: "6px", offset: 0 },
-        { ...full, opacity: 1, borderRadius: "0px", offset: 0.5 },
-        { ...full, opacity: 0, borderRadius: "0px", offset: 1 },
-      ],
-      {
-        duration: DURATION_MS,
-        easing: "cubic-bezier(.5,0,.2,1)",
-        fill: "forwards",
-      },
-    );
+    const anim = img.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: FADE_MS,
+      easing: "ease-out",
+      fill: "forwards",
+    });
     anim.onfinish = done;
     anim.oncancel = done;
-    const guard = window.setTimeout(done, DURATION_MS + 400);
+    const guard = window.setTimeout(done, FADE_MS + 400);
     return () => window.clearTimeout(guard);
   }, [opening]);
 
@@ -128,18 +178,7 @@ export function BookOpening({ bookId }: { bookId: string }) {
   return (
     <div className="book-opening" aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element -- the shelf's cached cover, reused as is */}
-      <img
-        ref={imgRef}
-        src={opening.src}
-        alt=""
-        decoding="sync"
-        style={{
-          left: opening.x,
-          top: opening.y,
-          width: opening.w,
-          height: opening.h,
-        }}
-      />
+      <img ref={imgRef} src={opening.src} alt="" decoding="sync" className="book-opening-full" />
     </div>
   );
 }
