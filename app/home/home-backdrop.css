@@ -74,15 +74,17 @@ html[data-skin="ink"] .ob-desk { --page-alpha: 88%; }
     mask-image: linear-gradient(to right, #000 calc(50% - var(--hole) - 28px), transparent calc(50% - var(--hole)), transparent calc(50% + var(--hole)), #000 calc(50% + var(--hole) + 28px));
   }
 
-  /* Chihiro keeps its dusk sky over the top line, now the same painting
-     as the gutters, fading into cream before the text starts. */
+  /* Chihiro keeps its dusk sky over the top line and the player band,
+     the same painting as the gutters, fading into cream symmetrically. */
   html[data-skin="chihiro"]:not([data-theme="dark"]) .folio::before {
     -webkit-mask-image:
       linear-gradient(to right, #000 calc(50% - var(--hole) - 28px), transparent calc(50% - var(--hole)), transparent calc(50% + var(--hole)), #000 calc(50% + var(--hole) + 28px)),
-      linear-gradient(to bottom, #000 215px, transparent 320px);
+      linear-gradient(to bottom, #000 215px, transparent 320px),
+      linear-gradient(to top, #000 215px, transparent 320px);
     mask-image:
       linear-gradient(to right, #000 calc(50% - var(--hole) - 28px), transparent calc(50% - var(--hole)), transparent calc(50% + var(--hole)), #000 calc(50% + var(--hole) + 28px)),
-      linear-gradient(to bottom, #000 215px, transparent 320px);
+      linear-gradient(to bottom, #000 215px, transparent 320px),
+      linear-gradient(to top, #000 215px, transparent 320px);
   }
 
   html[data-skin="chihiro"]:not([data-theme="dark"]) body:has(.folio) {
