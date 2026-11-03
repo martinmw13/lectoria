@@ -72,30 +72,39 @@ describe("book opening", () => {
     expect(takeOpening("oz")).toBeNull();
   });
 
-  it("shows the cover layer, then removes it when animation is unavailable", async () => {
+  it("drops the shelf layer when animation is unavailable", async () => {
     motion(false);
-    markOpening("oz", loadedCover());
+    playOpening("oz", loadedCover(), () => {});
     const host = document.createElement("div");
     document.body.append(host);
     await act(async () => createRoot(host).render(<BookOpening bookId="oz" />));
     // jsdom has no Element.animate, so the layer clears itself at once.
-    expect(host.querySelector(".book-opening")).toBeNull();
+    expect(document.getElementById(SHELF_LAYER_ID)).toBeNull();
     expect(sessionStorage.getItem(OPENING_KEY)).toBeNull();
   });
 
-  it("grows the cover over the shelf before navigating", () => {
-    motion(false);
-    const anim: { onfinish: (() => void) | null; oncancel: (() => void) | null } = { onfinish: null, oncancel: null };
-    const animate = vi.fn(() => anim);
+  function fakeAnimate() {
+    const anims: { onfinish: (() => void) | null; oncancel: (() => void) | null }[] = [];
+    const animate = vi.fn(() => {
+      const a = { onfinish: null, oncancel: null };
+      anims.push(a);
+      return a;
+    });
     Object.defineProperty(HTMLElement.prototype, "animate", { value: animate, configurable: true });
+    return { animate, anims };
+  }
+
+  it("navigates at once while the cover grows and fades over the shelf", () => {
+    motion(false);
+    const { animate } = fakeAnimate();
     const go = vi.fn();
     expect(playOpening("oz", loadedCover(), go)).toBe(true);
-    // The reader is not opened while the cover is still growing.
-    expect(document.getElementById(SHELF_LAYER_ID)).not.toBeNull();
-    expect(go).not.toHaveBeenCalled();
-    anim.onfinish?.();
     expect(go).toHaveBeenCalledOnce();
-    expect(sessionStorage.getItem(OPENING_KEY)).not.toBeNull();
+    const layerEl = document.getElementById(SHELF_LAYER_ID);
+    expect(layerEl?.querySelector(".book-opening-backdrop")).not.toBeNull();
+    const frames = (animate.mock.calls[0] as unknown as [Keyframe[]])[0];
+    expect(frames[0]).toMatchObject({ left: "10px", top: "20px", opacity: 1 });
+    expect(frames.at(-1)).toMatchObject({ width: "100vw", opacity: 0 });
     delete (HTMLElement.prototype as { animate?: unknown }).animate;
   });
 
@@ -107,27 +116,18 @@ describe("book opening", () => {
     expect(document.getElementById(SHELF_LAYER_ID)).toBeNull();
   });
 
-  it("takes over the shelf's full-screen cover and fades it out", async () => {
+  it("the reader fades the backdrop out to cross fade, then clears the layer", async () => {
     motion(false);
-    const anim: {
-      onfinish: (() => void) | null;
-      oncancel: (() => void) | null;
-    } = { onfinish: null, oncancel: null };
-    const animate = vi.fn(() => anim);
-    Object.defineProperty(HTMLElement.prototype, "animate", {
-      value: animate,
-      configurable: true,
-    });
+    const { animate, anims } = fakeAnimate();
     playOpening("oz", loadedCover(), () => {});
-    anim.onfinish?.();
     const host = document.createElement("div");
     document.body.append(host);
     await act(async () => createRoot(host).render(<BookOpening bookId="oz" />));
+    // Still up during the cross fade, so the reader never flashes in.
+    expect(document.getElementById(SHELF_LAYER_ID)).not.toBeNull();
+    expect(animate).toHaveBeenLastCalledWith([expect.anything(), { opacity: 0 }], expect.anything());
+    await act(async () => anims.at(-1)?.onfinish?.());
     expect(document.getElementById(SHELF_LAYER_ID)).toBeNull();
-    expect(host.querySelector(".book-opening img")?.getAttribute("src")).toBe("/covers/oz.webp");
-    expect(animate).toHaveBeenLastCalledWith([{ opacity: 1 }, { opacity: 0 }], expect.anything());
-    await act(async () => anim.onfinish?.());
-    expect(host.querySelector(".book-opening")).toBeNull();
     delete (HTMLElement.prototype as { animate?: unknown }).animate;
   });
 });

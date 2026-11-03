@@ -13,11 +13,10 @@
   box-shadow: 0 18px 48px rgb(0 0 0 / 0.25);
 }
 
-.book-opening img.book-opening-full {
+.book-opening-backdrop {
+  position: absolute;
   inset: 0;
-  width: 100vw;
-  height: 100dvh;
-  box-shadow: none;
+  opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

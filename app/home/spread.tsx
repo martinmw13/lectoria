@@ -38,8 +38,8 @@ export function HomeSpread({ readHrefs = {} }: { readHrefs?: Readonly<Record<str
   function open(e: MouseEvent<HTMLAnchorElement>) {
     // Plain clicks only: a new tab or window opens without the flourish.
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    // The cover grows over the shelf first; the reader opens once it fills
-    // the screen. Reduced motion (or no cover) navigates straight away.
+    // The cover grows and fades over the shelf while the reader loads and
+    // fades in under it. Reduced motion (or no cover) navigates straight away.
     const href = e.currentTarget.getAttribute("href") ?? readHref(book.id);
     router.prefetch(href);
     const cover = plateRef.current?.querySelector<HTMLImageElement>("img.ob-art") ?? null;
