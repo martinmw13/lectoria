@@ -22,7 +22,6 @@ import { ReaderChat } from "./chat/reader-chat";
 import { THEME_KEY, TopLine } from "./folio/chrome";
 import { initialTheme } from "./theme";
 import { DevPanel } from "./folio/dev-panel";
-import { BookOpening } from "./leer/book-opening";
 import { saveProgress } from "./reading-progress";
 
 export interface SlimScene {
@@ -414,7 +413,6 @@ export function Reader({
   return (
     <NarrationProvider entries={narration} scenes={scenes}>
       <div className="folio">
-        <BookOpening bookId={bookId} />
         <a href="#story" className="skip-link">
           Skip to the story
         </a>
