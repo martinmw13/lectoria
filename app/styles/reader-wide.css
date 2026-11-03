@@ -105,6 +105,13 @@
   html:is([data-skin], :not([data-skin])) .band-play .player .player-track {
     flex: 0 1 320px;
     max-width: 320px;
+    /* The slot keeps one width on every book; a short title sits at its
+       right end so the music volume hugs it. A long one scrolls from
+       the left as before. */
+    text-align: right;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player .player-track[data-overflow="1"] {
+    text-align: left;
   }
   html:is([data-skin], :not([data-skin])) .band-play .player .player-track + .skip {
     margin-left: -6px;
