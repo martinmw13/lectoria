@@ -22,6 +22,8 @@ import { ReaderChat } from "./chat/reader-chat";
 import { THEME_KEY, TopLine } from "./folio/chrome";
 import { initialTheme } from "./theme";
 import { DevPanel } from "./folio/dev-panel";
+import { BookOpening } from "./leer/book-opening";
+import { saveProgress } from "./reading-progress";
 
 export interface SlimScene {
   id: string;
@@ -387,6 +389,17 @@ export function Reader({
   const canSkip = view?.canSkip ?? false;
 
   const bookIndex = routeSceneId ? scenes.findIndex((s) => s.id === routeSceneId) : -1;
+
+  // Remember the scene in view per book. A landing on the first scene is
+  // not saved, so opening the book from its start never erases a place.
+  const landedRef = useRef(true);
+  useEffect(() => {
+    if (!routeSceneId || bookIndex < 0) return;
+    const landing = landedRef.current;
+    landedRef.current = false;
+    if (landing && bookIndex === 0) return;
+    saveProgress(bookId, { sceneId: routeSceneId, index: bookIndex, total: scenes.length, at: Date.now() });
+  }, [bookId, routeSceneId, bookIndex, scenes.length]);
   const current = routeSceneId ? byId.get(routeSceneId) ?? null : null;
   // Reader chat position: the scene in view, or the first scene on load.
   const chatScene = (routeSceneId ? scenes.find((s) => s.id === routeSceneId) : null) ?? scenes[0];
@@ -401,6 +414,7 @@ export function Reader({
   return (
     <NarrationProvider entries={narration} scenes={scenes}>
       <div className="folio">
+        <BookOpening bookId={bookId} />
         <a href="#story" className="skip-link">
           Skip to the story
         </a>

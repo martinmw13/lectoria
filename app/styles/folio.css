@@ -303,8 +303,8 @@ h2.chapter-title:focus-visible {
 .body-text {
   max-width: var(--measure-reading);
   font-family: var(--font-book);
-  font-size: 20.5px;
-  line-height: 1.7;
+  font-size: calc(20.5px * var(--read-scale, 1));
+  line-height: calc(1.7 * var(--read-leading, 1));
   /* Keeps the text painting above the read-aloud marks. */
   position: relative;
 }

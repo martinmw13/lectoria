@@ -1,0 +1,141 @@
+/* Reading comfort: the skins set the base size and leading on
+ * .body-text with calc(... * var(--read-scale|--read-leading)); this file
+ * loads after the skins so the justify choice wins over theirs. */
+html[data-justify="on"] .body-text > p {
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+html[data-justify="off"] .body-text > p {
+  text-align: left;
+  hyphens: manual;
+  -webkit-hyphens: manual;
+}
+
+.reading-ctl {
+  position: relative;
+  flex: none;
+}
+
+.reading-btn span {
+  font-family: var(--font-book, Georgia), serif;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.reading-btn small {
+  font-size: 12px;
+}
+
+.reading-btn[aria-expanded="true"] {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.reading-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 70;
+  width: 236px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.14);
+  font-family: var(--font-ui, var(--font-instrument)), system-ui, sans-serif;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+  word-spacing: normal;
+}
+
+.reading-label {
+  margin: 0 0 6px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.reading-seg {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.reading-seg button {
+  flex: 1;
+  min-height: 32px;
+  padding: 0 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.reading-seg [role="radio"][style] {
+  font-family: var(--font-book, Georgia), serif;
+}
+
+.reading-seg button:hover {
+  border-color: var(--color-accent);
+}
+
+.reading-seg button[aria-checked="true"] {
+  border-color: var(--color-accent-fill);
+  background: var(--color-accent-fill);
+  color: var(--color-on-accent);
+}
+
+.reading-seg button:focus-visible,
+.reading-toggle input:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.reading-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.reading-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent-fill);
+}
+
+/* The Aa button sits mid-header on narrow screens: centre the panel on
+ * it so neither edge leaves the screen. */
+@media (max-width: 1023px) {
+  .reading-pop {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+/* Phones: the Aa button joins the header, so it tightens a bit more to
+ * keep every control on one line down to 360px. */
+@media (max-width: 479px) {
+  .top-line {
+    gap: 6px;
+  }
+
+  html:is([data-skin], :not([data-skin])) .top-line .wordmark {
+    font-size: 15px;
+  }
+
+  .top-line .warmth input {
+    width: 28px;
+  }
+
+  .top-line .theme-btn {
+    width: 32px;
+    height: 32px;
+  }
+}

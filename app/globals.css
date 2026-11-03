@@ -22,6 +22,8 @@
 @import "./styles/motion-comic.css";
 @import "./styles/motion-icons.css";
 @import "./styles/warmth.css";
+@import "./styles/reading.css";
+@import "./styles/opening.css";
 
 * {
   box-sizing: border-box;

@@ -68,8 +68,8 @@ html[data-skin="engraving"] .wordmark em {
 }
 
 html[data-skin="engraving"] .body-text {
-  font-size: 20.5px;
-  line-height: 1.62;
+  font-size: calc(20.5px * var(--read-scale, 1));
+  line-height: calc(1.62 * var(--read-leading, 1));
 }
 
 html[data-skin="engraving"] .body-text > p {
