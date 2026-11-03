@@ -59,7 +59,7 @@ export function AskLantern() {
       <rect x="31" y="68" width="18" height="6" rx="1.5" fill="#2b1a10" stroke="#c9a227" strokeWidth="1"/>
       <path d="M40 74v6M37 80h6" stroke="#c9a227" strokeWidth="1.4"/><path d="M38 80l-1 4M40 80v4M42 80l1 4" stroke="#d8432a" strokeWidth="1.2"/>
       <path d="M74 52h150" stroke="url(#ask-hT)" strokeWidth="1"/>
-      <text x="148" y="45" textAnchor="middle" fontFamily="Cormorant Garamond, Georgia, serif" fontStyle="italic" fontWeight="600" fontSize="24" fill="#7a2414" stroke="#fff3df" strokeWidth="4" paintOrder="stroke">Ask the book</text>
+      <text x="148" y="45" textAnchor="middle" fontFamily="Cormorant Garamond, Georgia, serif" fontStyle="italic" fontWeight="600" fontSize="26" fill="#7a2414" stroke="#fff3df" strokeWidth="4" paintOrder="stroke">Ask the book</text>
       <circle cx="214" cy="26" r="1.6" fill="#ffd27a"/><circle cx="226" cy="36" r="1" fill="#ffd27a"/><circle cx="84" cy="22" r="1.2" fill="#ffd27a"/>
       </g>
     </svg>
