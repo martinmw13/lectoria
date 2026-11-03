@@ -74,3 +74,25 @@
     right: max(40px, calc((100vw - 1640px) / 2 + 40px));
   }
 }
+
+/* Bottom bar: same order and grouping as before (read aloud, transport,
+   music volume, music styles, rain with its own volume), every gap 1.5x
+   so the wider band breathes evenly. */
+@media (min-width: 1024px) {
+  html:is([data-skin], :not([data-skin])) .band-play {
+    gap: 15px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .read-aloud {
+    gap: 12px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player {
+    gap: 15px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .stickers {
+    gap: 15px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player .rain-group {
+    gap: 15px;
+    margin-left: 21px;
+  }
+}
