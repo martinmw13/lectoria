@@ -2,7 +2,8 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { shelfReadyIds } from "@/core/library";
-import { isKnownBookId, isReadyBookId, loadBook, loadBookData, readyBookIds } from "./books";
+import { buildReaderModel } from "@/core/reader";
+import { firstSceneHrefs, isKnownBookId, isReadyBookId, loadBook, loadBookData, readyBookIds } from "./books";
 import { loadUploadedBook } from "./uploads/loader";
 
 vi.mock("./uploads/loader", () => ({ loadUploadedBook: vi.fn() }));
@@ -87,6 +88,19 @@ async function rejectedDigest(promise: Promise<unknown>): Promise<string> {
   }
   throw new Error("expected notFound() to reject");
 }
+
+describe("first scene hrefs", () => {
+  it("links every ready book to the scene its redirect would pick", async () => {
+    const hrefs = await firstSceneHrefs();
+    expect(Object.keys(hrefs).sort()).toEqual([...readyBookIds()].sort());
+    for (const id of readyBookIds()) {
+      const { book, scenes } = await loadBook(id);
+      const first = buildReaderModel(book, { scenes }).chapters[0]?.scenes[0];
+      expect(hrefs[id]).toBe(`/read/${id}/${first?.id}`);
+    }
+    expect(mockedLoader).not.toHaveBeenCalled();
+  });
+});
 
 describe("upload ids", () => {
   beforeEach(() => {

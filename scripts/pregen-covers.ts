@@ -5,6 +5,7 @@
 // no Blob or Redis involved, so reruns resume by skipping files on disk.
 //
 // Run: npm run pregen:covers -- --book all-shelf --style all --dry-run
+// Then: npm run shrink:covers (the shelf reads the small copies).
 import sharp from "sharp";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { imageCostMicro } from "../core/images";

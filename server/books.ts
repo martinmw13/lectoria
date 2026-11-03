@@ -1,6 +1,7 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { shelfReadyIds } from "@/core/library";
+import { buildReaderModel } from "@/core/reader";
 import type { AnalyzedScene, Book } from "@/core/types";
 import { isUploadId } from "@/core/uploads";
 import { loadUploadedBook } from "./uploads/loader";
@@ -112,4 +113,17 @@ export function loadBook(bookId: string): Promise<BookPayload> {
   }
   if (!isReadyBookId(bookId)) notFound();
   return readPayload(bookId);
+}
+
+// Reader href per ready shelf book, straight to its first scene, so the
+// home links skip the /read/<id> redirect. Uploads are not listed: their
+// first scene is only known at runtime, so they keep the redirect.
+export async function firstSceneHrefs(): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const bookId of readyBookIds()) {
+    const { book, scenes } = await readPayload(bookId);
+    const first = buildReaderModel(book, { scenes }).chapters[0]?.scenes[0];
+    if (first) out[bookId] = `/read/${bookId}/${first.id}`;
+  }
+  return out;
 }

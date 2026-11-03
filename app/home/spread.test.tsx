@@ -73,6 +73,24 @@ describe("shelf links", () => {
       expect(container.querySelector("a.ob-read")?.getAttribute("href")).toBe(`/read/${book.id}`);
     }
   });
+
+  test("a known first scene skips the /read/<id> redirect", () => {
+    act(() => {
+      root?.render(<HomeSpread readHrefs={{ oz: "/read/oz/c1s1" }} />);
+    });
+    click(shelfButton("oz"));
+    expect(container.querySelector("a.ob-read")?.getAttribute("href")).toBe("/read/oz/c1s1");
+    const other = shelf.find((book) => book.id !== "oz")!;
+    click(shelfButton(other.id));
+    expect(container.querySelector("a.ob-read")?.getAttribute("href")).toBe(`/read/${other.id}`);
+  });
+
+  test("the shelf shows small covers and the plate keeps the full one", () => {
+    const shelfImg = shelfButton("alice")?.querySelector("img");
+    expect(shelfImg?.getAttribute("src")).toMatch(/^\/covers\/v1\/[a-z]+\/sm\/alice\.webp$/);
+    const plate = container.querySelector("img.ob-art");
+    expect(plate?.getAttribute("src")).toMatch(/^\/covers\/v1\/[a-z]+\/oz\.webp$/);
+  });
 });
 
 describe("your books", () => {

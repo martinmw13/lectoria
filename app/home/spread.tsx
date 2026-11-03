@@ -5,7 +5,7 @@ import Link from "next/link";
 import { hasPanels } from "@/core/book-capabilities";
 import { useSkin } from "../use-skin";
 import { shelf, shelfById } from "./shelf";
-import { coverFor } from "./covers";
+import { coverFor, shelfCoverFor } from "./covers";
 import { CoverImage } from "./cover";
 import { StyleMenu } from "../style-menu";
 import { StylePicker } from "./style-picker";
@@ -14,8 +14,11 @@ import { YourBooks } from "./your-books";
 import { HomeIcon } from "./home-icons";
 
 // The open-book spread: shelf and drop zone on the left page, the
-// chosen book's plate on the right. Oz is selected on load.
-export function HomeSpread() {
+// chosen book's plate on the right. Oz is selected on load. readHrefs
+// maps a book to its first scene; a missing entry falls back to the
+// /read/<id> redirect.
+export function HomeSpread({ readHrefs = {} }: { readHrefs?: Readonly<Record<string, string>> }) {
+  const readHref = (id: string) => readHrefs[id] ?? `/read/${id}`;
   const skin = useSkin();
   const [current, setCurrent] = useState("oz");
   const plateRef = useRef<HTMLElement | null>(null);
@@ -86,7 +89,7 @@ export function HomeSpread() {
                     <HomeIcon name="heart" />
                   </span>
                 )}
-                <CoverImage title={entry.title} url={coverFor(entry.id, skin)} />
+                <CoverImage title={entry.title} url={shelfCoverFor(entry.id, skin)} />
                 <span className="lb-name">{entry.label}</span>
               </button>
             ))}
@@ -144,7 +147,7 @@ export function HomeSpread() {
               </p>
             </div>
             {book.ready ? (
-              <Link className="ob-read" href={`/read/${book.id}`} aria-label={`Start reading ${book.title}`}>
+              <Link className="ob-read" href={readHref(book.id)} aria-label={`Start reading ${book.title}`}>
                 Start reading
                 <svg className="ob-arr ob-arr--e" viewBox="0 0 120 30" aria-hidden="true" focusable="false">
                   <path d="M4 15 H100" fill="none" stroke="currentColor" strokeWidth="1.6" />
@@ -162,7 +165,7 @@ export function HomeSpread() {
             ) : (
               <p className="ob-cta-soon">
                 <span className="ob-soon">Coming soon</span>
-                <Link className="ob-wait" href="/read/oz">
+                <Link className="ob-wait" href={readHref("oz")}>
                   Read Oz while you wait
                 </Link>
               </p>
