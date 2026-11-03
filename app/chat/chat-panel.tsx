@@ -21,6 +21,7 @@ export function ChatPanel({
   onKeySubmit,
   onHumanPass,
   onClose,
+  prefill = null,
 }: {
   chapter: number;
   chapterTitle: string;
@@ -30,6 +31,7 @@ export function ChatPanel({
   onKeySubmit: (key: string) => void;
   onHumanPass: (token: string) => void;
   onClose: () => void;
+  prefill?: { text: string; nonce: number } | null;
 }) {
   const [draft, setDraft] = useState("");
   const [spoilAsked, setSpoilAsked] = useState(false);
@@ -46,6 +48,18 @@ export function ChatPanel({
   useEffect(() => {
     composerRef.current?.focus();
   }, []);
+
+  // A quote from the selection menu lands in the composer, caret at the end.
+  useEffect(() => {
+    if (!prefill) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the quote arrives from outside the panel
+    setDraft(prefill.text);
+    const el = composerRef.current;
+    if (el) {
+      el.focus();
+      requestAnimationFrame(() => el.setSelectionRange(prefill.text.length, prefill.text.length));
+    }
+  }, [prefill]);
 
   useEffect(() => {
     if (status === "error") tryAgainRef.current?.focus();
