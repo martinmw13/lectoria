@@ -41,7 +41,7 @@ export function AskComic() {
   );
 }
 
-export function AskChihiro() {
+export function AskLantern() {
   return (
     <svg viewBox="0 0 236 84" width={236} height={84} aria-hidden="true" focusable="false">
       <defs>

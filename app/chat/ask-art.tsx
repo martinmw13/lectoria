@@ -2,7 +2,7 @@
 
 import type { SkinId } from "../skin";
 import { useSkin } from "../use-skin";
-import { AskChihiro, AskComic, AskPencil } from "./ask-art-hand";
+import { AskLantern, AskComic, AskPencil } from "./ask-art-hand";
 import { AskEngraving, AskInk, AskWatercolor } from "./ask-art-print";
 
 const ART: Record<SkinId, () => React.JSX.Element> = {
@@ -11,7 +11,7 @@ const ART: Record<SkinId, () => React.JSX.Element> = {
   ink: AskInk,
   pencil: AskPencil,
   comic: AskComic,
-  chihiro: AskChihiro,
+  chihiro: AskLantern,
 };
 
 // The closed launcher drawn in the live skin's own medium.
