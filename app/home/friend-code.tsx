@@ -30,7 +30,7 @@ export async function checkFriendCode(code: string, fetchFn: typeof fetch = fetc
 
 // One friend-code field for the idle, parsed, and failed screens. The
 // code lives in the parent's state only: never stored, never logged.
-// Typing one on the BYOK screen flips the route back to the free path.
+// Applying one the server accepts flips the BYOK route back to free.
 // Enter applies the code without submitting anything: there is no form
 // here, and preventDefault keeps it from reaching any file picker.
 export function FriendCode({
@@ -44,7 +44,8 @@ export function FriendCode({
   welcome?: boolean;
   onAccepted?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  // A code typed on an earlier screen keeps the field open here.
+  const [open, setOpen] = useState(code !== "");
   const [checking, setChecking] = useState(false);
   const [failed, setFailed] = useState<"wrong" | "unavailable" | null>(null);
   const empty = code.trim() === "";

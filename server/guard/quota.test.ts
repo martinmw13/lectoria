@@ -8,6 +8,7 @@ import {
   FRIEND_BOOKS_PER_PERSON,
   FRIEND_WRONG_GUESSES_PER_DAY,
   acceptFriendCode,
+  judgeFriendCode,
   bookQuotaKeysFor,
   checkBookQuota,
   friendGuessKeyFor,
@@ -197,7 +198,7 @@ describe("friend codes", () => {
   it("accepts a valid code without spending the guess budget", async () => {
     const kv = createMemoryKV();
     expect(await acceptFriendCode(kv, "maple", CODES, guessKey())).toBe(true);
-    expect(await kv.get(guessKey())).toBeNull();
+    expect(Number(await kv.get(guessKey()))).toBe(0);
   });
 
   it("ignores codes when none are configured", async () => {
@@ -226,7 +227,28 @@ describe("friend codes", () => {
 
   it("treats Redis failure as no code, never an error", async () => {
     const kv = createMemoryKV();
-    const failing: KV = { ...kv, get: async () => { throw new Error("redis down"); } };
+    const failing: KV = { ...kv, incr: async () => { throw new Error("redis down"); } };
     await expect(acceptFriendCode(failing, "maple", CODES, guessKey())).resolves.toBe(false);
+    await expect(judgeFriendCode(failing, "maple", CODES, guessKey())).resolves.toBe("unavailable");
+  });
+
+  it("counts parallel guesses atomically, so a burst cannot pass the limit", async () => {
+    const kv = createMemoryKV();
+    // Every guess reads the same count under the old get-then-incr; now
+    // each takes its own number, and only the first ten are judged.
+    const verdicts = await Promise.all(
+      Array.from({ length: 30 }, (_, i) => judgeFriendCode(kv, i === 29 ? "maple" : `nope-${i}`, CODES, guessKey())),
+    );
+    expect(verdicts.filter((v) => v === "ok")).toEqual([]);
+    expect(Number(await kv.get(guessKey()))).toBe(30);
+  });
+
+  it("does not count a right code toward the limit", async () => {
+    const kv = createMemoryKV();
+    for (let i = 0; i < FRIEND_WRONG_GUESSES_PER_DAY - 1; i++) {
+      await acceptFriendCode(kv, `nope-${i}`, CODES, guessKey());
+    }
+    for (let i = 0; i < 3; i++) expect(await acceptFriendCode(kv, "maple", CODES, guessKey())).toBe(true);
+    expect(Number(await kv.get(guessKey()))).toBe(FRIEND_WRONG_GUESSES_PER_DAY - 1);
   });
 });

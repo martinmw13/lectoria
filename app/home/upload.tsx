@@ -57,8 +57,8 @@ export function UploadSection() {
   const [status, setStatus] = useState<Status>({ step: "idle" });
   const [dragging, setDragging] = useState(false);
   const [freeCount, setFreeCount] = useState(0);
-  // Friend code lives in state only: never stored, never logged. When
-  // one is entered the server decides the quota, not the local hint.
+  // Friend code lives in state only: never stored, never logged. Once the
+  // server accepts it, it decides the quota, not the local hint.
   const [friendCode, setFriendCode] = useState("");
   const [friendWelcome, setFriendWelcome] = useState(false);
   // Typing after a result clears it: the welcome note follows the code.
@@ -109,7 +109,6 @@ export function UploadSection() {
   }, [book]);
 
   async function openFile(file: File) {
-    setFriendWelcome(false);
     setStatus({ step: "reading" });
     try {
       const { book: parsedBook, sections } = await readEpubFileWithSections(file);
@@ -197,11 +196,10 @@ export function UploadSection() {
     );
   }
 
-  // With a code entered, the server decides; a wrong code still lands
-  // on the BYOK step via too_long or daily_books_reached.
+  // Only a code the server accepted lifts the limits; typing is not enough.
   const route =
     status.step === "parsed"
-      ? uploadRoute(status.parsed.book.words, freeCount, friendCode.trim() !== "")
+      ? uploadRoute(status.parsed.book.words, freeCount, friendWelcome)
       : null;
 
   if (status.step === "working" || status.step === "finishing") {

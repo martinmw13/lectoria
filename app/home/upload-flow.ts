@@ -9,6 +9,8 @@ export type FlowCode = UploadErrorCode | "network";
 
 export const STEP_RETRIES = 3;
 const BACKOFF_MS = [500, 1000, 2000];
+// Pause when a step reports no new part, so a held lock is not hammered.
+export const IDLE_MS = 1500;
 
 export interface FlowProgress {
   jobId: string;
@@ -171,14 +173,18 @@ export async function driveUpload(opts: DriveOpts): Promise<{ id: string; chapte
     opts.onFriendAccepted?.(body.friendAccepted === true);
     opts.onProgress?.({ jobId, done: 0, total: body.parts, chapters });
   }
+  let lastDone = -1;
   for (;;) {
     let attempt = 0;
+    let stalled = false;
     for (;;) {
       try {
         const outcome = await attemptStep(opts, jobId, token, chapters);
         token = null;
         opts.onProgress?.(outcome.progress);
         if (outcome.done) return { id: jobId, chapters };
+        stalled = outcome.progress.done <= lastDone;
+        lastDone = Math.max(lastDone, outcome.progress.done);
         break;
       } catch (err) {
         if (opts.signal?.aborted) throw err;
@@ -189,5 +195,7 @@ export async function driveUpload(opts: DriveOpts): Promise<{ id: string; chapte
         attempt += 1;
       }
     }
+    // Another tab or a held lock is doing the part: wait, do not spin.
+    if (stalled) await sleep(IDLE_MS);
   }
 }

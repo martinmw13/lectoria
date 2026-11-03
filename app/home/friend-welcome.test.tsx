@@ -204,7 +204,7 @@ describe("friend welcome", () => {
     await enterFriendCode();
     click(actionButton("Read with soundtrack"));
     await settle();
-    click(quietButton("Have a friend code?"));
+    // The code is still in state, so the field opens on its own.
     expect(container.querySelector("#obFriend")).not.toBeNull();
     expect(container.querySelector(".ob-friend-ok")?.textContent).toBe(FRIEND_WELCOME);
     expect(leaked()).not.toContain(CODE);

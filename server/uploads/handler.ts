@@ -25,9 +25,9 @@ import { createMetaClient, type MetaClient } from "../../pipeline/meta";
 import { createUploadStore, type UploadStore } from "./blob";
 import { createUpload } from "./create";
 import { readUploadEnv, type UploadEnv } from "./env";
-import { loadUploadJob, UploadFailure } from "./state";
+import { loadUploadJob, UploadFailure, UploadRetry } from "./state";
 import { stepUpload } from "./step";
-import { fetchWithTimeout, JEV_CALL_TIMEOUT_MS, META_CALL_TIMEOUT_MS } from "./work";
+import { fetchWithTimeout, JEV_CALL_TIMEOUT_MS, META_CALL_TIMEOUT_MS, UPLOAD_STEP_DEADLINE_MS } from "./work";
 
 export interface UploadHandlerDeps {
   env?: UploadEnv;
@@ -38,6 +38,8 @@ export interface UploadHandlerDeps {
   meta?: MetaClient | null;
   jev?: JevClient | null;
   now?: Date;
+  // Test hook; production uses UPLOAD_STEP_DEADLINE_MS.
+  stepDeadlineMs?: number;
 }
 
 // Codes only, never internals or keys. Server failures error, the rest warn.
@@ -66,9 +68,9 @@ function parseByokHeader(raw: string | null): string | null | false {
   return trimmed;
 }
 
-function buildMeta(deps: UploadHandlerDeps, fetchFn: typeof fetch, apiKey: string): MetaClient | null {
+function buildMeta(deps: UploadHandlerDeps, fetchFn: typeof fetch, apiKey: string, outer?: AbortSignal): MetaClient | null {
   if (deps.meta !== undefined) return deps.meta;
-  return createMetaClient({ fetchFn: fetchWithTimeout(fetchFn, META_CALL_TIMEOUT_MS), apiKey, model: UPLOAD_MODEL });
+  return createMetaClient({ fetchFn: fetchWithTimeout(fetchFn, META_CALL_TIMEOUT_MS, outer), apiKey, model: UPLOAD_MODEL });
 }
 
 function buildJev(
@@ -76,11 +78,12 @@ function buildJev(
   fetchFn: typeof fetch,
   env: UploadEnv,
   byok: boolean,
+  outer?: AbortSignal,
 ): JevClient | null {
   if (byok) return null;
   if (deps.jev !== undefined) return deps.jev;
   if (!env.jevKey) return null;
-  return createJevClient({ fetchFn: fetchWithTimeout(fetchFn, JEV_CALL_TIMEOUT_MS), apiKey: env.jevKey, model: UPLOAD_JEV_MODEL });
+  return createJevClient({ fetchFn: fetchWithTimeout(fetchFn, JEV_CALL_TIMEOUT_MS, outer), apiKey: env.jevKey, model: UPLOAD_JEV_MODEL });
 }
 
 // Order: same-origin, body cap, strict parse, env, Turnstile, anon cookie,
@@ -213,19 +216,26 @@ export async function handleUploadStep(req: Request, id: string, deps: UploadHan
     return fail("bad_request", cookies);
   }
   const byok = job.path === "byok";
-  const meta = buildMeta(deps, fetchFn, byok ? (byokKey as string) : env.metaKey);
+  const deadline = AbortSignal.timeout(deps.stepDeadlineMs ?? UPLOAD_STEP_DEADLINE_MS);
+  const meta = buildMeta(deps, fetchFn, byok ? (byokKey as string) : env.metaKey, deadline);
   if (!meta) return fail("unavailable", cookies);
   try {
     const out = await stepUpload({
       kv,
       store: deps.store ?? createUploadStore(env.uploadsToken),
       meta,
-      jev: buildJev(deps, fetchFn, env, byok),
+      jev: buildJev(deps, fetchFn, env, byok, deadline),
       id,
+      signal: deadline,
       ...(chapter === undefined ? {} : { chapter }),
     });
     return Response.json(out, { status: 200, headers: withCookies(cookies) });
   } catch (e) {
+    // Uncoded on purpose: the client retries a bare 503, the job stays working.
+    if (e instanceof UploadRetry) {
+      console.warn("upload step retry");
+      return Response.json({ status: "retry" }, { status: 503, headers: withCookies(cookies) });
+    }
     if (e instanceof UploadFailure) return fail(e.code, cookies, e.code === "unavailable");
     return fail("unavailable", cookies, true);
   }

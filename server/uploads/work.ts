@@ -13,14 +13,21 @@ import type { UploadUsage } from "./state";
 
 export { usageCostMicro, usageCostUsd } from "./state";
 
-// Per-call ceilings inside the 60 s step budget. The pipeline's own retry
-// policy still applies beneath each timeout; a storm that outlasts the
-// route just fails the step, and the client re-drives it idempotently.
+// Per-call ceilings inside the step budget. The pipeline's own retry
+// policy still applies beneath each timeout; a storm that outlasts it
+// leaves the job working, and the client re-drives the step idempotently.
 export const META_CALL_TIMEOUT_MS = 20_000;
 export const JEV_CALL_TIMEOUT_MS = 12_000;
 
-export function fetchWithTimeout(fetchFn: typeof fetch, ms: number): typeof fetch {
-  return (url, init) => fetchFn(url, { ...init, signal: AbortSignal.timeout(ms) });
+// Step routes run up to 120 s; the step deadline aborts in-flight calls
+// 10 s before that, so a slow part ends as a clean retry, not a kill.
+export const UPLOAD_STEP_DEADLINE_MS = 110_000;
+
+export function fetchWithTimeout(fetchFn: typeof fetch, ms: number, outer?: AbortSignal): typeof fetch {
+  return (url, init) => {
+    const timeout = AbortSignal.timeout(ms);
+    return fetchFn(url, { ...init, signal: outer ? AbortSignal.any([timeout, outer]) : timeout });
+  };
 }
 
 export class WorkError extends Error {
