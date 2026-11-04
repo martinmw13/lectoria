@@ -16,8 +16,6 @@ export const CHAT_COPY = {
   closeChat: "Close chat",
   resize: "Resize chat (drag, or use the arrow keys)",
   spoilers: "Spoilers",
-  spoilersOn: "on",
-  spoilersOff: "off",
   spoilerConfirm: "This can give away the ending. Turn spoilers on?",
   spoilerYes: "Yes",
   spoilerNotNow: "Not now",

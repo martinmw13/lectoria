@@ -299,6 +299,9 @@ describe("spoilers", () => {
     click(launcher());
     const scope = () => container.querySelector(".chat-scope")?.textContent ?? "";
     expect(scope()).toContain("Chapter 3, How Dorothy Saved the Scarecrow");
+    const sw = container.querySelector(".chat-switch") as Element;
+    expect(sw.textContent?.trim()).toBe("Spoilers");
+    expect(sw.getAttribute("aria-checked")).toBe("false");
 
     click(container.querySelector(".chat-switch") as Element);
     expect(container.querySelector(".chat-confirm")?.textContent).toContain(
@@ -310,6 +313,8 @@ describe("spoilers", () => {
       ) as Element,
     );
     expect(scope()).toContain("Spoilers on");
+    expect(sw.textContent?.trim()).toBe("Spoilers");
+    expect(sw.getAttribute("aria-checked")).toBe("true");
 
     typeInto(textarea(), "What happens later?");
     click(container.querySelector(".chat-send") as Element);

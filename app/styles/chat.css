@@ -268,10 +268,6 @@ html[data-skin="comic"] .chat-head h3 {
 .chat-switch.on .chat-switch-track::after {
   left: 15px;
 }
-.chat-switch small {
-  color: var(--color-text-muted);
-  font-weight: 400;
-}
 
 .chat-confirm {
   padding: 10px 18px;
