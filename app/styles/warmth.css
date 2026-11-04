@@ -1,17 +1,19 @@
-/* Page warmth (--warmth, 0..1, set on <html>). A fixed amber layer sits
-   at z-index -1: above the page canvas, below every element, so text,
-   illustrations and music art are never tinted. Loaded after the skins.
+/* Night Light (--warmth, 0..1, set on <html>). One fixed amber layer
+   covers the whole viewport, above every element (header, sidebars,
+   panels, music bar, page turns), so it works the same in every skin:
+   skins paint opaque backgrounds that would hide a layer underneath.
+   pointer-events:none keeps every click, scroll and drag going through.
    No transition: the paper changes only when the reader moves the slider. */
 
 html {
   --warmth: 0;
 }
 
-body::before {
+html::after {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 2147483647;
   pointer-events: none;
   background: #ffa53a;
   mix-blend-mode: multiply;
@@ -19,7 +21,7 @@ body::before {
 }
 
 /* On dark paper multiply would vanish, so a gentle amber lift instead. */
-html[data-theme="dark"] body::before {
+html[data-theme="dark"]::after {
   mix-blend-mode: normal;
   opacity: calc(var(--warmth) * 0.14);
 }
@@ -46,11 +48,6 @@ html[data-skin="pencil"][data-theme="light"] {
 
 html[data-skin="chihiro"][data-theme="light"] {
   --color-text-muted: color-mix(in srgb, var(--color-text-muted-base), #2b1a0a calc(var(--warmth) * 26%));
-}
-
-/* Pencil lays an opaque sheet over the paper; warm the sheet too. */
-html[data-skin="pencil"][data-theme="light"] .read-col {
-  background: color-mix(in srgb, #fdfdfb, #ffa53a calc(var(--warmth) * 48%));
 }
 
 .warmth {
