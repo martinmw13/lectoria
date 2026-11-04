@@ -15,7 +15,7 @@ const HERO: Record<SkinId, HeroArt> = {
   watercolor: {
     orchestra: "/art/skins/watercolor/orchestra.svg",
     piano: "/art/skins/watercolor/piano.svg",
-    chopin: "/art/skins/watercolor/chopin.svg",
+    chopin: "/art/skins/watercolor/chopin.png",
     narrate: "/art/skins/watercolor/narrate.svg",
   },
   ink: {
