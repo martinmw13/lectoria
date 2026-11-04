@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CastEntry } from "@/core/cast";
-import { portraitFor } from "@/core/portraits";
+import { portraitFor, type PortraitSrc } from "@/core/portraits";
 import { Icon } from "../icons";
 
 export const CAST_COPY = {
@@ -16,6 +17,8 @@ export const CAST_COPY = {
   expand: "Open the cast in a larger window",
   closeWindow: "Close cast window",
   scope: "Only the characters you have met so far.",
+  zoom: (name: string) => `Enlarge portrait of ${name}`,
+  closeZoom: "Close portrait",
 } as const;
 
 type State = { sceneId: string; cast: CastEntry[] } | { sceneId: string; failed: true } | null;
@@ -39,14 +42,71 @@ function useCast(bookId: string, sceneId: string, active: boolean) {
   return { cast: current && "cast" in current ? current.cast : null, failed: Boolean(current && "failed" in current) };
 }
 
-function CastCard({ c, roomy, portrait }: { c: CastEntry; roomy?: boolean; portrait?: string | null }) {
+// The thumb is a button; opening it mounts the ~512px image, so the
+// large file loads only when the reader asks for it. Portaled to body
+// so the cast window's frame does not clip it; skin tokens still apply.
+function PortraitZoom({ name, portrait }: { name: string; portrait: PortraitSrc }) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const xRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (open) xRef.current?.focus();
+  }, [open]);
+  const close = () => {
+    setOpen(false);
+    btnRef.current?.focus();
+  };
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        className="cast-portrait-btn"
+        aria-label={CAST_COPY.zoom(name)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen(true)}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- a 256px static teaser, no optimizer needed */}
+        <img className="cast-portrait" src={portrait.src} alt={name} width={256} height={256} loading="lazy" decoding="async" />
+      </button>
+      {open
+        ? createPortal(
+            <div
+              className="portrait-zoom-backdrop"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) close();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.stopPropagation();
+                  close();
+                }
+              }}
+            >
+              <figure className="portrait-zoom" role="dialog" aria-modal="true" aria-label={name}>
+                <button ref={xRef} type="button" className="chat-x portrait-zoom-x" onClick={close} aria-label={CAST_COPY.closeZoom}>
+                  ×
+                </button>
+                {/* eslint-disable-next-line @next/next/no-img-element -- static 512px asset, mounted only when opened */}
+                <img className="portrait-zoom-img" src={portrait.large} alt={name} width={512} height={512} decoding="async" />
+                <figcaption className="portrait-zoom-cap">{name}</figcaption>
+              </figure>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
+function CastCard({ c, roomy, portrait }: { c: CastEntry; roomy?: boolean; portrait?: PortraitSrc | null }) {
   const name = <span className="marks-quote cast-name">{c.name}</span>;
   return (
     <li className={`marks-card has-note cast-card${roomy ? " cast-card-roomy" : ""}`}>
       {portrait ? (
         <span className="cast-name-row">
-          {/* eslint-disable-next-line @next/next/no-img-element -- a 256px static teaser, no optimizer needed */}
-          <img className="cast-portrait" src={portrait} alt={c.name} width={256} height={256} loading="lazy" decoding="async" />
+          <PortraitZoom name={c.name} portrait={portrait} />
           {name}
         </span>
       ) : (
@@ -73,17 +133,7 @@ function CastCard({ c, roomy, portrait }: { c: CastEntry; roomy?: boolean; portr
 // The larger window reuses the Ask the book panel shell (.reader-chat
 // position and fonts, .chat-panel frame, .chat-head, .chat-x), so it
 // follows each skin the same way.
-function CastWindow({
-  bookId,
-  sceneId,
-  chapter,
-  onClose,
-}: {
-  bookId: string;
-  sceneId: string;
-  chapter?: number;
-  onClose: () => void;
-}) {
+function CastWindow({ bookId, sceneId, chapter, onClose }: { bookId: string; sceneId: string; chapter?: number; onClose: () => void }) {
   const { cast, failed } = useCast(bookId, sceneId, true);
   const xRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => xRef.current?.focus(), []);
@@ -139,13 +189,7 @@ export function CastList({ bookId, sceneId, chapter }: { bookId: string; sceneId
   const sub = !open ? CAST_COPY.closed : cast ? CAST_COPY.summary(cast.length) : failed ? CAST_COPY.failed : CAST_COPY.loading;
   return (
     <section className="marks cast" aria-label={CAST_COPY.title}>
-      <button
-        type="button"
-        className="mtool marks-row"
-        aria-expanded={open}
-        aria-controls="cast-panel"
-        onClick={() => setOpen((v) => !v)}
-      >
+      <button type="button" className="mtool marks-row" aria-expanded={open} aria-controls="cast-panel" onClick={() => setOpen((v) => !v)}>
         <span className="mtool-icon">
           <Icon name="heart" width={18} height={18} />
         </span>
