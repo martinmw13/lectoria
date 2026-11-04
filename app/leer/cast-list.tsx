@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CastEntry } from "@/core/cast";
 import { portraitFor, type PortraitSrc } from "@/core/portraits";
+import { useSkin } from "../use-skin";
 import { Icon } from "../icons";
 
 export const CAST_COPY = {
@@ -137,6 +138,7 @@ function CastCard({ c, roomy, portrait }: { c: CastEntry; roomy?: boolean; portr
 // follows each skin the same way.
 function CastWindow({ bookId, sceneId, chapter, onClose }: { bookId: string; sceneId: string; chapter?: number; onClose: () => void }) {
   const { cast, failed } = useCast(bookId, sceneId, true);
+  const skin = useSkin();
   const xRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => xRef.current?.focus(), []);
   return (
@@ -166,7 +168,7 @@ function CastWindow({ bookId, sceneId, chapter, onClose }: { bookId: string; sce
           {cast ? (
             <ul className="cast-grid">
               {cast.map((c) => (
-                <CastCard key={c.id} c={c} roomy portrait={portraitFor(bookId, c.id, chapter)} />
+                <CastCard key={c.id} c={c} roomy portrait={portraitFor(bookId, c.id, chapter, skin)} />
               ))}
             </ul>
           ) : (
@@ -189,6 +191,7 @@ export function CastList({ bookId, sceneId, chapter }: { bookId: string; sceneId
   const [big, setBig] = useState(false);
   const titleRef = useRef<HTMLButtonElement | null>(null);
   const { cast, failed } = useCast(bookId, sceneId, open);
+  const skin = useSkin();
   const sub = !open ? CAST_COPY.closed : cast ? CAST_COPY.summary(cast.length) : failed ? CAST_COPY.failed : CAST_COPY.loading;
   return (
     <section className="marks cast" aria-label={CAST_COPY.title}>
@@ -228,7 +231,7 @@ export function CastList({ bookId, sceneId, chapter }: { bookId: string; sceneId
       {open && cast ? (
         <ul id="cast-panel" className="marks-cards">
           {cast.map((c) => (
-            <CastCard key={c.id} c={c} portrait={portraitFor(bookId, c.id, chapter)} />
+            <CastCard key={c.id} c={c} portrait={portraitFor(bookId, c.id, chapter, skin)} />
           ))}
         </ul>
       ) : null}

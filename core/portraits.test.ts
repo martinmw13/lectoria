@@ -1,7 +1,8 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { PORTRAITS, portraitFor } from "./portraits";
+import { SKINS } from "../app/skin";
+import { PORTRAIT_SKINS, PORTRAITS, portraitFor } from "./portraits";
 
 const root = join(__dirname, "..");
 
@@ -51,5 +52,35 @@ describe("protagonist portraits", () => {
         expect(statSync(big).size, p.large).toBeLessThanOrEqual(60_000);
       }
     }
+  });
+
+  it("keeps the portrait skin list in step with the reader skins", () => {
+    expect([...PORTRAIT_SKINS]).toEqual([...SKINS]);
+  });
+
+  it("picks the restyled Oz portrait for the active skin, with the realistic one as fallback", () => {
+    expect(portraitFor("oz", "toto", 1, "comic")).toEqual({
+      src: "/portraits/skins/comic/oz-toto.webp",
+      large: "/portraits/skins/comic/oz-toto@2x.webp",
+    });
+    expect(portraitFor("oz", "dorothy", 1, "not-a-skin")).toEqual({ src: "/portraits/oz.webp", large: "/portraits/oz@2x.webp" });
+    expect(portraitFor("oz", "dorothy", 1)).toEqual({ src: "/portraits/oz.webp", large: "/portraits/oz@2x.webp" });
+    expect(portraitFor("oz", "dorothy", 2, "ink")).toBeNull();
+  });
+
+  it("ships every declared skin copy, thumb and @2x, under 60KB", () => {
+    for (const list of Object.values(PORTRAITS))
+      for (const p of list)
+        for (const skin of p.skins ?? []) {
+          for (const path of [p.src, p.large]) {
+            const file = join(root, "public", path.replace("/portraits/", `/portraits/skins/${skin}/`));
+            expect(existsSync(file), file).toBe(true);
+            expect(statSync(file).size, file).toBeLessThanOrEqual(60_000);
+          }
+        }
+  });
+
+  it("restyles all four Oz chapter 1 characters in every skin", () => {
+    for (const p of PORTRAITS.oz ?? []) expect([...(p.skins ?? [])], p.characterId).toEqual([...SKINS]);
   });
 });

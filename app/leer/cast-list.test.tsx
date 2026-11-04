@@ -41,7 +41,7 @@ it("shows portraits only for mapped Oz characters in chapter 1, in the list and 
   const imgs = el.querySelectorAll<HTMLImageElement>("#cast-panel img.cast-portrait");
   expect([...imgs].map((i) => i.alt)).toEqual(["Dorothy", "Toto"]);
   expect(imgs[0]!.alt).toBe("Dorothy");
-  expect(imgs[0]!.getAttribute("src")).toBe("/portraits/oz.webp");
+  expect(imgs[0]!.getAttribute("src")).toBe("/portraits/skins/engraving/oz.webp");
   await act(async () => el.querySelector<HTMLButtonElement>(".cast-open")!.click());
   const big = el.querySelectorAll<HTMLImageElement>("#cast-window img.cast-portrait");
   expect(big).toHaveLength(2);
@@ -63,7 +63,7 @@ it("opens the protagonist portrait large on click and closes on Esc, ×, and out
   expect(document.querySelector(".portrait-zoom-img")).toBeNull();
   await act(async () => btn.click());
   const big = document.querySelector<HTMLImageElement>(".portrait-zoom-img")!;
-  expect(big.getAttribute("src")).toBe("/portraits/oz@2x.webp");
+  expect(big.getAttribute("src")).toBe("/portraits/skins/engraving/oz@2x.webp");
   expect(big.alt).toBe("Dorothy");
   expect(btn.getAttribute("aria-expanded")).toBe("true");
   await act(async () =>
@@ -117,4 +117,13 @@ it("opens the window from the title and toggles the list only from the chevron",
   expect(el.querySelector("#cast-window")).toBeNull();
   expect(document.activeElement === title || !el.isConnected).toBe(true);
   act(() => root.unmount());
+});
+
+it("uses the active skin's portrait", async () => {
+  document.documentElement.dataset.skin = "pencil";
+  const { el, root } = await openCast(1);
+  const img = el.querySelector<HTMLImageElement>("#cast-panel img.cast-portrait")!;
+  expect(img.getAttribute("src")).toBe("/portraits/skins/pencil/oz.webp");
+  act(() => root.unmount());
+  delete document.documentElement.dataset.skin;
 });

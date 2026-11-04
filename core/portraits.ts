@@ -9,7 +9,12 @@ export interface Portrait {
   src: string;
   /** ~512px version, loaded only when the reader opens the zoom. */
   large: string;
+  /** Skins with a restyled copy under /portraits/skins/<skin>/; others use src/large. */
+  skins?: readonly string[];
 }
+
+/** The reader skins (app/skin.ts SKINS; a test keeps them in step). */
+export const PORTRAIT_SKINS = ["engraving", "watercolor", "ink", "pencil", "comic", "chihiro"] as const;
 
 export const PORTRAITS: Readonly<Record<string, readonly Portrait[]>> = {
   alice: [
@@ -58,24 +63,28 @@ export const PORTRAITS: Readonly<Record<string, readonly Portrait[]>> = {
       characterName: "Dorothy",
       src: "/portraits/oz.webp",
       large: "/portraits/oz@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
     {
       characterId: "uncle-henry",
       characterName: "Uncle Henry",
       src: "/portraits/oz-uncle-henry.webp",
       large: "/portraits/oz-uncle-henry@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
     {
       characterId: "aunt-em",
       characterName: "Aunt Em",
       src: "/portraits/oz-aunt-em.webp",
       large: "/portraits/oz-aunt-em@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
     {
       characterId: "toto",
       characterName: "Toto",
       src: "/portraits/oz-toto.webp",
       large: "/portraits/oz-toto@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
   ],
   peterpan: [
@@ -116,9 +125,17 @@ export const PORTRAIT_CHAPTER = 1;
 
 export type PortraitSrc = Pick<Portrait, "src" | "large">;
 
-/** The portrait for this cast entry, or null unless the book maps one for it and the reader is in chapter 1. */
-export function portraitFor(bookId: string, characterId: string, chapter: number | undefined): PortraitSrc | null {
+const skinned = (path: string, skin: string) => path.replace("/portraits/", `/portraits/skins/${skin}/`);
+
+/**
+ * The portrait for this cast entry, or null unless the book maps one for it
+ * and the reader is in chapter 1. With a skin that has a restyled copy, the
+ * copy is used; otherwise the default (realistic) portrait.
+ */
+export function portraitFor(bookId: string, characterId: string, chapter: number | undefined, skin?: string): PortraitSrc | null {
   if (chapter !== PORTRAIT_CHAPTER) return null;
   const p = PORTRAITS[bookId]?.find((x) => x.characterId === characterId);
-  return p ? { src: p.src, large: p.large } : null;
+  if (!p) return null;
+  if (skin && p.skins?.includes(skin)) return { src: skinned(p.src, skin), large: skinned(p.large, skin) };
+  return { src: p.src, large: p.large };
 }
