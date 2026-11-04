@@ -26,10 +26,16 @@ describe("cast api on Oz", () => {
       for (const s of order.slice(0, idx + 1)) for (const id of oz.scenes[s.id as keyof typeof oz.scenes]?.characters_present ?? []) seen.add(id);
       const got = await cast(probe);
       for (const c of got) expect(seen.has(c.id)).toBe(true);
-      const allowed = new Set(order.slice(0, idx + 1).map((s) => s.summary));
-      for (const c of got) for (const line of [c.description, ...c.known]) expect(allowed.has(line)).toBe(true);
+      const allowed = order.slice(0, idx + 1).map((s) => s.summary.toLowerCase());
+      const fromAllowed = (line: string) => line.startsWith("First met in") || allowed.some((a) => a.includes(line.toLowerCase()));
+      for (const c of got) {
+        for (const line of [c.description, ...c.known]) expect(fromAllowed(line)).toBe(true);
+        expect(c.description.length).toBeLessThanOrEqual(80);
+        expect(c.known.length).toBeLessThanOrEqual(3);
+        for (const k of c.known) expect(k.length).toBeLessThanOrEqual(60);
+      }
       const text = JSON.stringify(got);
-      for (const s of order.slice(idx + 1)) if (!allowed.has(s.summary)) expect(text).not.toContain(s.summary);
+      for (const s of order.slice(idx + 1)) expect(text).not.toContain(s.summary);
       expect(text).not.toContain("physical_description");
     }
   });

@@ -382,6 +382,61 @@ html[data-skin="chihiro"] ::highlight(lectoria-mark) {
 .cast-first {
   font: 500 11px/1.3 var(--font-ui);
   letter-spacing: 0.02em;
+  margin-top: 6px;
+}
+
+.cast-who {
+  color: var(--color-text);
+}
+
+.cast {
+  position: relative;
+}
+
+.cast > .marks-row {
+  padding-right: 34px;
+}
+
+.cast-expand {
+  position: absolute;
+  top: 4px;
+  right: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+/* The larger window: the Ask the book panel frame, made roomier. */
+.cast-host {
+  z-index: 71;
+}
+
+.cast-window {
+  --chat-w: min(780px, calc(100vw - 120px));
+  --chat-h: 640px;
+}
+
+.cast-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.cast-card-roomy {
+  padding: 12px 14px 10px 17px;
+}
+
+.cast-card-roomy .cast-name {
+  font-size: 17px;
+}
+
+.cast-card-roomy .marks-note {
+  font-size: 13.5px;
+  line-height: 1.45;
 }
 
 .cast-known-label {
