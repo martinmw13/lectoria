@@ -9,3 +9,7 @@ const comicNeue = Comic_Neue({ subsets: ["latin"], weight: ["400", "700"], style
 const klee = Klee_One({ subsets: ["latin"], weight: "600", variable: "--font-klee", display: "swap", preload: false });
 
 export const homeFontClass = `${bangers.variable} ${comicNeue.variable} ${klee.variable}`;
+
+// The reader's comic wordmark letters "LectorIA" in Bangers too, so the
+// root layout carries this one variable (app/fonts.ts).
+export const bangersFontClass = bangers.variable;

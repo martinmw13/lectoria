@@ -19,6 +19,7 @@ import {
   Newsreader,
   Petit_Formal_Script,
 } from "next/font/google";
+import { bangersFontClass } from "./home/fonts";
 
 const newsreader = Newsreader({
   subsets: ["latin"],
@@ -137,5 +138,5 @@ const fraunces = Fraunces({
 });
 
 export const rootFontClass =
-  `${newsreader.variable} ${instrumentSans.variable} ${fell.variable} ${fellSC.variable} ${garamond.variable} ${caveat.variable} ${lora.variable} ${kalam.variable} ${jost.variable} ${crimson.variable} ${cormorant.variable} ${copperplate.variable} ${fraunces.variable}`;
+  `${newsreader.variable} ${instrumentSans.variable} ${fell.variable} ${fellSC.variable} ${garamond.variable} ${caveat.variable} ${lora.variable} ${kalam.variable} ${jost.variable} ${crimson.variable} ${cormorant.variable} ${copperplate.variable} ${fraunces.variable} ${bangersFontClass}`;
 
