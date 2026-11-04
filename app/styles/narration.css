@@ -268,8 +268,9 @@ html[data-theme="dark"] :is(.narr-sen, .narr-on)[data-treatment="watercolor"] {
   }
 }
 
-/* Read aloud on a book without narration: same place, greyed out, with a
-   small "Coming soon" note on hover, focus or click. */
+/* Read aloud on a book without narration: button, voice and volume in
+   the same places, greyed out, with a small "not available" note on
+   hover, focus or click. */
 .read-aloud-soon {
   position: relative;
 }
@@ -289,7 +290,6 @@ html[data-theme="dark"] :is(.narr-sen, .narr-on)[data-treatment="watercolor"] {
 /* html:is() outranks the per-skin label colours, which load later. */
 html:is([data-skin], :not([data-skin])) .read-aloud-soon .read-aloud-label {
   color: var(--color-text-muted);
-  opacity: 0.8;
 }
 
 /* No skin hover flourish on a control that does nothing yet. */
@@ -297,6 +297,15 @@ html:is([data-skin], :not([data-skin])) .read-aloud-soon .read-aloud-label {
 .read-aloud-soon .read-aloud-btn .read-aloud-frame::before {
   animation: none !important;
   transform: none !important;
+}
+
+.read-aloud-soon :is(select, input):disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.read-aloud-soon .read-aloud-voice {
+  color: var(--color-text-muted);
 }
 
 .read-aloud-tip {

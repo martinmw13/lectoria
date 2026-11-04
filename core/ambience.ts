@@ -34,8 +34,8 @@ function rainLevel(id: string, color: string): AmbienceLevel {
     label: id,
     color,
     sources: [
-      { ...WEBM, src: `/ambience/v1/rain-${id}.webm` },
-      { src: `/ambience/v1/rain-${id}.m4a`, type: "audio/mp4" },
+      { ...WEBM, src: `/ambience/v2/rain-${id}.webm` },
+      { src: `/ambience/v2/rain-${id}.m4a`, type: "audio/mp4" },
     ],
     gainDb: 0,
   };

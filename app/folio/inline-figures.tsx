@@ -16,7 +16,7 @@ export function SelectionPopover({
   onPick,
 }: {
   pos: { top: number; left: number; hint?: string };
-  popRef: React.Ref<HTMLButtonElement>;
+  popRef: React.Ref<HTMLElement>;
   onPick: () => void;
 }) {
   // Portalled to the body at document coordinates, so the pill stays on
@@ -25,7 +25,7 @@ export function SelectionPopover({
   return createPortal(
     <button
       type="button"
-      ref={popRef}
+      ref={popRef as React.Ref<HTMLButtonElement>}
       className="picture-float"
       style={{ top: pos.top, left: pos.left }}
       onClick={onPick}

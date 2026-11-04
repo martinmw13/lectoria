@@ -300,3 +300,61 @@ test("asking for a second picture while one is on its way says so", async () => 
   await answer(ready("/s6b.png"));
   act(() => root.unmount());
 });
+
+test("dismissing the scene picture keeps it in the Picture Vault", async () => {
+  const answer = pendingFetch();
+  const { root } = mountLive("c7sA");
+  act(() => live!.illustrateScene());
+  await answer(ready("/s7.png"));
+  expect(live!.vaultScenes.map((v) => v.url)).toEqual(["/s7.png"]);
+  act(() => live!.clearScene());
+  expect(live!.card.phase).toBe("idle");
+  expect(live!.vaultScenes.map((v) => v.url)).toEqual(["/s7.png"]);
+  act(() => root.unmount());
+});
+
+test("redrawing after a dismiss adds the new picture beside the old one", async () => {
+  const answer = pendingFetch();
+  const { root, show } = mountLive("c8sA");
+  act(() => live!.illustrateScene());
+  await answer(ready("/s8.png"));
+  const first = live!.vaultScenes[0];
+  act(() => live!.clearScene());
+  act(() => live!.illustrateScene());
+  await answer(ready("/s8b.png"));
+  expect(live!.card).toEqual({ phase: "ready", url: "/s8b.png", caption: "c" });
+  const kept = live!.vaultScenes;
+  expect(kept.map((v) => v.url)).toEqual(["/s8.png", "/s8b.png"]);
+  expect(kept[0]).toEqual(first);
+  expect(new Set(kept.map((v) => v.id)).size).toBe(2);
+  // A repeat answer with the same url is not kept twice.
+  act(() => live!.clearScene());
+  act(() => live!.illustrateScene());
+  await answer(ready("/s8b.png"));
+  expect(live!.vaultScenes.map((v) => v.url)).toEqual(["/s8.png", "/s8b.png"]);
+  // The vault survives a scene round trip.
+  show("c8sB");
+  expect(live!.vaultScenes).toEqual([]);
+  show("c8sA");
+  expect(live!.vaultScenes.map((v) => v.url)).toEqual(["/s8.png", "/s8b.png"]);
+  act(() => root.unmount());
+});
+
+test("removing an inline figure from the text keeps it in the Picture Vault", async () => {
+  const answer = pendingFetch();
+  const { root, show, pictureSelection } = mountLive("c10sA");
+  pictureSelection();
+  await answer(ready("/f10.png"));
+  const id = live!.figures[0]!.id;
+  expect(live!.vaultFigures.map((f) => f.url)).toEqual(["/f10.png"]);
+  act(() => live!.removeFigure(id));
+  expect(live!.figures).toEqual([]);
+  expect(live!.vaultFigures.map((f) => f.url)).toEqual(["/f10.png"]);
+  // Still kept after a scene round trip.
+  show("c10sB");
+  expect(live!.vaultFigures).toEqual([]);
+  show("c10sA");
+  expect(live!.figures).toEqual([]);
+  expect(live!.vaultFigures.map((f) => ({ id: f.id, url: f.url }))).toEqual([{ id, url: "/f10.png" }]);
+  act(() => root.unmount());
+});

@@ -1,49 +1,41 @@
 # Ambience sources
 
-Rain loops for the reader's ambience button. All three sources are CC0
-(public domain dedication), so no attribution is required. We credit
-them anyway. Built on 2026-10-28 with ffmpeg 7.1 and numpy; no AI
-generation.
+Rain loops for the reader's ambience button, in `v2/`. All sources are
+CC0 (public domain dedication), so no attribution is required. We credit
+them anyway. Built on 2026-11-03 by `scripts/ambience/build-rain.sh`
+(ffmpeg); no AI generation. `v1/` (October loops) is retired.
 
 | File | Level | Source | Author | License |
 | --- | --- | --- | --- | --- |
-| v1/rain-drizzle.{webm,m4a} | Drizzle | "Rain (loopable)", clips 3.ogg and 1.ogg, https://opengameart.org/content/rain-loopable | Ylmir | CC0 |
-| v1/rain-moderate.{webm,m4a} | Moderate rain | "Summer Rain on Terrace" (#1019), https://bigsoundbank.com/summer-rain-on-terrace-s1019.html | Joseph Sardin (BigSoundBank) | CC0 |
-| v1/rain-storm.{webm,m4a} | Storm | "Rain and Thunder #2" (#0740), https://bigsoundbank.com/rain-and-thunder-2-s0740.html | Joseph Sardin (BigSoundBank) | CC0 |
+| v2/rain-drizzle.{webm,m4a} | Drizzle | Candidate "opcion-2" (150 s loop from a Freesound CC0 rain recording; exact sound id not recorded in the build notes, TODO confirm) | Freesound | CC0 |
+| v2/rain-moderate.{webm,m4a} | Moderate rain | Candidate "14-storm-truenos-lejanos" (distant-thunder rain, CC0 candidate set) | see candidate index | CC0 |
+| v2/rain-storm.{webm,m4a} | Storm | "Rain and thunder in Thailand", https://freesound.org/people/felix.blume/sounds/447510/ (from 164 s) | felix.blume | CC0 |
 
-BigSoundBank license page: https://bigsoundbank.com/licenses.html
+Storm alternates (same build, not shipped): SpeedY 17055, AVstudent
+344994, Sramon 614129; all CC0 on Freesound.
 
 ## Processing
 
-- Drizzle: 3.ogg (45 s) and 1.ogg (27 s), RMS-matched and joined with a
-  4 s equal-power crossfade. 64.0 s loop.
-- Moderate: 5 s to 87 s of the original FLAC. 82.0 s loop.
-- Storm: 0 s to 121 s of the original FLAC, which holds two thunder
-  passages. 121.0 s loop, cut at a quiet point between thunder.
-- Each loop folds its last 4 s into its first 4 s with an equal-power
-  crossfade, so the end runs straight into the start.
-- Loudness (EBU R128, integrated): drizzle -33 LUFS, moderate -29 LUFS,
-  storm -27 LUFS, so each level is louder than the last. A limiter keeps
-  storm thunder under full scale.
-- Encodes: Opus 48 kbps VBR in WebM (primary) and AAC-LC 64 kbps in M4A
-  (fallback for browsers without WebM Opus).
+- Drizzle: already a 150 s seamless loop (3 s qsin seam crossfade). Decoded
+  and renormalized.
+- Moderate: the source is 40 s. Its last 3 s fold into its first 3 s
+  (equal-power crossfade) for a 37 s seamless cycle, repeated 4 times:
+  148 s loop.
+- Storm: 150 s seamless loop cut with no thunder within about 4 s of the seam.
+- Loudness (EBU R128, integrated): drizzle and moderate -23 LUFS, storm
+  -21 LUFS. Limiter at -1 dBFS.
+- Encodes: Opus 64 kbps VBR in WebM (primary), AAC-LC 96 kbps in M4A
+  (fallback). The engine loops the decoded AudioBuffer
+  (`AudioBufferSourceNode.loop`), so the seam is sample-exact.
 
-## Sizes
+## Swapping the storm
 
-| File | Bytes |
-| --- | --- |
-| rain-drizzle.webm | 349549 |
-| rain-drizzle.m4a | 527234 |
-| rain-moderate.webm | 448482 |
-| rain-moderate.m4a | 678968 |
-| rain-storm.webm | 691069 |
-| rain-storm.m4a | 1002790 |
+`STORM=/workspace/rain-options/tormenta-4.mp3 scripts/ambience/build-rain.sh storm`
+rewrites `v2/rain-storm.{webm,m4a}`; update the storm row above. If v2
+has already been deployed, bump the folder (immutable cache) in
+`core/ambience.ts` and `next.config.ts`.
 
 ## Why public/ and not Blob
 
-Music lives in the `lectoria-images` Blob store. These loops ship in
-`public/` instead: they total about 3.7 MB, come from the same origin
-(no CSP change for `connect-src`, which the Web Audio fetch needs), and
-uploading to Blob needs the write token, which this task does not read.
-Move them to `ambience/v1/` on Blob later by changing the `src` list in
-`core/ambience.ts` and adding the store host to `connect-src`.
+Same origin (no `connect-src` change for the Web Audio fetch) and no Blob
+write token needed. About 8.6 MB total.

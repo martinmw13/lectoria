@@ -1,0 +1,25 @@
+/* Page turn from the home into the reader (see app/home/page-turn.ts). */
+.pt-root,
+.pt-root > div,
+.pt-backwrap > div,
+.pt-front {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+.pt-root { z-index: 1000; pointer-events: auto; }
+.pt-page { overflow: hidden; }
+.pt-page > main { min-height: 100vh; }
+.pt-g { position: absolute; transform-origin: 0 50%; }
+/* The reader in the shade of the lifted page. */
+.pt-cast { overflow: hidden; }
+.pt-cast .pt-g { background: linear-gradient(90deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0.14) 60px, transparent 320px); }
+/* The page darkens toward the fold. */
+.pt-front { overflow: hidden; }
+.pt-front .pt-g { background: linear-gradient(270deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.06) 10%, transparent 26%); }
+/* The back of the page, with the curl highlight near the fold. */
+.pt-backwrap { filter: drop-shadow(-6px 4px 14px rgba(0, 0, 0, 0.28)); }
+.pt-back { overflow: hidden; background: linear-gradient(160deg, #fffdf8, #efe7d4); }
+.pt-back .pt-g {
+  background: linear-gradient(90deg, rgba(90, 70, 40, 0.3) 0, rgba(255, 255, 255, 0.75) 6%, rgba(255, 255, 255, 0) 22%, rgba(120, 100, 60, 0.1) 70%, rgba(80, 60, 30, 0.18) 100%);
+}

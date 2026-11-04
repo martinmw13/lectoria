@@ -1,11 +1,15 @@
-// Read aloud for a book that has no narration yet: the same button in
-// the same spot, greyed out and aria-disabled, with a small "Coming soon"
-// note on hover, focus or click. It never starts audio.
+// Read aloud for a book that has no narration: the same button, voice
+// picker and narration volume in the same spots, greyed out and
+// disabled, so the bottom bar keeps the layout of a narrated book. A
+// small note says why on hover, focus or click. It never starts audio.
 "use client";
 
 import { useId, useState } from "react";
 import { heroArt } from "../skin-art";
 import { useSkin } from "../use-skin";
+import { NARRATION_VOICES } from "@/core/narration";
+
+const HINT = "Read aloud not available for this book";
 
 export function ReadAloudSoon() {
   const art = heroArt(useSkin());
@@ -30,8 +34,31 @@ export function ReadAloudSoon() {
         </span>
         <span className="read-aloud-label">Read aloud</span>
       </button>
+      <label className="read-aloud-voice">
+        <span>Voice</span>
+        <select disabled aria-label="Narration voice" aria-describedby={tipId} defaultValue={NARRATION_VOICES[0]?.id}>
+          {NARRATION_VOICES.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="read-aloud-volume">
+        <span className="sr-only">Narration volume</span>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          defaultValue={1}
+          disabled
+          aria-label="Narration volume"
+          aria-describedby={tipId}
+        />
+      </label>
       <span className="read-aloud-tip" role="tooltip" id={tipId}>
-        Coming soon
+        {HINT}
       </span>
     </div>
   );

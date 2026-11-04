@@ -303,8 +303,8 @@ h2.chapter-title:focus-visible {
 .body-text {
   max-width: var(--measure-reading);
   font-family: var(--font-book);
-  font-size: 20.5px;
-  line-height: 1.7;
+  font-size: calc(20.5px * var(--read-scale, 1));
+  line-height: calc(1.7 * var(--read-leading, 1));
   /* Keeps the text painting above the read-aloud marks. */
   position: relative;
 }
@@ -635,23 +635,38 @@ h2.chapter-title:focus-visible {
 }
 
 .ticks {
-  display: flex;
-  gap: 1px;
-  align-items: flex-end;
+  position: relative;
   height: 12px;
   width: 100%;
+  overflow: hidden;
 }
 
 .ticks i {
-  flex: 1;
-  min-width: 1px;
+  position: absolute;
+  left: 0;
+  bottom: 3px;
   height: 4px;
+  border-radius: 3px;
   background: var(--color-border);
 }
 
+.ticks i.tk-track {
+  right: 0;
+}
+
 .ticks i.on {
+  bottom: 2px;
+  height: 6px;
+  max-width: 100%;
   background: var(--color-accent);
-  height: 7px;
+}
+
+.ticks .tk-ch {
+  position: absolute;
+  bottom: 1px;
+  width: 1px;
+  height: 10px;
+  background: color-mix(in srgb, var(--color-text) 35%, transparent);
 }
 
 .tick-label {

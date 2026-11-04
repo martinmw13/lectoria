@@ -1,0 +1,195 @@
+/* Wide reader with soft ribbons ("cintas suave"), desktop only.
+   The folio grows to 1640px and the margin column to 280px. The skin
+   painting runs under the whole page; one fixed veil fades it to paper
+   behind the text column and leaves it faint in the side ribbons. Only
+   that background layer is translucent: text and controls stay opaque. */
+@media (min-width: 1024px) {
+  html:is([data-skin], :not([data-skin])) .folio {
+    --folio-max: 1640px;
+    --measure-reading: 66ch;
+    --off: calc((100vw - min(100vw, var(--folio-max))) / 2);
+    --ribbon-l: calc(var(--off) + 40px + var(--pane-w) + 6px);
+    --ribbon-r: calc(var(--off) + 30px + 280px);
+    max-width: var(--folio-max);
+    grid-template-columns: var(--pane-w) 12px minmax(0, 1fr) 280px;
+    position: relative;
+    background: none;
+  }
+
+  html:is([data-skin], :not([data-skin])) .folio .body-text {
+    font-size: calc(21px * var(--read-scale, 1));
+  }
+
+  html:not([data-theme="dark"]) .folio::before,
+  html[data-skin="chihiro"]:not([data-theme="dark"]) .folio::before {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  html:not([data-theme="dark"]) .folio::after {
+    --s: var(--color-surface);
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    backdrop-filter: blur(2px) saturate(0.95);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--s) 50%, transparent) 0, transparent 64px),
+      linear-gradient(0deg, color-mix(in srgb, var(--s) 72%, transparent) 0, transparent 96px),
+      linear-gradient(90deg,
+        color-mix(in srgb, var(--s) 6%, transparent) 0,
+        color-mix(in srgb, var(--s) 30%, transparent) calc(var(--ribbon-l) - 160px),
+        color-mix(in srgb, var(--s) 78%, transparent) calc(var(--ribbon-l) - 56px),
+        var(--s) var(--ribbon-l),
+        var(--s) calc(100vw - var(--ribbon-r)),
+        color-mix(in srgb, var(--s) 88%, transparent) calc(100vw - var(--off) - 90px),
+        color-mix(in srgb, var(--s) 30%, transparent) calc(100vw - var(--off) + 40px),
+        color-mix(in srgb, var(--s) 6%, transparent) 100%);
+  }
+
+  /* The chrome sits on the painting now: no bands of its own, and a thin
+     paper halo keeps small type legible where a ribbon is busy. */
+  html:not([data-theme="dark"]) :is(.top-line, .band-play, .band-pager) {
+    background: none;
+    box-shadow: none;
+  }
+  /* Controls draw above every background layer: their own stacking
+     context over the veil, and no glyph halo (a blurred text-shadow made
+     labels like Read aloud look soft). The halo stays on plain text only. */
+  html:is([data-skin], :not([data-skin])) :is(.top-line, .band-play) {
+    position: relative;
+    z-index: 1;
+    isolation: isolate;
+  }
+  html:not([data-theme="dark"]) :is(.top-line, .band-play, .vault) :is(*) {
+    text-shadow: none;
+  }
+  html:not([data-theme="dark"]) :is(.top-line, .vault) :is(p, h1, h2, h3, small):not(:is(button, a, label) *) {
+    text-shadow: 0 0 3px var(--color-surface);
+  }
+  html:is([data-skin], :not([data-skin])) .folio .vault {
+    border-left: 0;
+    background: none;
+  }
+  html:not([data-theme="dark"]) .img-pane .frame {
+    background: color-mix(in srgb, var(--color-surface) 12%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--color-text) 30%, transparent);
+  }
+  html:not([data-theme="dark"]) .img-pane .paper-grain {
+    background-color: transparent;
+    opacity: 0.5;
+  }
+
+  .reader-chat {
+    right: max(40px, calc((100vw - 1640px) / 2 + 40px));
+  }
+}
+
+/* Bottom bar: read aloud (button, voice, volume), then the music block
+   set a little to the right of it, music volume tight beside the track,
+   then the music styles spaced apart, and rain further right again. A
+   book without narration keeps the same disabled read-aloud controls, so
+   every book gets this one layout. */
+@media (min-width: 1024px) {
+  html:is([data-skin], :not([data-skin])) .band-play {
+    gap: 15px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .read-aloud {
+    gap: 12px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player {
+    gap: 15px;
+    margin-left: 40px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player .player-track {
+    flex: 0 1 320px;
+    max-width: 320px;
+    /* The slot keeps one width on every book; a short title sits at its
+       right end so the music volume hugs it. A long one scrolls from
+       the left as before. */
+    text-align: right;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player .player-track[data-overflow="1"] {
+    text-align: left;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player .player-track + .skip {
+    margin-left: -6px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player .player-volume {
+    margin-left: -9px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player .player-volume + * {
+    margin-left: 28px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .stickers {
+    gap: 34px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .stickers + .sticker-wrap {
+    margin-left: 34px;
+  }
+  html:is([data-skin], :not([data-skin])) .band-play .player .rain-group {
+    gap: 15px;
+    margin-left: 72px;
+  }
+}
+
+/* Header: a larger wordmark and, where it fits, the home's six-swatch
+   "Pick your style" row instead of the dropdown. */
+@media (min-width: 1024px) {
+  html:is([data-skin], :not([data-skin])) .top-line .wm-brand {
+    font-size: 36px;
+    line-height: 1;
+  }
+}
+.top-line .sp {
+  display: none;
+  --text: var(--color-text);
+  --muted: color-mix(in srgb, var(--color-text) 62%, transparent);
+  --paper: var(--color-surface);
+  --note: var(--font-book);
+  --note-style: italic;
+}
+@media (min-width: 1280px) {
+  .top-line .style-menu {
+    display: none;
+  }
+  .top-line .sp {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 0 6px;
+  }
+  .top-line .sp-t {
+    margin: 0;
+    white-space: nowrap;
+  }
+}
+@media (min-width: 1280px) and (max-width: 1599px) {
+  .top-line .sp-t {
+    display: none;
+  }
+}
+@media (min-width: 1280px) {
+  .top-line .sp-row {
+    gap: 4px;
+  }
+  .top-line .sp-item {
+    width: 68px;
+    gap: 4px;
+  }
+  .top-line .sp-sw {
+    width: 52px;
+    height: 30px;
+  }
+  .top-line .sp-name {
+    font-size: 10.5px;
+  }
+  .top-line .sp-item:focus-visible {
+    outline: none;
+  }
+  .top-line .sp-item:focus-visible .sp-sw {
+    outline: 2px dashed #0866ff;
+    outline-offset: 5px;
+  }
+}

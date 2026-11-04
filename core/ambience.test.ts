@@ -21,8 +21,8 @@ describe("ambience", () => {
     expect(rain.levels[0]!.sources).toEqual([]);
     for (const level of rain.levels.slice(1)) {
       expect(level.sources.map((source) => source.src)).toEqual([
-        `/ambience/v1/rain-${level.id}.webm`,
-        `/ambience/v1/rain-${level.id}.m4a`,
+        `/ambience/v2/rain-${level.id}.webm`,
+        `/ambience/v2/rain-${level.id}.m4a`,
       ]);
       expect(level.sources.map((source) => source.type)).toEqual([
         "audio/webm; codecs=opus",

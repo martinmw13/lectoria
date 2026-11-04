@@ -14,6 +14,7 @@ export const CHAT_COPY = {
   tryAgain: "Try again",
   close: "Close",
   closeChat: "Close chat",
+  resize: "Resize chat (drag, or use the arrow keys)",
   spoilers: "Spoilers",
   spoilersOn: "on",
   spoilersOff: "off",

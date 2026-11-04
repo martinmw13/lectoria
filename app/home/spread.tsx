@@ -1,17 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { hasPanels } from "@/core/book-capabilities";
 import { useSkin } from "../use-skin";
 import { shelf, shelfById } from "./shelf";
 import { coverFor, shelfCoverFor } from "./covers";
 import { CoverImage } from "./cover";
-import { StyleMenu } from "../style-menu";
 import { StylePicker } from "./style-picker";
 import { UploadSection } from "./upload";
 import { YourBooks } from "./your-books";
 import { HomeIcon } from "./home-icons";
+import { pageTurnClick } from "./page-turn";
+import { continueHref, loadAllProgress, type BookProgress } from "../reading-progress";
 
 // The open-book spread: shelf and drop zone on the left page, the
 // chosen book's plate on the right. Oz is selected on load. readHrefs
@@ -23,6 +25,14 @@ export function HomeSpread({ readHrefs = {} }: { readHrefs?: Readonly<Record<str
   const [current, setCurrent] = useState("oz");
   const plateRef = useRef<HTMLElement | null>(null);
   const book = shelfById(current) ?? shelf[0]!;
+  // Saved places load after mount so the server render matches.
+  const [progress, setProgress] = useState<Record<string, BookProgress>>({});
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-only reading places from localStorage after hydration
+    setProgress(loadAllProgress());
+  }, []);
+  const resume = continueHref(book.id, progress);
+  const router = useRouter();
 
   function choose(id: string) {
     if (id === current) return;
@@ -41,7 +51,6 @@ export function HomeSpread({ readHrefs = {} }: { readHrefs?: Readonly<Record<str
 
   return (
     <>
-      <StyleMenu placement="home" />
       <div className="ob-book">
         <section className="ob-page ob-left" aria-labelledby="obBrand">
           <div className="ob-rule" aria-hidden="true" />
@@ -147,8 +156,13 @@ export function HomeSpread({ readHrefs = {} }: { readHrefs?: Readonly<Record<str
               </p>
             </div>
             {book.ready ? (
-              <Link className="ob-read" href={readHref(book.id)} aria-label={`Start reading ${book.title}`}>
-                Start reading
+              <Link
+                className="ob-read"
+                href={resume ?? readHref(book.id)}
+                aria-label={`${resume ? "Continue reading" : "Start reading"} ${book.title}`}
+                onClick={pageTurnClick(router.push)}
+              >
+                {resume ? "Continue reading" : "Start reading"}
                 <svg className="ob-arr ob-arr--e" viewBox="0 0 120 30" aria-hidden="true" focusable="false">
                   <path d="M4 15 H100" fill="none" stroke="currentColor" strokeWidth="1.6" />
                   <path d="M100 8 L110 15 L100 22" fill="none" stroke="currentColor" strokeWidth="1.6" />

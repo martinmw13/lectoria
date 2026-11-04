@@ -130,3 +130,63 @@ html[data-skin="comic"] .read-aloud-label {
 }
 
 /* Button motion (panel snap, POW burst, press) lives in motion-comic.css. */
+
+/* Wordmark: "LectorIA" lettered like a cover logo. Bangers (SIL OFL
+   1.1, self-hosted by next/font) in yellow with a thick ink outline, a
+   red-then-black offset drop, a slight tilt, and a halftone POW burst
+   behind it. Every size is in em, so it follows the shared header sizes
+   (14 / 15 / 18 / 36px) and the burst sits inside the link's padding,
+   never past the page edge. The burst lives on .wm-brand, so the
+   "Back to shelf" swap fades it out with the letters. */
+html[data-skin="comic"] .wordmark {
+  font-family: var(--font-bangers), "Bangers", Impact, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+html[data-skin="comic"] .wm-brand {
+  position: relative;
+  isolation: isolate;
+  display: inline-block;
+  padding: 0.22em 0.42em 0.26em 0.36em;
+  line-height: 1;
+  transform: rotate(-4deg);
+  color: #ffe45c;
+  -webkit-text-stroke: 0.09em #14161c;
+  paint-order: stroke fill;
+  text-shadow:
+    0.07em 0.07em 0 #e8413c,
+    0.1em 0.1em 0 #14161c;
+}
+
+html[data-skin="comic"] .wm-brand::before {
+  content: "";
+  position: absolute;
+  inset: -0.08em;
+  z-index: -1;
+  transform: rotate(3deg);
+  background: url("/art/skins/comic/wordmark-burst.svg") center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+html[data-skin="comic"] .wm-brand em {
+  color: #4fb3ff;
+}
+
+/* Header title: comic's lettered wordmark and bold style label are
+   wider than the other skins', so below 1440px the title lost its
+   chapter to an ellipsis. Tighter tracking, a hair smaller type and a
+   slightly smaller wordmark keep "Book · Author · Chapter n of m" whole
+   down to tablet widths. */
+@media (max-width: 1439px) {
+  html[data-skin="comic"] .top-center {
+    font-size: 12px;
+    letter-spacing: 0.02em;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1439px) {
+  html[data-skin="comic"] .top-line .wordmark .wm-brand {
+    font-size: 28px;
+  }
+}

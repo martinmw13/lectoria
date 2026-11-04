@@ -5,6 +5,7 @@ import { rootFontClass } from "./fonts";
 import { DEFAULT_SKIN, SKIN_SCRIPT } from "./skin";
 import { THEME_SCRIPT } from "./theme";
 import { WARMTH_SCRIPT } from "./warmth";
+import { READING_SCRIPT } from "./reading-prefs";
 
 export const metadata: Metadata = {
   title: "Lectoria",
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: SKIN_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: WARMTH_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: READING_SCRIPT }} />
       </head>
       <body>{children}</body>
     </html>

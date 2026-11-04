@@ -83,7 +83,8 @@
   transform: translate(-50%, -50%);
   display: inline-flex;
   flex-direction: column;
-  align-items: center;
+  /* One shared left edge: icons stack in a column, labels start level. */
+  align-items: flex-start;
   gap: 4px;
   white-space: nowrap;
   max-width: calc(100% - 24px);

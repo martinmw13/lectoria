@@ -61,8 +61,8 @@ html[data-skin="pencil"] .wordmark {
 }
 
 html[data-skin="pencil"] .body-text {
-  font-size: 20px;
-  line-height: 1.62;
+  font-size: calc(20px * var(--read-scale, 1));
+  line-height: calc(1.62 * var(--read-leading, 1));
 }
 
 html[data-skin="pencil"] h2.chapter-title {

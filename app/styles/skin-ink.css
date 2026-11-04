@@ -65,8 +65,8 @@ html[data-skin="ink"] .wordmark em {
 }
 
 html[data-skin="ink"] .body-text {
-  font-size: 20px;
-  line-height: 1.68;
+  font-size: calc(20px * var(--read-scale, 1));
+  line-height: calc(1.68 * var(--read-leading, 1));
 }
 
 html[data-skin="ink"] .body-text > p {

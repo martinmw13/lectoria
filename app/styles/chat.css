@@ -6,6 +6,8 @@
   --chat-label-font: var(--font-ui);
   --chat-display-font: var(--font-book);
   --chat-amber: #d98b0b;
+  /* Focus ring in the skin's ink, not the browser/global blue. */
+  --chat-ring: color-mix(in srgb, var(--color-text) 65%, transparent);
   position: fixed;
   right: max(40px, calc((100vw - 1200px) / 2 + 40px));
   bottom: calc(96px + 16px);
@@ -119,10 +121,11 @@ html[data-skin="comic"] .chat-launch:hover .chat-launch-label {
   position: absolute;
   right: 0;
   bottom: 62px;
-  width: 380px;
+  width: var(--chat-w, 380px);
   max-width: calc(100vw - 80px);
-  height: 560px;
-  max-height: calc(100dvh - 260px);
+  height: var(--chat-h, 560px);
+  /* Clears the header rule even when dragged to full size. */
+  max-height: calc(100dvh - 300px);
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
@@ -139,6 +142,32 @@ html[data-skin="comic"] .chat-launch:hover .chat-launch-label {
     opacity: 0;
     transform: translateY(8px);
   }
+}
+/* Drag handle on the top-left corner: the panel is anchored bottom-right. */
+.chat-resize {
+  all: unset;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  touch-action: none;
+  border-radius: 3px;
+  background:
+    linear-gradient(135deg, currentColor 1.5px, transparent 1.5px) 3px 3px / 8px 8px no-repeat,
+    linear-gradient(135deg, transparent 4px, currentColor 4px, currentColor 5.5px, transparent 5.5px) 3px 3px / 8px 8px no-repeat;
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+.chat-resize:hover,
+.chat-resize:focus-visible {
+  opacity: 1;
+}
+.chat-resize:focus-visible {
+  outline: 2px solid var(--chat-ring);
+  outline-offset: 1px;
 }
 html[data-skin="comic"] .chat-panel {
   border: 2px solid var(--color-text);
@@ -418,13 +447,13 @@ html[data-skin="comic"] .chat-note .ob-input {
 .chat-ta {
   flex: 1;
   min-height: 40px;
-  max-height: 82px;
+  max-height: calc(8 * 1.45em + 20px); /* Eight lines, then scroll. */
   font: 14px/1.45 var(--font-ui);
   color: var(--color-text);
   background: none;
   border: 0;
   border-radius: 0;
-  padding: 10px 0;
+  padding: 10px 10px;
   resize: none;
   overflow-y: auto;
 }
@@ -432,8 +461,12 @@ html[data-skin="comic"] .chat-note .ob-input {
   color: var(--color-text-muted);
 }
 .chat-ta:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+  outline: none;
+}
+.chat-box:has(.chat-ta:focus-visible) {
+  border-radius: 6px;
+  outline: 1.5px solid var(--chat-ring);
+  outline-offset: 4px;
 }
 .chat-send {
   all: unset;
@@ -524,6 +557,10 @@ html[data-skin="comic"] .chat-note .ob-input {
   .reader-chat:has(.chat-panel) .chat-launch {
     display: none;
   }
+
+  .chat-resize {
+    display: none;
+  }
 }
 
 @keyframes chat-sheet-up {
@@ -542,6 +579,57 @@ html[data-skin="comic"] .chat-note .ob-input {
   }
   .chat-launch:hover .chat-bub,
   .chat-launch:active .chat-bub {
+    transform: none;
+  }
+}
+
+/* Closed launcher: the skin's own "Ask the book" artwork. */
+.ask-art {
+  display: block;
+  line-height: 0;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.14));
+}
+.ask-art svg {
+  display: block;
+  overflow: visible;
+}
+.ask-art .a-lift {
+  transition: transform 0.28s cubic-bezier(0.3, 1.4, 0.5, 1);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.chat-launch:hover .a-lift {
+  transform: translateY(-2px) scale(1.03);
+}
+html[data-skin="comic"] .chat-launch:hover .a-lift {
+  transform: rotate(-4deg) scale(1.05);
+}
+html[data-skin="chihiro"] .ask-art .a-glow {
+  opacity: 0.75;
+  transition: opacity 0.3s;
+}
+html[data-skin="chihiro"] .chat-launch:hover .a-glow {
+  opacity: 1;
+  animation: ask-flicker 1.6s ease-in-out infinite;
+}
+@keyframes ask-flicker {
+  50% {
+    opacity: 0.8;
+  }
+}
+.chat-launch:active .a-lift {
+  transform: scale(0.96);
+}
+.chat-launch:has(.ask-art) {
+  padding: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ask-art .a-lift,
+  .ask-art .a-glow {
+    transition: none;
+    animation: none !important;
+  }
+  .chat-launch:hover .a-lift {
     transform: none;
   }
 }

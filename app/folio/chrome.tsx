@@ -6,8 +6,10 @@ import { useEffect, useRef, useState } from "react";
 import { pressButton } from "../button-fx";
 import { Icon } from "../icons";
 import { StyleMenu } from "../style-menu";
+import { StylePicker } from "../home/style-picker";
 import { clampSplitWidth, SPLIT_MIN_PX } from "./helpers";
 import { WarmthControl } from "./warmth-control";
+import { ReadingControl } from "./reading-control";
 
 export { THEME_KEY } from "../theme";
 export const SPLIT_KEY = "lectoria.split";
@@ -60,6 +62,7 @@ export function TopLine({
           </select>
         </span>
       </div>
+      <ReadingControl />
       <WarmthControl />
       <button
         type="button"
@@ -72,13 +75,14 @@ export function TopLine({
         {theme === "dark" ? <Icon name="sun" /> : <Icon name="moon" />}
       </button>
       <StyleMenu />
+      <StylePicker />
     </header>
   );
 }
 
 function defaultSplit(): number {
   if (typeof window === "undefined") return 320;
-  return clampSplitWidth(Math.round(Math.min(1200, window.innerWidth - 80) * 0.3), window.innerWidth);
+  return clampSplitWidth(Math.round(Math.min(1640, window.innerWidth - 80) * 0.27), window.innerWidth);
 }
 
 export function Divider() {
@@ -170,6 +174,7 @@ export function BandPager({
   onNext,
   atStart,
   atBookEnd,
+  chapterStarts = [],
 }: {
   k: number;
   n: number;
@@ -179,7 +184,10 @@ export function BandPager({
   onNext: () => void;
   atStart: boolean;
   atBookEnd: boolean;
+  /** Book index of each chapter's first scene; drawn as marks on the bar. */
+  chapterStarts?: number[];
 }) {
+  const pct = (i: number) => `${(i / Math.max(1, bookTotal)) * 100}%`;
   return (
     <div className="band-pager">
       <div className="pager-row">
@@ -194,9 +202,15 @@ export function BandPager({
         </button>
       </div>
       <div className="ticks" aria-hidden="true">
-        {Array.from({ length: bookTotal }, (_, i) => (
-          <i key={i} className={i <= bookIndex ? "on" : ""} />
-        ))}
+        {/* One track and one fill, not one tick per scene: a 1000-scene
+            book would otherwise overflow the bar. */}
+        <i className="tk-track" />
+        <i className="on tk-fill" style={{ width: pct(bookIndex + 1) }} />
+        {chapterStarts
+          .filter((i) => i > 0)
+          .map((i) => (
+            <b key={i} className="tk-ch" style={{ left: pct(i) }} />
+          ))}
       </div>
       <span className="tick-label">
         Scene {bookIndex + 1} of {bookTotal}

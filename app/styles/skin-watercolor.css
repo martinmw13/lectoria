@@ -66,8 +66,8 @@ html[data-skin="watercolor"] .wordmark em {
 }
 
 html[data-skin="watercolor"] .body-text {
-  font-size: 19px;
-  line-height: 1.72;
+  font-size: calc(19px * var(--read-scale, 1));
+  line-height: calc(1.72 * var(--read-leading, 1));
 }
 
 html[data-skin="watercolor"] .body-text > p {

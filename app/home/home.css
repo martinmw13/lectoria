@@ -59,7 +59,7 @@ html[data-theme="dark"] .ob-desk { --color-accent: #0866FF; --color-accent-hover
 html[data-skin="ink"] .ob-desk :focus-visible { outline-style: dashed; outline-offset: 4px; }
 html[data-skin="comic"] .ob-desk :focus-visible { outline-width: 3px; }
 
-.ob-book { display: grid; grid-template-columns: 7fr 40px 6fr; align-items: stretch; min-height: 0; flex: 1; max-height: 100%; }
+.ob-book { display: grid; grid-template-columns: 1fr 40px 1fr; align-items: stretch; min-height: 0; flex: 1; max-height: 100%; }
 .ob-page { position: relative; background: color-mix(in srgb, var(--paper) var(--page-alpha, 90%), transparent); padding: 20px 30px 14px; min-height: 0; }
 .ob-left { border-radius: 14px 3px 3px 14px; display: flex; flex-direction: column; overflow-y: auto; }
 /* Tall states (key step, progress) scroll inside the page at natural height instead of shrinking the shelf over its own labels. */
@@ -190,4 +190,26 @@ html[data-skin="chihiro"] .lb-item[aria-pressed="true"] img { outline: 2.5px sol
   .ob-desk .ob-progress-fill {
     transition: none !important;
   }
+}
+
+/* No one-word last lines on the home copy (e.g. "scene." alone). */
+.ob-intro {
+  text-wrap: balance;
+}
+
+/* Narrow screens: stack the two pages, full width, with normal page scroll. */
+@media (max-width: 767px) {
+  /* html/body stay overflow:hidden globally, so the desk itself scrolls. */
+  .ob-desk { width: 100%; padding: 58px 12px 88px; justify-content: flex-start; overflow-x: hidden; overflow-y: auto; }
+  .ob-book { grid-template-columns: minmax(0, 1fr); row-gap: 16px; flex: none; max-height: none; }
+  .ob-gutter { display: none; }
+  .ob-page { padding: 18px 16px 14px; min-width: 0; }
+  .ob-left { overflow: visible; border-radius: 14px; }
+  .ob-right { border-radius: 14px; }
+  .lb-grid { grid-template-columns: repeat(auto-fill, minmax(var(--cw), 1fr)); --cw: 84px; }
+  .ob-right .ob-plate { --art-h: min(56vw, 300px); }
+  .sp { max-width: 100%; }
+  .sp-row { flex-wrap: wrap; }
+  .ob-wordmark { white-space: normal; }
+  .ob-foot { white-space: normal; }
 }

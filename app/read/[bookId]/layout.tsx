@@ -3,6 +3,7 @@ import { loadBook } from "@/server/books";
 import { loadNarrationEntries } from "@/server/narration";
 import { Reader } from "../../reader";
 import "../../home/home-backdrop.css";
+import "../../styles/reader-wide.css";
 
 // Static shell: audio and music state persist across scene routes.
 // Only slim metadata reaches the client: id, chapter, ordinal range,
