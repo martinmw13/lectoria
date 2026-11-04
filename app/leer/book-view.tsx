@@ -332,7 +332,7 @@ export function BookView({
           pref={pref}
           onPrefChange={changePref}
         >
-          {castOn ? <CastList bookId={model.bookId} sceneId={currentId} /> : null}
+          {castOn ? <CastList bookId={model.bookId} sceneId={currentId} chapter={info?.ch} /> : null}
           <MarksList marks={marks.marks} onGo={gotoMark} onRemove={marks.remove} />
         </PictureVault>
       ) : null}

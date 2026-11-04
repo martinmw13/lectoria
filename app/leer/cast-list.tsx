@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CastEntry } from "@/core/cast";
+import { portraitFor } from "@/core/portraits";
 import { Icon } from "../icons";
 
 export const CAST_COPY = {
@@ -38,10 +39,19 @@ function useCast(bookId: string, sceneId: string, active: boolean) {
   return { cast: current && "cast" in current ? current.cast : null, failed: Boolean(current && "failed" in current) };
 }
 
-function CastCard({ c, roomy }: { c: CastEntry; roomy?: boolean }) {
+function CastCard({ c, roomy, portrait }: { c: CastEntry; roomy?: boolean; portrait?: string | null }) {
+  const name = <span className="marks-quote cast-name">{c.name}</span>;
   return (
     <li className={`marks-card has-note cast-card${roomy ? " cast-card-roomy" : ""}`}>
-      <span className="marks-quote cast-name">{c.name}</span>
+      {portrait ? (
+        <span className="cast-name-row">
+          {/* eslint-disable-next-line @next/next/no-img-element -- a 256px static teaser, no optimizer needed */}
+          <img className="cast-portrait" src={portrait} alt={c.name} width={256} height={256} loading="lazy" decoding="async" />
+          {name}
+        </span>
+      ) : (
+        name
+      )}
       <p className="marks-note cast-who">{c.description}</p>
       {c.known.length > 0 ? (
         <>
@@ -63,7 +73,17 @@ function CastCard({ c, roomy }: { c: CastEntry; roomy?: boolean }) {
 // The larger window reuses the Ask the book panel shell (.reader-chat
 // position and fonts, .chat-panel frame, .chat-head, .chat-x), so it
 // follows each skin the same way.
-function CastWindow({ bookId, sceneId, onClose }: { bookId: string; sceneId: string; onClose: () => void }) {
+function CastWindow({
+  bookId,
+  sceneId,
+  chapter,
+  onClose,
+}: {
+  bookId: string;
+  sceneId: string;
+  chapter?: number;
+  onClose: () => void;
+}) {
   const { cast, failed } = useCast(bookId, sceneId, true);
   const xRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => xRef.current?.focus(), []);
@@ -94,7 +114,7 @@ function CastWindow({ bookId, sceneId, onClose }: { bookId: string; sceneId: str
           {cast ? (
             <ul className="cast-grid">
               {cast.map((c) => (
-                <CastCard key={c.id} c={c} roomy />
+                <CastCard key={c.id} c={c} roomy portrait={portraitFor(bookId, c.id, chapter)} />
               ))}
             </ul>
           ) : (
@@ -109,7 +129,9 @@ function CastWindow({ bookId, sceneId, onClose }: { bookId: string; sceneId: str
 // A margin row like Notes & highlights. Closed, it fetches and shows
 // nothing; open, it asks the server for the cast up to this scene only.
 // The expand control opens the same cast in a larger window.
-export function CastList({ bookId, sceneId }: { bookId: string; sceneId: string }) {
+// chapter is the reader's current chapter; the protagonist portrait
+// teaser shows only in chapter 1.
+export function CastList({ bookId, sceneId, chapter }: { bookId: string; sceneId: string; chapter?: number }) {
   const [open, setOpen] = useState(false);
   const [big, setBig] = useState(false);
   const expandRef = useRef<HTMLButtonElement | null>(null);
@@ -149,7 +171,7 @@ export function CastList({ bookId, sceneId }: { bookId: string; sceneId: string 
       {open && cast ? (
         <ul id="cast-panel" className="marks-cards">
           {cast.map((c) => (
-            <CastCard key={c.id} c={c} />
+            <CastCard key={c.id} c={c} portrait={portraitFor(bookId, c.id, chapter)} />
           ))}
         </ul>
       ) : null}
@@ -157,6 +179,7 @@ export function CastList({ bookId, sceneId }: { bookId: string; sceneId: string 
         <CastWindow
           bookId={bookId}
           sceneId={sceneId}
+          chapter={chapter}
           onClose={() => {
             setBig(false);
             expandRef.current?.focus();
