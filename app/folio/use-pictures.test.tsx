@@ -339,3 +339,22 @@ test("redrawing after a dismiss adds the new picture beside the old one", async 
   expect(live!.vaultScenes.map((v) => v.url)).toEqual(["/s8.png", "/s8b.png"]);
   act(() => root.unmount());
 });
+
+test("removing an inline figure from the text keeps it in the Picture Vault", async () => {
+  const answer = pendingFetch();
+  const { root, show, pictureSelection } = mountLive("c10sA");
+  pictureSelection();
+  await answer(ready("/f10.png"));
+  const id = live!.figures[0]!.id;
+  expect(live!.vaultFigures.map((f) => f.url)).toEqual(["/f10.png"]);
+  act(() => live!.removeFigure(id));
+  expect(live!.figures).toEqual([]);
+  expect(live!.vaultFigures.map((f) => f.url)).toEqual(["/f10.png"]);
+  // Still kept after a scene round trip.
+  show("c10sB");
+  expect(live!.vaultFigures).toEqual([]);
+  show("c10sA");
+  expect(live!.figures).toEqual([]);
+  expect(live!.vaultFigures.map((f) => ({ id: f.id, url: f.url }))).toEqual([{ id, url: "/f10.png" }]);
+  act(() => root.unmount());
+});

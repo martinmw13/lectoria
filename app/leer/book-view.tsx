@@ -321,7 +321,7 @@ export function BookView({
       {visualsOn ? (
         <PictureVault
           scenes={pic.vaultScenes}
-          figures={pic.figures}
+          figures={pic.vaultFigures}
           onGotoScene={gotoScenePicture}
           onGotoFigure={gotoFigure}
           onOpen={pic.lightbox.open}

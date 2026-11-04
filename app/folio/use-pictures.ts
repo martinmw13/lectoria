@@ -18,6 +18,10 @@ import { PICTURE_COPY } from "./picture-copy";
 import { requestStyleFields, styleCredit } from "../image-style";
 import type { ImageStylePref } from "../image-style";
 import { pickEndN, pickStartN } from "../picture-selection";
+import { paraOf, popoverPos } from "./selection-geom";
+import { figureVault, keepFigurePicture, keepScenePicture, sceneVault, type VaultScene } from "./vault-store";
+
+export { keepFigurePicture, keepScenePicture, popoverPos, type VaultScene };
 import type { ParaEntry } from "../picture-selection";
 
 export type SceneCard =
@@ -37,14 +41,6 @@ export interface InlineFigure {
   message: string | null;
   // Daily or budget limit: retry is pointless, so the view hides it.
   quota?: boolean;
-}
-
-// A scene picture kept in the Picture Vault. Dismissing the pane card
-// (the X) only clears the pane; vault entries stay for the session.
-export interface VaultScene {
-  id: string;
-  url: string;
-  caption: string;
 }
 
 export interface LightboxItem {
@@ -80,39 +76,7 @@ type HintAt = { where: "scene" } | { where: "popover" } | { where: "figure"; id:
 
 const sceneCache = new Map<string, { url: string; caption: string }>();
 const figureCache = new Map<string, InlineFigure[]>();
-const sceneVaultCache = new Map<string, VaultScene[]>();
 let figureSeq = 1;
-let vaultSeq = 1;
-
-function sceneVault(sceneId: string): VaultScene[] {
-  return sceneVaultCache.get(sceneId) ?? [];
-}
-
-// Adds a finished scene picture to the vault under a fresh id. The same
-// url twice (a repeat answer) is kept once; earlier entries are untouched.
-export function keepScenePicture(sceneId: string, url: string, caption: string): VaultScene[] {
-  const prev = sceneVault(sceneId);
-  if (prev.some((v) => v.url === url)) return prev;
-  const next = [...prev, { id: `s${vaultSeq++}`, url, caption }];
-  sceneVaultCache.set(sceneId, next);
-  return next;
-}
-
-// Document coordinates from the selection rect plus page scroll, so the
-// popover stays on the selection however scenes are laid out (paged or
-// continuous scroll, several scenes mounted at once).
-export function popoverPos(
-  rect: { top: number; left: number; width: number },
-  scroll: { x: number; y: number },
-): { top: number; left: number } {
-  return { top: rect.top + scroll.y - 8, left: rect.left + scroll.x + rect.width / 2 };
-}
-
-function paraOf(node: Node | null): Element | null {
-  if (!node) return null;
-  const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
-  return el?.closest?.("p[id]") ?? null;
-}
 
 export function usePictures({
   bookId,
@@ -128,6 +92,7 @@ export function usePictures({
   const [card, setCard] = useState<SceneCard>(() => sceneCard(sceneId));
   const [figures, setFigures] = useState<InlineFigure[]>(() => sceneFigures(sceneId));
   const [vaultScenes, setVaultScenes] = useState<VaultScene[]>(() => sceneVault(sceneId));
+  const [vaultFigures, setVaultFigures] = useState<InlineFigure[]>(() => figureVault(sceneId));
   const [hintAt, setHintAt] = useState<HintAt>(null);
   const hintTimer = useRef<number | null>(null);
   const [popover, setPopover] = useState<{ top: number; left: number } | null>(null);
@@ -187,6 +152,7 @@ export function usePictures({
     setCard(sceneCard(sceneId));
     setFigures(sceneFigures(sceneId));
     setVaultScenes(sceneVault(sceneId));
+    setVaultFigures(figureVault(sceneId));
     setPopover(null);
     setHintAt(null);
   }, [sceneId]);
@@ -291,6 +257,11 @@ export function usePictures({
           storeFigures(scene, (prev) =>
             prev.map((f) => (f.id === id ? { ...f, phase: "ready", url, message: null } : f)),
           );
+          const done = figureCache.get(scene)?.find((f) => f.id === id);
+          if (done) {
+            const kept = keepFigurePicture(scene, done);
+            if (sceneRef.current === scene) setVaultFigures(kept);
+          }
         })
         .catch((err: unknown) => {
           storeFigures(scene, (prev) =>
@@ -378,6 +349,7 @@ export function usePictures({
     [requestFigure, storeFigures, sceneId, showHint],
   );
 
+  // Takes the figure out of the text only; its vault entry stays.
   const removeFigure = useCallback(
     (id: string) => {
       storeFigures(sceneId, (prev) => prev.filter((f) => f.id !== id));
@@ -520,6 +492,7 @@ export function usePictures({
     submitHumanToken,
     figures: shownFigures,
     vaultScenes,
+    vaultFigures,
     popover: shownPopover,
     viewRef,
     popRef,

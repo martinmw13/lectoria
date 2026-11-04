@@ -100,6 +100,7 @@ export function PictureVault({
 }: {
   /** Scene pictures kept this session, including dismissed ones. */
   scenes: { id: string; url: string; caption: string }[];
+  /** Inline figures kept this session, including ones removed from the text. */
   figures: InlineFigure[];
   onGotoScene: () => void;
   onGotoFigure: (fig: InlineFigure) => void;

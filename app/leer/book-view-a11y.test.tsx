@@ -20,6 +20,7 @@ vi.mock("../folio/use-pictures", () => ({
     card: { phase: "idle" },
     figures: [],
     vaultScenes: [],
+    vaultFigures: [],
     popover: null,
     viewRef: () => {},
     popRef: { current: null },
