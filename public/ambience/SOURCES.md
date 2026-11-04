@@ -9,9 +9,9 @@ them anyway. Built on 2026-11-03 by `scripts/ambience/build-rain.sh`
 | --- | --- | --- | --- | --- |
 | v2/rain-drizzle.{webm,m4a} | Drizzle | Candidate "opcion-2" (150 s loop from a Freesound CC0 rain recording; exact sound id not recorded in the build notes, TODO confirm) | Freesound | CC0 |
 | v2/rain-moderate.{webm,m4a} | Moderate rain | Candidate "14-storm-truenos-lejanos" (distant-thunder rain, CC0 candidate set) | see candidate index | CC0 |
-| v2/rain-storm.{webm,m4a} | Storm (provisional) | "full_thuderstorm.wav", https://freesound.org/people/SpeedY/sounds/17055/ (from 171 s) | SpeedY | CC0 |
+| v2/rain-storm.{webm,m4a} | Storm | "Rain and thunder in Thailand", https://freesound.org/people/felix.blume/sounds/447510/ (from 164 s) | felix.blume | CC0 |
 
-Storm alternates (same build, not shipped): felix.blume 447510, AVstudent
+Storm alternates (same build, not shipped): SpeedY 17055, AVstudent
 344994, Sramon 614129; all CC0 on Freesound.
 
 ## Processing
