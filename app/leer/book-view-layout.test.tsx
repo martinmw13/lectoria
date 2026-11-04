@@ -19,6 +19,7 @@ vi.mock("../folio/use-pictures", () => ({
     needHuman: false,
     submitHumanToken: () => {},
     figures: [],
+    vaultScenes: [],
     popover: null,
     viewRef: () => {},
     popRef: { current: null },

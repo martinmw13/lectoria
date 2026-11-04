@@ -320,7 +320,7 @@ export function BookView({
       </main>
       {visualsOn ? (
         <PictureVault
-          scene={pic.card.phase === "ready" ? { url: pic.card.url, caption: pic.card.caption } : null}
+          scenes={pic.vaultScenes}
           figures={pic.figures}
           onGotoScene={gotoScenePicture}
           onGotoFigure={gotoFigure}

@@ -89,7 +89,7 @@ export function keptLine(count: number): string {
 }
 
 export function PictureVault({
-  scene,
+  scenes,
   figures,
   onGotoScene,
   onGotoFigure,
@@ -98,7 +98,8 @@ export function PictureVault({
   onPrefChange,
   children,
 }: {
-  scene: { url: string; caption: string } | null;
+  /** Scene pictures kept this session, including dismissed ones. */
+  scenes: { id: string; url: string; caption: string }[];
   figures: InlineFigure[];
   onGotoScene: () => void;
   onGotoFigure: (fig: InlineFigure) => void;
@@ -120,17 +121,17 @@ export function PictureVault({
         </span>
         <div className="mtool-text">
           <span className="mtool-title">Picture Vault</span>
-          <span className="mtool-sub">{keptLine(ordered.length + (scene ? 1 : 0))}</span>
+          <span className="mtool-sub">{keptLine(ordered.length + scenes.length)}</span>
         </div>
       </div>
-      {scene === null && ordered.length === 0 ? (
+      {scenes.length === 0 && ordered.length === 0 ? (
         <p className="vault-empty">Select a line you love, then choose Picture this. Your pictures will gather here.</p>
       ) : (
         <>
           <div className="mlabel">This scene so far</div>
           <div className="vault-list">
-            {scene ? (
-              <div className="vault-item">
+            {scenes.map((scene) => (
+              <div key={scene.id} className="vault-item">
                 <button
                   type="button"
                   className="vault-goto"
@@ -153,7 +154,7 @@ export function PictureVault({
                   </button>
                 </div>
               </div>
-            ) : null}
+            ))}
             {ordered.map((f) => (
               <div key={f.id} className="vault-item">
                 <button

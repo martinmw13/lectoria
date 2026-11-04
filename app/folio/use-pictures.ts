@@ -39,6 +39,14 @@ export interface InlineFigure {
   quota?: boolean;
 }
 
+// A scene picture kept in the Picture Vault. Dismissing the pane card
+// (the X) only clears the pane; vault entries stay for the session.
+export interface VaultScene {
+  id: string;
+  url: string;
+  caption: string;
+}
+
 export interface LightboxItem {
   src: string;
   caption: string;
@@ -72,7 +80,23 @@ type HintAt = { where: "scene" } | { where: "popover" } | { where: "figure"; id:
 
 const sceneCache = new Map<string, { url: string; caption: string }>();
 const figureCache = new Map<string, InlineFigure[]>();
+const sceneVaultCache = new Map<string, VaultScene[]>();
 let figureSeq = 1;
+let vaultSeq = 1;
+
+function sceneVault(sceneId: string): VaultScene[] {
+  return sceneVaultCache.get(sceneId) ?? [];
+}
+
+// Adds a finished scene picture to the vault under a fresh id. The same
+// url twice (a repeat answer) is kept once; earlier entries are untouched.
+export function keepScenePicture(sceneId: string, url: string, caption: string): VaultScene[] {
+  const prev = sceneVault(sceneId);
+  if (prev.some((v) => v.url === url)) return prev;
+  const next = [...prev, { id: `s${vaultSeq++}`, url, caption }];
+  sceneVaultCache.set(sceneId, next);
+  return next;
+}
 
 // Document coordinates from the selection rect plus page scroll, so the
 // popover stays on the selection however scenes are laid out (paged or
@@ -103,6 +127,7 @@ export function usePictures({
 }) {
   const [card, setCard] = useState<SceneCard>(() => sceneCard(sceneId));
   const [figures, setFigures] = useState<InlineFigure[]>(() => sceneFigures(sceneId));
+  const [vaultScenes, setVaultScenes] = useState<VaultScene[]>(() => sceneVault(sceneId));
   const [hintAt, setHintAt] = useState<HintAt>(null);
   const hintTimer = useRef<number | null>(null);
   const [popover, setPopover] = useState<{ top: number; left: number } | null>(null);
@@ -161,6 +186,7 @@ export function usePictures({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- scene change resets card, figures and popover
     setCard(sceneCard(sceneId));
     setFigures(sceneFigures(sceneId));
+    setVaultScenes(sceneVault(sceneId));
     setPopover(null);
     setHintAt(null);
   }, [sceneId]);
@@ -214,7 +240,11 @@ export function usePictures({
     void poll({ kind: "scene", bookId, textVersion, sceneId, ...requestStyleFields(prefRef.current) }, token)
       .then(({ url, caption }) => {
         sceneCache.set(sceneId, { url, caption });
-        if (sceneRef.current === sceneId) setCard({ phase: "ready", url, caption });
+        const kept = keepScenePicture(sceneId, url, caption);
+        if (sceneRef.current === sceneId) {
+          setCard({ phase: "ready", url, caption });
+          setVaultScenes(kept);
+        }
       })
       .catch((err: unknown) => {
         if (sceneRef.current === sceneId) {
@@ -235,6 +265,8 @@ export function usePictures({
       });
   }, [bookId, textVersion, sceneId, showHint]);
 
+  // Dismisses the pane picture so it can be drawn again. The vault keeps
+  // it: only the pane cache is cleared, never sceneVaultCache.
   const clearScene = useCallback(() => {
     sceneCache.delete(sceneId);
     setCard({ phase: "idle" });
@@ -487,6 +519,7 @@ export function usePictures({
     needHuman,
     submitHumanToken,
     figures: shownFigures,
+    vaultScenes,
     popover: shownPopover,
     viewRef,
     popRef,
