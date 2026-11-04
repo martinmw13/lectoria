@@ -32,7 +32,7 @@ async function openCast(chapter: number) {
   const el = document.createElement("div");
   const root = createRoot(el);
   await act(async () => root.render(<CastList bookId="oz" sceneId="c1s1" chapter={chapter} />));
-  await act(async () => el.querySelector<HTMLButtonElement>(".marks-row")!.click());
+  await act(async () => el.querySelector<HTMLButtonElement>(".cast-toggle")!.click());
   return { el, root };
 }
 
@@ -42,7 +42,7 @@ it("shows portraits only for mapped Oz characters in chapter 1, in the list and 
   expect([...imgs].map((i) => i.alt)).toEqual(["Dorothy", "Toto"]);
   expect(imgs[0]!.alt).toBe("Dorothy");
   expect(imgs[0]!.getAttribute("src")).toBe("/portraits/oz.webp");
-  await act(async () => el.querySelector<HTMLButtonElement>(".cast-seeall")!.click());
+  await act(async () => el.querySelector<HTMLButtonElement>(".cast-open")!.click());
   const big = el.querySelectorAll<HTMLImageElement>("#cast-window img.cast-portrait");
   expect(big).toHaveLength(2);
   expect(big[0]!.alt).toBe("Dorothy");
@@ -82,7 +82,7 @@ it("opens the protagonist portrait large on click and closes on Esc, ×, and out
 it("Esc in the zoom closes only the portrait, not the cast window", async () => {
   const { el, root } = await openCast(1);
   document.body.appendChild(el);
-  await act(async () => el.querySelector<HTMLButtonElement>(".cast-seeall")!.click());
+  await act(async () => el.querySelector<HTMLButtonElement>(".cast-open")!.click());
   await act(async () => el.querySelector<HTMLButtonElement>("#cast-window .cast-portrait-btn")!.click());
   await act(async () =>
     document.querySelector(".portrait-zoom")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
@@ -93,20 +93,28 @@ it("Esc in the zoom closes only the portrait, not the cast window", async () => 
   el.remove();
 });
 
-it("has no separate expand control; See all appears only in the open list and opens the window", async () => {
+it("opens the window from the title and toggles the list only from the chevron", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ cast: [entry("dorothy", "Dorothy")] }) })));
   const el = document.createElement("div");
   const root = createRoot(el);
   await act(async () => root.render(<CastList bookId="oz" sceneId="c1s1" chapter={1} />));
-  expect(el.querySelector(".cast-expand")).toBeNull();
-  expect(el.querySelector(".cast-seeall")).toBeNull();
-  await act(async () => el.querySelector<HTMLButtonElement>(".marks-row")!.click());
-  const seeAll = el.querySelector<HTMLButtonElement>("#cast-panel .cast-seeall")!;
-  expect(seeAll.textContent).toBe("See all");
+  expect(el.querySelector(".cast-expand, .cast-seeall")).toBeNull();
+  const title = el.querySelector<HTMLButtonElement>("button.cast-open")!;
+  expect(title.textContent).toBe("Cast so far");
+  expect(title.getAttribute("aria-label")).toBe("Open cast window");
+  expect(title.title).toBe("Open cast window");
+  const toggle = el.querySelector<HTMLButtonElement>("button.cast-toggle")!;
+  await act(async () => toggle.click());
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(el.querySelector("#cast-panel")).not.toBeNull();
   expect(el.querySelector("#cast-window")).toBeNull();
-  await act(async () => seeAll.click());
+  await act(async () => toggle.click());
+  expect(el.querySelector("#cast-panel")).toBeNull();
+  await act(async () => title.click());
   expect(el.querySelector("#cast-window")).not.toBeNull();
+  expect(el.querySelector("#cast-panel")).toBeNull();
   await act(async () => el.querySelector<HTMLButtonElement>("#cast-window .chat-x")!.click());
   expect(el.querySelector("#cast-window")).toBeNull();
+  expect(document.activeElement === title || !el.isConnected).toBe(true);
   act(() => root.unmount());
 });

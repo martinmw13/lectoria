@@ -14,8 +14,9 @@ export const CAST_COPY = {
   failed: "The cast is unavailable right now",
   first: (ch: number, title: string) => `First met · Chapter ${ch}, ${title}`,
   known: "Known so far",
-  seeAll: "See all",
-  seeAllLabel: "See the whole cast in a larger window",
+  open: "Open cast window",
+  showList: "Show the cast list",
+  hideList: "Hide the cast list",
   closeWindow: "Close cast window",
   scope: "Only the characters you have met so far.",
   zoom: (name: string) => `Enlarge portrait of ${name}`,
@@ -179,48 +180,57 @@ function CastWindow({ bookId, sceneId, chapter, onClose }: { bookId: string; sce
 
 // A margin row like Notes & highlights. Closed, it fetches and shows
 // nothing; open, it asks the server for the cast up to this scene only.
-// "See all" at the foot of the open list opens the same cast in a larger window.
+// The title opens the same cast in a larger window; only the chevron
+// toggles the compact list.
 // chapter is the reader's current chapter; the protagonist portrait
 // teaser shows only in chapter 1.
 export function CastList({ bookId, sceneId, chapter }: { bookId: string; sceneId: string; chapter?: number }) {
   const [open, setOpen] = useState(false);
   const [big, setBig] = useState(false);
-  const seeAllRef = useRef<HTMLButtonElement | null>(null);
+  const titleRef = useRef<HTMLButtonElement | null>(null);
   const { cast, failed } = useCast(bookId, sceneId, open);
   const sub = !open ? CAST_COPY.closed : cast ? CAST_COPY.summary(cast.length) : failed ? CAST_COPY.failed : CAST_COPY.loading;
   return (
     <section className="marks cast" aria-label={CAST_COPY.title}>
-      <button type="button" className="mtool marks-row" aria-expanded={open} aria-controls="cast-panel" onClick={() => setOpen((v) => !v)}>
+      <div className="mtool marks-row cast-row">
         <span className="mtool-icon">
           <Icon name="heart" width={18} height={18} />
         </span>
         <span className="mtool-text">
-          <span className="mtool-title">{CAST_COPY.title}</span>
-          <span className="mtool-sub">{sub}</span>
-        </span>
-        {cast ? <span className="marks-count">{cast.length}</span> : null}
-        <Icon name="chevron-down" className="marks-chev" />
-      </button>
-      {open && cast ? (
-        <div id="cast-panel">
-          <ul className="marks-cards">
-            {cast.map((c) => (
-              <CastCard key={c.id} c={c} portrait={portraitFor(bookId, c.id, chapter)} />
-            ))}
-          </ul>
           <button
-            ref={seeAllRef}
+            ref={titleRef}
             type="button"
-            className="cast-seeall"
-            aria-label={CAST_COPY.seeAllLabel}
+            className="mtool-title cast-open"
+            title={CAST_COPY.open}
+            aria-label={CAST_COPY.open}
             aria-haspopup="dialog"
             aria-expanded={big}
             aria-controls="cast-window"
             onClick={() => setBig(true)}
           >
-            {CAST_COPY.seeAll}
+            {CAST_COPY.title}
           </button>
-        </div>
+          <span className="mtool-sub">{sub}</span>
+        </span>
+        <button
+          type="button"
+          className="cast-toggle"
+          aria-expanded={open}
+          aria-controls="cast-panel"
+          aria-label={open ? CAST_COPY.hideList : CAST_COPY.showList}
+          title={open ? CAST_COPY.hideList : CAST_COPY.showList}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {cast ? <span className="marks-count">{cast.length}</span> : null}
+          <Icon name="chevron-down" className="marks-chev" />
+        </button>
+      </div>
+      {open && cast ? (
+        <ul id="cast-panel" className="marks-cards">
+          {cast.map((c) => (
+            <CastCard key={c.id} c={c} portrait={portraitFor(bookId, c.id, chapter)} />
+          ))}
+        </ul>
       ) : null}
       {big ? (
         <CastWindow
@@ -229,7 +239,7 @@ export function CastList({ bookId, sceneId, chapter }: { bookId: string; sceneId
           chapter={chapter}
           onClose={() => {
             setBig(false);
-            seeAllRef.current?.focus();
+            titleRef.current?.focus();
           }}
         />
       ) : null}
