@@ -18,9 +18,12 @@ html[data-skin="chihiro"] .ob-drop { border: 2px solid rgba(156, 47, 30, .45); b
 /* html lifts the hover border to the per-skin rules' specificity, so it wins. */
 html .ob-drop:is(:hover, .over) { border-color: var(--color-accent); }
 /* burin slides background-position, so engraving needs a hatch to move. */
+/* burin shifts the hatch 40px diagonally (7 hatch periods of 8.08px), so it loops seamlessly. */
 html[data-skin="engraving"] .ob-drop:hover {
-  background-image: repeating-linear-gradient(45deg, rgba(42, 36, 28, .07) 0 1px, transparent 1px 8px);
-  animation: burin 700ms linear;
+  background-image: repeating-linear-gradient(45deg, rgba(42, 36, 28, .18) 0 1.2px, transparent 1.2px 8.08px);
+  animation: burin 1.4s linear infinite;
+  transform: translateY(-2px);
+  box-shadow: inset 0 0 0 4px #F7F1DE, inset 0 0 0 5px rgba(42, 36, 28, .35), 0 6px 14px -8px rgba(42, 36, 28, .45);
 }
 html[data-skin="watercolor"] .ob-drop:hover, html[data-skin="chihiro"] .ob-drop:hover { transform: scale(1.015); }
 html[data-skin="ink"] .ob-drop:hover, html[data-skin="comic"] .ob-drop:hover { animation: wiggle 420ms ease; }
