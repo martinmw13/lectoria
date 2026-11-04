@@ -4,12 +4,14 @@
 import { unzipSync } from "fflate";
 import { cleanDeterministic } from "./clean";
 import type { RawSection } from "./clean";
+import { MIN_BOOK_WORDS } from "./upload-policy";
 
 export const MAX_EPUB_BYTES = 20 * 1024 * 1024;
 const MAX_ENTRY_BYTES = 8 * 1024 * 1024;
 const MAX_INFLATED_BYTES = 60 * 1024 * 1024;
+const MAX_ENTRIES = 10_000;
 
-export type EpubErrorCode = "not_epub" | "too_large" | "drm" | "unreadable";
+export type EpubErrorCode = "not_epub" | "too_large" | "drm" | "unreadable" | "empty" | "too_short";
 
 export class EpubError extends Error {
   code: EpubErrorCode;
@@ -25,6 +27,8 @@ export const EPUB_ERROR_MESSAGES: Record<EpubErrorCode, string> = {
   too_large: "That file is bigger than 20 MB. Most novels are far smaller, so try another edition.",
   drm: "This book is copy-protected, so we can't open it. Free classics from Project Gutenberg or Standard Ebooks work well.",
   unreadable: "We couldn't read this EPUB. It might be damaged. Try another copy.",
+  empty: "That file is empty. Try another copy of the book.",
+  too_short: "This EPUB looks empty or too short. It needs at least one page of text.",
 };
 
 export interface EpubBook {
@@ -241,19 +245,31 @@ function openEpub(
   parse: XmlParser,
   opts: { checkMimetype: boolean; strictSpine: boolean },
 ): EpubPackage {
+  if (bytes.length === 0) throw new EpubError("empty");
   if (bytes.length > MAX_EPUB_BYTES) throw new EpubError("too_large");
   if (bytes[0] !== 0x50 || bytes[1] !== 0x4b || bytes[2] !== 0x03 || bytes[3] !== 0x04) {
     throw new EpubError("not_epub");
   }
+  // Zip-bomb guards run in the filter, before anything inflates: fflate
+  // inflates each entry into a buffer of its declared size, so the
+  // declared sizes bound memory. Too many entries or too much declared
+  // output rejects the whole file; one oversize entry is skipped.
   let files: Record<string, Uint8Array>;
+  let entries = 0;
+  let declared = 0;
   try {
     files = unzipSync(bytes, {
       filter: (entry) => {
+        entries += 1;
+        if (entries > MAX_ENTRIES) throw new EpubError("too_large");
         if (typeof entry.originalSize === "number" && entry.originalSize > MAX_ENTRY_BYTES) return false;
+        declared += entry.originalSize ?? 0;
+        if (declared > MAX_INFLATED_BYTES) throw new EpubError("too_large");
         return true;
       },
     }) as Record<string, Uint8Array>;
-  } catch {
+  } catch (e) {
+    if (e instanceof EpubError) throw e;
     throw new EpubError("not_epub");
   }
   let total = 0;
@@ -271,7 +287,8 @@ function openEpub(
     "full-path",
   );
   const opfRaw = opfPath !== undefined && opfPath !== null ? files[opfPath] : undefined;
-  if (opfPath === undefined || opfPath === null || opfRaw === undefined) throw new EpubError("unreadable");
+  // No package document means this zip is not an EPUB.
+  if (opfPath === undefined || opfPath === null || opfRaw === undefined) throw new EpubError("not_epub");
   const opf = mustParse(parse, decode(opfRaw), "application/xml");
 
   const metadata = elsByLocal(opf, "metadata")[0];
@@ -407,7 +424,8 @@ function openEpub(
       blocks: spineBlocks(doc),
     });
   }
-  if (sections.length === 0) throw new EpubError("unreadable");
+  // A spine with no readable documents has no text to read.
+  if (sections.length === 0) throw new EpubError("too_short");
 
   return { mimetype, title, author, sections, cover };
 }
@@ -426,7 +444,9 @@ export interface EpubParse {
 }
 
 // The upload POSTs the same sections the card counts, parsed once.
-export function parseEpubWithSections(bytes: Uint8Array): EpubParse {
+// Rejects books under about one page of kept text (MIN_BOOK_WORDS); the
+// server re-checks the same count on the cleaned sections.
+export function parseEpubWithSections(bytes: Uint8Array, minWords: number = MIN_BOOK_WORDS): EpubParse {
   const { title, author, sections, cover } = openEpub(bytes, browserParse, {
     checkMimetype: true,
     strictSpine: false,
@@ -437,19 +457,31 @@ export function parseEpubWithSections(bytes: Uint8Array): EpubParse {
   for (const chapter of kept) {
     for (const paragraph of chapter.paragraphs) words = countWords(paragraph, words);
   }
+  if (kept.length === 0 || words < minWords) throw new EpubError("too_short");
   return { book: { title, author, chapters: kept.map((chapter) => chapter.title), words, cover }, sections };
 }
 
+// Parse only, no length floor (fixtures and previews).
 export function parseEpub(bytes: Uint8Array): EpubBook {
-  return parseEpubWithSections(bytes).book;
+  return parseEpubWithSections(bytes, 0).book;
+}
+
+// Cheap checks on the File (size, zip signature) run before reading it all.
+async function assertLooksLikeEpub(file: File): Promise<void> {
+  if (typeof file.slice !== "function") return;
+  const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+  if (head[0] !== 0x50 || head[1] !== 0x4b || head[2] !== 0x03 || head[3] !== 0x04) throw new EpubError("not_epub");
 }
 
 export async function readEpubFile(file: File): Promise<EpubBook> {
+  if (file.size === 0) throw new EpubError("empty");
   if (file.size > MAX_EPUB_BYTES) throw new EpubError("too_large");
   return parseEpub(new Uint8Array(await file.arrayBuffer()));
 }
 
 export async function readEpubFileWithSections(file: File): Promise<EpubParse> {
+  if (file.size === 0) throw new EpubError("empty");
   if (file.size > MAX_EPUB_BYTES) throw new EpubError("too_large");
+  await assertLooksLikeEpub(file);
   return parseEpubWithSections(new Uint8Array(await file.arrayBuffer()));
 }

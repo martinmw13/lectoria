@@ -1,0 +1,16 @@
+import { zipSync, strToU8 } from "fflate";
+import { writeFileSync } from "fs";
+const d = "core/fixtures/epub/";
+const C = `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`;
+const opf = (spine) => `<?xml version="1.0" encoding="utf-8"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Fixture</dc:title><dc:creator>Test</dc:creator></metadata><manifest><item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/></manifest><spine>${spine}</spine></package>`;
+const doc = (p) => `<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>C</title></head><body><h1>Chapter I. The Start</h1>${p}</body></html>`;
+const prose = "The lantern swung over the quiet harbor while the river ran on toward the meadow and the sparrow sang at the window of the old garden house.";
+const paras = (n) => Array.from({ length: n }, () => `<p>${prose}</p>`).join("");
+const book = (files) => zipSync({ mimetype: [strToU8("application/epub+zip"), { level: 0 }], "META-INF/container.xml": strToU8(C), ...files });
+writeFileSync(d + "valid.epub", book({ "OEBPS/content.opf": strToU8(opf('<itemref idref="ch1"/>')), "OEBPS/ch1.xhtml": strToU8(doc(paras(12))) }));
+writeFileSync(d + "tiny.epub", book({ "OEBPS/content.opf": strToU8(opf('<itemref idref="ch1"/>')), "OEBPS/ch1.xhtml": strToU8(doc(paras(2))) }));
+writeFileSync(d + "no-content.epub", book({ "OEBPS/content.opf": strToU8(opf('<itemref idref="ch1"/>')), "OEBPS/ch1.xhtml": strToU8(doc("")) }));
+writeFileSync(d + "no-spine.epub", book({ "OEBPS/content.opf": strToU8(opf("")) }));
+writeFileSync(d + "no-opf.epub", book({}));
+writeFileSync(d + "empty.epub", new Uint8Array(0));
+writeFileSync(d + "not-a-zip.epub", "This is just a text file pretending to be an EPUB.\n");

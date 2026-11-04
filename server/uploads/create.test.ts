@@ -2,7 +2,7 @@
 // cuts it off and the book keeps its deterministic chapters.
 import { describe, expect, it } from "vitest";
 import { createUpload } from "./create";
-import { createMemoryKV, helpfulMeta, memoryStore, tinyBook } from "./test-support";
+import { createMemoryKV, helpfulMeta, memoryStore, section, tinyBook } from "./test-support";
 
 describe("createUpload judge budget", () => {
   it("keeps deterministic chapters when the judge outruns its budget", async () => {
@@ -35,5 +35,14 @@ describe("createUpload judge budget", () => {
     expect(out.chapters).toBe(2);
     const job = JSON.parse((await kv.get(`upload:job:${out.id}`)) as string) as { usage: { metaRequests: number } };
     expect(job.usage.metaRequests).toBe(0);
+  });
+});
+
+describe("createUpload length floor", () => {
+  it("refuses books under one page before any quota or spend", async () => {
+    const body = { title: "Short", sections: [section("s1", "One", 2, 20)] };
+    await expect(
+      createUpload({ body } as unknown as Parameters<typeof createUpload>[0]),
+    ).rejects.toMatchObject({ code: "too_short" });
   });
 });

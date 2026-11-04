@@ -4,6 +4,8 @@ export const FREE_BOOK_MAX_WORDS = 50_000; // provisional, may change once we kn
 // BYOK books pay with the reader's key, so the ceiling is the 4 MB body.
 export const BYOK_BOOK_MAX_WORDS = 400_000;
 export const WORDS_PER_PAGE = 250;
+// About one page: shorter (or empty) books have nothing to score.
+export const MIN_BOOK_WORDS = WORDS_PER_PAGE;
 // Mirror of FREE_BOOKS_PER_PERSON in server/guard/quota.ts.
 export const FREE_BOOKS_PER_DAY = 1;
 

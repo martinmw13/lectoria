@@ -4,16 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RawSection } from "@/core/clean-types";
 import { EPUB_ERROR_MESSAGES, EpubError, readEpubFileWithSections, type EpubBook } from "@/core/epub";
-import { UPLOAD_MESSAGES } from "@/core/uploads";
 import { approxPages, FREE_BOOK_MAX_WORDS, uploadRoute } from "@/core/upload-policy";
 import { setReaderKey } from "../leer/reader-key";
-import { TurnstileWidget } from "../turnstile";
 import { BookCard } from "./book-card";
 import { ByokStep } from "./byok";
 import { countFreeBookToday, getFreeBooksToday } from "./free-book";
 import { FRIEND_WELCOME, FriendCode } from "./friend-code";
 import { HomeIcon } from "./home-icons";
 import { saveMyBook } from "./my-books";
+import { FailedView } from "./failed-view";
 import { driveUpload, UploadFlowError, type FlowCode, type FlowProgress } from "./upload-flow";
 
 interface ParsedBook {
@@ -35,8 +34,6 @@ type Status =
       code: FlowCode;
       progress: FlowProgress | null;
     };
-
-const NETWORK_MESSAGE = "We lost the connection for a moment. Try again?";
 
 function progressCopy(progress: FlowProgress | null): string {
   if (!progress) return "Reading your book…";
@@ -448,127 +445,5 @@ export function UploadSection() {
         </div>
       )}
     </section>
-  );
-}
-
-// One failed upload: coded errors map to the next step, never a dead end.
-function FailedView({
-  status,
-  idleKey,
-  friendCode,
-  friendWelcome,
-  onFriendCode,
-  onFriendAccepted,
-  onRetryKey,
-  onRetryToken,
-  onRetry,
-  onReset,
-}: {
-  status: Extract<Status, { step: "failed" }>;
-  idleKey: string;
-  friendCode: string;
-  friendWelcome: boolean;
-  onFriendCode: (code: string) => void;
-  onFriendAccepted: () => void;
-  onRetryKey: (key: string) => void;
-  onRetryToken: (token: string) => void;
-  onRetry: () => void;
-  onReset: () => void;
-}) {
-  const code = status.code;
-  // A spent free book, or one over 50k words, still reads free with a
-  // friend's code: the retry sends no key, and the server rules on it.
-  if (code === "daily_books_reached" || code === "too_long") {
-    return (
-      <div>
-        <ByokStep
-          metaOnly
-          note={UPLOAD_MESSAGES[code]}
-          initialKey={idleKey}
-          actionLabel="Bring your own key!"
-          onSubmit={onRetryKey}
-        />
-        <FriendCode
-          code={friendCode}
-          onCode={onFriendCode}
-          welcome={friendWelcome}
-          onAccepted={onFriendAccepted}
-        />
-        <div className="ob-actions">
-          <button
-            className="ob-quiet"
-            type="button"
-            onClick={onRetry}
-            disabled={friendCode.trim() === ""}
-          >
-            Try with friend code
-          </button>
-          <button className="ob-quiet" type="button" onClick={onReset}>
-            Choose another book
-          </button>
-        </div>
-      </div>
-    );
-  }
-  if (code === "daily_budget_reached") {
-    return (
-      <div>
-        <ByokStep
-          metaOnly
-          note={UPLOAD_MESSAGES[code]}
-          initialKey={idleKey}
-          actionLabel="Bring your own key!"
-          onSubmit={onRetryKey}
-        />
-        <div className="ob-actions">
-          <button className="ob-quiet" type="button" onClick={onReset}>
-            Choose another book
-          </button>
-        </div>
-      </div>
-    );
-  }
-  if (code === "human_required") {
-    return (
-      <div>
-        <p className="ob-note">{UPLOAD_MESSAGES.human_required} Complete the check and we&apos;ll pick up where we left off.</p>
-        <TurnstileWidget onToken={onRetryToken} />
-        <div className="ob-actions">
-          <button className="ob-action" type="button" onClick={onRetry}>
-            Try again
-          </button>
-          <button className="ob-quiet" type="button" onClick={onReset}>
-            Choose another book
-          </button>
-        </div>
-      </div>
-    );
-  }
-  if (code === "expired" || code === "not_found") {
-    return (
-      <div>
-        <p className="ob-note">{UPLOAD_MESSAGES[code]} Upload it again to start over.</p>
-        <div className="ob-actions">
-          <button className="ob-action" type="button" onClick={onReset}>
-            Upload it again
-          </button>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div>
-      <p className="ob-note" role="alert">
-        {code === "network" ? NETWORK_MESSAGE : UPLOAD_MESSAGES[code]}
-      </p>
-      <div className="ob-actions">
-        <button className="ob-action" type="button" onClick={onRetry}>
-          Try again
-        </button>
-        <button className="ob-quiet" type="button" onClick={onReset}>
-          Choose another book
-        </button>
-      </div>
-    </div>
   );
 }
