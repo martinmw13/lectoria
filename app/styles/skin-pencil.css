@@ -198,7 +198,9 @@ html[data-skin="pencil"] .pane-divider:hover::before {
 html[data-skin="pencil"] .pic-btn {
   font-family: var(--font-pencil-title);
   font-weight: 600;
-  font-size: 20px;
+  /* 20px clipped the panels button label at the left ribbon edge;
+     16px keeps the full label inside the pane at every desktop width. */
+  font-size: 16px;
   color: var(--color-text);
 }
 
