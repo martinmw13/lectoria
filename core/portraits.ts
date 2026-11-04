@@ -23,6 +23,7 @@ export const PORTRAITS: Readonly<Record<string, readonly Portrait[]>> = {
       characterName: "Alice",
       src: "/portraits/alice.webp",
       large: "/portraits/alice@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
   ],
   carol: [
@@ -31,6 +32,7 @@ export const PORTRAITS: Readonly<Record<string, readonly Portrait[]>> = {
       characterName: "Ebenezer Scrooge",
       src: "/portraits/carol.webp",
       large: "/portraits/carol@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
   ],
   dracula: [
@@ -39,6 +41,7 @@ export const PORTRAITS: Readonly<Record<string, readonly Portrait[]>> = {
       characterName: "Jonathan Harker",
       src: "/portraits/dracula.webp",
       large: "/portraits/dracula@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
   ],
   frankenstein: [
@@ -47,6 +50,7 @@ export const PORTRAITS: Readonly<Record<string, readonly Portrait[]>> = {
       characterName: "Victor Frankenstein",
       src: "/portraits/frankenstein.webp",
       large: "/portraits/frankenstein@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
   ],
   jungle: [
@@ -55,6 +59,7 @@ export const PORTRAITS: Readonly<Record<string, readonly Portrait[]>> = {
       characterName: "Mowgli",
       src: "/portraits/jungle.webp",
       large: "/portraits/jungle@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
   ],
   oz: [
@@ -93,6 +98,7 @@ export const PORTRAITS: Readonly<Record<string, readonly Portrait[]>> = {
       characterName: "Peter Pan",
       src: "/portraits/peterpan.webp",
       large: "/portraits/peterpan@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
   ],
   pride: [
@@ -101,6 +107,7 @@ export const PORTRAITS: Readonly<Record<string, readonly Portrait[]>> = {
       characterName: "Elizabeth Bennet",
       src: "/portraits/pride.webp",
       large: "/portraits/pride@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
   ],
   sherlock: [
@@ -109,6 +116,7 @@ export const PORTRAITS: Readonly<Record<string, readonly Portrait[]>> = {
       characterName: "Sherlock Holmes",
       src: "/portraits/sherlock.webp",
       large: "/portraits/sherlock@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
   ],
   treasure: [
@@ -117,6 +125,7 @@ export const PORTRAITS: Readonly<Record<string, readonly Portrait[]>> = {
       characterName: "Jim Hawkins",
       src: "/portraits/treasure.webp",
       large: "/portraits/treasure@2x.webp",
+      skins: PORTRAIT_SKINS,
     },
   ],
 };

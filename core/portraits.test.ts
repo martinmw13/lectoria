@@ -83,4 +83,10 @@ describe("protagonist portraits", () => {
   it("restyles all four Oz chapter 1 characters in every skin", () => {
     for (const p of PORTRAITS.oz ?? []) expect([...(p.skins ?? [])], p.characterId).toEqual([...SKINS]);
   });
+
+  it("restyles every book's protagonist in every skin", () => {
+    for (const [book, list] of Object.entries(PORTRAITS)) {
+      for (const p of list) expect([...(p.skins ?? [])], `${book}/${p.characterId}`).toEqual([...SKINS]);
+    }
+  });
 });
