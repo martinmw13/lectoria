@@ -24,6 +24,7 @@ import { GOTO_SCENE_EVENT, setCurrentSceneId } from "./current-scene";
 import { attachFollowPause, noteUserScroll, pickCurrentScene, scrollToSceneId } from "./scroll-helpers";
 import { ReadAlong } from "../narration/read-along";
 import { MarksList } from "./marks-list";
+import { CastList } from "./cast-list";
 import type { Mark } from "./marks";
 import { NoteEditor, SelectionMenu, type NoteTarget } from "./selection-menu";
 import { useMarks } from "./use-marks";
@@ -41,11 +42,14 @@ export function BookView({
   initialSceneId,
   panelsByChapter,
   visualsOn: visualsOnProp,
+  castOn = false,
 }: {
   model: ReaderModel;
   initialSceneId: string;
   panelsByChapter: { ch: number; panels: ChapterPanel[] }[];
   visualsOn?: boolean;
+  /** Show the spoiler-free cast codex (shelf books with a bookmap). */
+  castOn?: boolean;
 }) {
   // Pictures serve uploads too; the vault and panels stay mounted and
   // the images API fills them from the uploaded text.
@@ -328,6 +332,7 @@ export function BookView({
           pref={pref}
           onPrefChange={changePref}
         >
+          {castOn ? <CastList bookId={model.bookId} sceneId={currentId} /> : null}
           <MarksList marks={marks.marks} onGo={gotoMark} onRemove={marks.remove} />
         </PictureVault>
       ) : null}

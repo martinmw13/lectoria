@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { chapterPanels } from "@/core/panels";
 import { buildReaderModel } from "@/core/reader";
 import { loadBook, readyBookIds } from "@/server/books";
+import { hasCast } from "@/server/cast";
 import { BookView } from "../../../leer/book-view";
 
 // One static route per book's first scene only; the rest render on
@@ -36,5 +37,5 @@ export default async function SceneRoute({
       caption: g.caption,
     })),
   }));
-  return <BookView model={model} initialSceneId={sceneId} panelsByChapter={panelsByChapter} />;
+  return <BookView model={model} initialSceneId={sceneId} panelsByChapter={panelsByChapter} castOn={hasCast(bookId, { book, scenes })} />;
 }
