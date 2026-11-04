@@ -14,7 +14,8 @@ export const CAST_COPY = {
   failed: "The cast is unavailable right now",
   first: (ch: number, title: string) => `First met · Chapter ${ch}, ${title}`,
   known: "Known so far",
-  expand: "Open the cast in a larger window",
+  seeAll: "See all",
+  seeAllLabel: "See the whole cast in a larger window",
   closeWindow: "Close cast window",
   scope: "Only the characters you have met so far.",
   zoom: (name: string) => `Enlarge portrait of ${name}`,
@@ -178,13 +179,13 @@ function CastWindow({ bookId, sceneId, chapter, onClose }: { bookId: string; sce
 
 // A margin row like Notes & highlights. Closed, it fetches and shows
 // nothing; open, it asks the server for the cast up to this scene only.
-// The expand control opens the same cast in a larger window.
+// "See all" at the foot of the open list opens the same cast in a larger window.
 // chapter is the reader's current chapter; the protagonist portrait
 // teaser shows only in chapter 1.
 export function CastList({ bookId, sceneId, chapter }: { bookId: string; sceneId: string; chapter?: number }) {
   const [open, setOpen] = useState(false);
   const [big, setBig] = useState(false);
-  const expandRef = useRef<HTMLButtonElement | null>(null);
+  const seeAllRef = useRef<HTMLButtonElement | null>(null);
   const { cast, failed } = useCast(bookId, sceneId, open);
   const sub = !open ? CAST_COPY.closed : cast ? CAST_COPY.summary(cast.length) : failed ? CAST_COPY.failed : CAST_COPY.loading;
   return (
@@ -200,24 +201,26 @@ export function CastList({ bookId, sceneId, chapter }: { bookId: string; sceneId
         {cast ? <span className="marks-count">{cast.length}</span> : null}
         <Icon name="chevron-down" className="marks-chev" />
       </button>
-      <button
-        ref={expandRef}
-        type="button"
-        className="vault-x cast-expand"
-        aria-label={CAST_COPY.expand}
-        title={CAST_COPY.expand}
-        aria-expanded={big}
-        aria-controls="cast-window"
-        onClick={() => setBig((v) => !v)}
-      >
-        <Icon name="expand" />
-      </button>
       {open && cast ? (
-        <ul id="cast-panel" className="marks-cards">
-          {cast.map((c) => (
-            <CastCard key={c.id} c={c} portrait={portraitFor(bookId, c.id, chapter)} />
-          ))}
-        </ul>
+        <div id="cast-panel">
+          <ul className="marks-cards">
+            {cast.map((c) => (
+              <CastCard key={c.id} c={c} portrait={portraitFor(bookId, c.id, chapter)} />
+            ))}
+          </ul>
+          <button
+            ref={seeAllRef}
+            type="button"
+            className="cast-seeall"
+            aria-label={CAST_COPY.seeAllLabel}
+            aria-haspopup="dialog"
+            aria-expanded={big}
+            aria-controls="cast-window"
+            onClick={() => setBig(true)}
+          >
+            {CAST_COPY.seeAll}
+          </button>
+        </div>
       ) : null}
       {big ? (
         <CastWindow
@@ -226,7 +229,7 @@ export function CastList({ bookId, sceneId, chapter }: { bookId: string; sceneId
           chapter={chapter}
           onClose={() => {
             setBig(false);
-            expandRef.current?.focus();
+            seeAllRef.current?.focus();
           }}
         />
       ) : null}
