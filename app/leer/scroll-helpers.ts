@@ -33,21 +33,49 @@ export function prefersReducedMotion(): boolean {
 }
 
 // Scroll the scroller so the scene section sits at its top; a chapter's
-// first scene lands on the chapter heading instead. Instant when
-// smooth is false or the user prefers reduced motion. False when the
-// section is missing. A jump pauses narration follow so the glide
-// never fights it. scrollIntoView also renders content-visibility
-// sections on the way there.
+// first scene lands on the chapter heading instead. False when the
+// section is missing. A jump pauses narration follow so the glide never
+// fights it.
+//
+// Sections use content-visibility: auto with a 1200px placeholder
+// height, so any offset computed before the sections on the way render
+// is a guess. A smooth scroll fixes its destination up front and then
+// lands wherever that guess points once real heights replace the
+// placeholders (often several scenes off). So the jump is instant and
+// then re-aligns the target on later frames until its top stops moving.
+// `smooth` only applies when the target is already within a screen of
+// the viewport, where no unrendered sections sit in between.
+const settling = new WeakMap<object, number>();
+let settleSeq = 0;
+
 export function scrollToSceneId(scroller: HTMLElement, sceneId: string, smooth = true): boolean {
   const el = scroller.querySelector(`[data-scene-id="${sceneId}"]`);
   if (!el || typeof el.scrollIntoView !== "function") return false;
   noteUserScroll(scroller);
   const block = el.closest?.(".chapter-block");
   const target = block && block.querySelector("[data-scene-id]") === el ? block : el;
-  target.scrollIntoView({
-    block: "start",
-    behavior: smooth && !prefersReducedMotion() ? "smooth" : "auto",
-  });
+  const offset = () => target.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+  const near = Math.abs(offset()) < scroller.clientHeight;
+  const glide = smooth && near && !prefersReducedMotion();
+  target.scrollIntoView({ block: "start", behavior: glide ? "smooth" : "auto" });
+  if (glide || typeof requestAnimationFrame !== "function") return true;
+  const token = ++settleSeq;
+  settling.set(scroller, token);
+  let frames = 0;
+  let still = 0;
+  const settle = () => {
+    // A newer jump or a user scroll (noteUserScroll clears the token) ends this one.
+    if (settling.get(scroller) !== token) return;
+    const off = offset();
+    if (Math.abs(off) > 1) {
+      target.scrollIntoView({ block: "start", behavior: "auto" });
+      still = 0;
+    } else still += 1;
+    frames += 1;
+    if (still < 3 && frames < 60) requestAnimationFrame(settle);
+    else settling.delete(scroller);
+  };
+  requestAnimationFrame(settle);
   return true;
 }
 
@@ -57,6 +85,7 @@ const lastUserScroll = new WeakMap<object, number>();
 
 export function noteUserScroll(scroller: object, now: number = Date.now()): void {
   lastUserScroll.set(scroller, now);
+  settling.delete(scroller);
   pendingTarget.delete(scroller);
   stopGlide(scroller);
 }

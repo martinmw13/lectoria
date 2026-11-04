@@ -10,6 +10,7 @@ import { StylePicker } from "../home/style-picker";
 import { clampSplitWidth, SPLIT_MIN_PX } from "./helpers";
 import { WarmthControl } from "./warmth-control";
 import { ReadingControl } from "./reading-control";
+import { ChapterMenu } from "./chapter-menu";
 
 export { THEME_KEY } from "../theme";
 export const SPLIT_KEY = "lectoria.split";
@@ -49,18 +50,7 @@ export function TopLine({
       </Link>
       <div className="top-center">
         {bookTitle} · {author} ·{" "}
-        <span className="chapter-jump">
-          <span aria-hidden="true" className="chapter-jump-text">
-            Chapter {ch} of {chaptersTotal}
-          </span>
-          <select value={ch} onChange={(e) => onJumpChapter(Number(e.target.value))} aria-label="Chapter">
-            {chapters.map((c) => (
-              <option key={c.ch} value={c.ch}>
-                {c.ch}. {c.title}
-              </option>
-            ))}
-          </select>
-        </span>
+        <ChapterMenu ch={ch} chaptersTotal={chaptersTotal} chapters={chapters} onJumpChapter={onJumpChapter} />
       </div>
       <ReadingControl />
       <WarmthControl />

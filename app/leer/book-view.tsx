@@ -202,7 +202,10 @@ export function BookView({
     if (typeof id !== "string") return;
     pic.hidePopover();
     const col = readColRef.current;
-    if (col) scrollToSceneId(col, id, true);
+    // Commit the target itself: the reading-line observer only sees scene
+    // sections, and on narrow screens a tall chapter heading can sit under
+    // the line after the jump, leaving the previous scene current.
+    if (col && scrollToSceneId(col, id, true)) commitScene(id);
   }
 
   // A selection that starts in another scene moves the current scene

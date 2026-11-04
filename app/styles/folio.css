@@ -148,27 +148,142 @@ scrolls at desktop size; the reading column scrolls inside itself. */
   display: inline-block;
 }
 
+/* Chapter selector: a boxless button like the Style menu, and a list in
+ * the skin's own surface, border and UI lettering (skins override below). */
+.chapter-jump-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 2px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .chapter-jump-text {
   color: var(--color-text-muted);
   letter-spacing: 0.08em;
 }
 
-.chapter-jump select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  opacity: 0;
-  cursor: pointer;
-  font-size: 12.5px;
+.chapter-jump-chev {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--motion-duration, 160ms) ease;
 }
 
-.chapter-jump:hover .chapter-jump-text {
+.chapter-jump-btn:hover .chapter-jump-text,
+.chapter-jump-btn[aria-expanded="true"] .chapter-jump-text {
   color: var(--color-accent);
 }
 
-.chapter-jump:focus-within .chapter-jump-text {
+.chapter-jump-btn[aria-expanded="true"] .chapter-jump-chev {
+  transform: rotate(180deg);
+}
+
+.chapter-jump-btn:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+.chapter-menu-list {
+  position: fixed;
+  z-index: 90;
+  width: 340px;
+  max-height: min(60vh, 440px);
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-ui), system-ui, sans-serif;
+  font-size: 14px;
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.35);
+  animation: style-menu-drop 160ms ease;
+}
+
+.chapter-menu-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 1.3;
+}
+
+.chapter-menu-item[data-active] {
+  background: var(--color-surface-soft);
+}
+
+.chapter-menu-item[aria-selected="true"] {
+  color: var(--color-accent);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.chapter-menu-num {
+  min-width: 2ch;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.chapter-menu-item[aria-selected="true"] .chapter-menu-num {
+  color: inherit;
+}
+
+html[data-skin="comic"] .chapter-menu-list {
+  border: 2px solid #14161c;
+  border-radius: 4px;
+  box-shadow: 4px 4px 0 #14161c;
+}
+
+html[data-skin="comic"] .chapter-menu-item[aria-selected="true"] {
+  background: #ffe45c;
+  color: #14161c;
+}
+
+html[data-skin="engraving"] .chapter-menu-list {
+  border-radius: 2px;
+  font-family: var(--font-fell), georgia, serif;
+  font-size: 15px;
+}
+
+html[data-skin="watercolor"] .chapter-menu-list,
+html[data-skin="ink"] .chapter-menu-list {
+  border-radius: 14px;
+}
+
+@media (pointer: coarse) {
+  .chapter-menu-item {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter-menu-list {
+    animation: none;
+  }
+  .chapter-jump-chev {
+    transition: none;
+  }
 }
 
 .theme-btn {
