@@ -191,3 +191,20 @@ html[data-skin="chihiro"] .lb-item[aria-pressed="true"] img { outline: 2.5px sol
     transition: none !important;
   }
 }
+
+/* Narrow screens: stack the two pages, full width, with normal page scroll. */
+@media (max-width: 767px) {
+  /* html/body stay overflow:hidden globally, so the desk itself scrolls. */
+  .ob-desk { width: 100%; padding: 58px 12px 88px; justify-content: flex-start; overflow-x: hidden; overflow-y: auto; }
+  .ob-book { grid-template-columns: minmax(0, 1fr); row-gap: 16px; flex: none; max-height: none; }
+  .ob-gutter { display: none; }
+  .ob-page { padding: 18px 16px 14px; min-width: 0; }
+  .ob-left { overflow: visible; border-radius: 14px; }
+  .ob-right { border-radius: 14px; }
+  .lb-grid { grid-template-columns: repeat(auto-fill, minmax(var(--cw), 1fr)); --cw: 84px; }
+  .ob-right .ob-plate { --art-h: min(56vw, 300px); }
+  .sp { max-width: 100%; }
+  .sp-row { flex-wrap: wrap; }
+  .ob-wordmark { white-space: normal; }
+  .ob-foot { white-space: normal; }
+}
