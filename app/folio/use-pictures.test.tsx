@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, test, vi } from "vitest";
 import { SelectionPopover } from "./inline-figures";
 import { popoverPos, usePictures } from "./use-pictures";
+import { chapterCacheKey } from "./use-chapter-page";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -191,8 +192,8 @@ let live: Pic | null = null;
 type Pref = Parameters<typeof usePictures>[0]["pref"];
 const DENSLOW: Pref = { kind: "preset", id: "denslow" };
 
-function LiveHarness({ sceneId, pref = DENSLOW }: { sceneId: string; pref?: Pref }) {
-  const pic = usePictures({ bookId: "oz", textVersion: "v", sceneId, pref });
+function LiveHarness({ sceneId, pref = DENSLOW, bookId = "oz" }: { sceneId: string; pref?: Pref; bookId?: string }) {
+  const pic = usePictures({ bookId, textVersion: "v", sceneId, pref });
   /* eslint-disable-next-line react-hooks/globals -- test probe captures the live hook for request control */
   live = pic;
   return (
@@ -224,9 +225,9 @@ function mountLive(sceneId: string) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
-  const show = (id: string, pref?: Pref) =>
+  const show = (id: string, pref?: Pref, bookId?: string) =>
     act(() => {
-      root.render(<LiveHarness sceneId={id} pref={pref} />);
+      root.render(<LiveHarness sceneId={id} pref={pref} bookId={bookId} />);
     });
   show(sceneId);
   const pictureSelection = () => {
@@ -409,4 +410,63 @@ test("a scene picture drawn in one style never shows for another style", async (
   show("c11sA", engraving);
   expect(live!.card).toEqual({ phase: "ready", url: "/engraving.png", caption: "c" });
   act(() => root.unmount());
+});
+
+test("a scene picture from another book never shows for the same scene id", async () => {
+  const answer = pendingFetch();
+  const { root, show } = mountLive("c12s1");
+  show("c12s1", DENSLOW, "dracula");
+  act(() => live!.illustrateScene());
+  await answer(ready("/dracula.png"));
+  expect(live!.card).toEqual({ phase: "ready", url: "/dracula.png", caption: "c" });
+  // Back to Oz on the same scene id: nothing cached for Oz, so idle.
+  show("c12s1", DENSLOW, "oz");
+  expect(live!.card.phase).toBe("idle");
+  act(() => live!.illustrateScene());
+  const body = JSON.parse((vi.mocked(fetch).mock.calls[1]![1] as RequestInit).body as string) as { bookId: string };
+  expect(body.bookId).toBe("oz");
+  await answer(ready("/oz.png"));
+  expect(live!.card).toEqual({ phase: "ready", url: "/oz.png", caption: "c" });
+  show("c12s1", DENSLOW, "dracula");
+  expect(live!.card).toEqual({ phase: "ready", url: "/dracula.png", caption: "c" });
+  act(() => root.unmount());
+});
+
+test("a remount in another book starts clean, and a loading picture stays with its book", async () => {
+  const answer = pendingFetch();
+  const first = mountLive("c13s1");
+  first.show("c13s1", DENSLOW, "dracula");
+  act(() => live!.illustrateScene());
+  expect(live!.card.phase).toBe("loading");
+  act(() => first.root.unmount());
+  const second = mountLive("c13s1");
+  // Oz's c13s1 is neither ready with Dracula's picture nor shown loading.
+  expect(live!.card.phase).toBe("idle");
+  await answer(ready("/dracula-late.png"));
+  expect(live!.card.phase).toBe("idle");
+  second.show("c13s1", DENSLOW, "dracula");
+  expect(live!.card).toEqual({ phase: "ready", url: "/dracula-late.png", caption: "c" });
+  act(() => second.root.unmount());
+});
+
+test("inline figures are kept per book, not per scene id", async () => {
+  const answer = pendingFetch();
+  const { root, show, pictureSelection } = mountLive("c14s1");
+  show("c14s1", DENSLOW, "dracula");
+  pictureSelection();
+  await answer(ready("/dracula-fig.png"));
+  expect(live!.figures.map((f) => f.url)).toEqual(["/dracula-fig.png"]);
+  show("c14s1", DENSLOW, "oz");
+  expect(live!.figures).toEqual([]);
+  show("c14s1", DENSLOW, "dracula");
+  expect(live!.figures.map((f) => f.url)).toEqual(["/dracula-fig.png"]);
+  act(() => root.unmount());
+});
+
+test("chapter panel cache keys carry book, text version and style", () => {
+  const a = chapterCacheKey("oz", "v", 1, DENSLOW);
+  expect(chapterCacheKey("dracula", "v", 1, DENSLOW)).not.toBe(a);
+  expect(chapterCacheKey("oz", "v2", 1, DENSLOW)).not.toBe(a);
+  expect(chapterCacheKey("oz", "v", 1, { kind: "preset", id: "watercolor" })).not.toBe(a);
+  expect(chapterCacheKey("oz", "v", 1, DENSLOW)).toBe(a);
 });

@@ -1,5 +1,6 @@
 // One comic page per chapter, requested in the reader's style. Session
-// cache per chapter and style, so reopening never refetches.
+// cache per book, text version, chapter and style, so reopening never
+// refetches and another book's chapter page never shows.
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -15,8 +16,8 @@ export type ChapterPage =
 
 const chapterCache = new Map<string, { url: string; caption: string }>();
 
-function cacheKey(ch: number, pref: ImageStylePref): string {
-  return `${ch}::${JSON.stringify(requestStyleFields(pref))}`;
+export function chapterCacheKey(bookId: string, textVersion: string, ch: number, pref: ImageStylePref): string {
+  return `${bookId}::${textVersion}::${ch}::${JSON.stringify(requestStyleFields(pref))}`;
 }
 
 function pageBody(
@@ -48,7 +49,7 @@ export function useChapterPage({
   const prefRef = useRef(pref);
   // eslint-disable-next-line react-hooks/refs -- latest-pref mirror; the key string tracks its value
   prefRef.current = pref;
-  const key = cacheKey(ch, pref);
+  const key = chapterCacheKey(bookId, textVersion, ch, pref);
   const [page, setPage] = useState<ChapterPage>(() => {
     const hit = chapterCache.get(key);
     return hit ? { phase: "ready", url: hit.url, caption: hit.caption } : { phase: "loading" };
