@@ -15,6 +15,25 @@ function pausedByUser(): boolean {
   }
 }
 
+// A one-sample silent WAV: playing it inside the Start reading click
+// unlocks media playback for this document (Safari/iOS count only
+// gesture-time play()), so the reader's own autostart is not refused
+// after the client-side page turn.
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+
+/** Call from the Start reading click. No-op when the user paused music; never throws. */
+export function unlockMusicFromGesture(): boolean {
+  if (pausedByUser()) return false;
+  try {
+    const a = new Audio(SILENT_WAV);
+    void a.play()?.catch(() => undefined);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function rememberPaused(paused: boolean) {
   try {
     if (paused) window.localStorage.setItem(MUSIC_PAUSED_KEY, "1");

@@ -47,7 +47,7 @@ export class AmbienceController {
   }
 
   // Read-aloud duck, a multiplier on the slider gain (~6 dB). The narration
-  // controller already ramps it over ~300 ms, so each step only needs a
+  // controller already eases it over ~1 s, so each step only needs a
   // short smoothing ramp. It never starts or stops a voice.
   setDuck(duck: number): void {
     const next = Number.isFinite(duck) ? Math.min(1, Math.max(0, duck)) : 1;

@@ -401,3 +401,10 @@ html[data-skin="engraving"] .read-aloud-label {
 }
 
 /* Button motion (hatch shim, coin-in, press) lives in motion-classic.css. */
+
+/* Folded vault fan and vault window grid: square plates with a fine ink rule, like tipped-in prints. */
+html[data-skin="engraving"] :is(.vault-fan-card, .vault-grid-btn) {
+  border-radius: 0;
+  border-color: var(--color-text);
+  box-shadow: 1px 1px 0 var(--color-text);
+}

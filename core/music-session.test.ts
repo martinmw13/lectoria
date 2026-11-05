@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHOPIN_PLAYLIST_ID } from "./music";
+import { CHOPIN_PLAYLIST_ID, MUSIC_CONFIG } from "./music";
 import type { MusicManifest, SceneSignal, Track } from "./music";
 import type { Vector8 } from "./types";
 import { EMOTIONS } from "./types";
@@ -60,13 +60,21 @@ const manifest: MusicManifest = {
     track("o-calm-b", "calma", "orch", "orchestral", false, 0.52),
     track("o-calm-c", "calma", "orch", "orchestral", false, 0.9, 0.9),
     track("o-sad", "tristeza", "orch", "orchestral"),
+    track("o-fight", "combate", "orch", "orchestral"),
+    track("o-suspense", "suspenso", "orch", "orchestral"),
     track("p-calm", "calma", "piano-s", "piano"),
     track("chop-1", "calma", "chop-s", "orchestral", true),
     track("chop-2", "tristeza", "chop-s", "orchestral", true),
   ],
 };
 
-const signals: Record<string, SceneSignal> = { s1: signal("calma"), s2: signal("tristeza") };
+const signals: Record<string, SceneSignal> = {
+  s1: signal("calma"),
+  s2: signal("tristeza"),
+  // Oz ch6 demo: forest suspense then Lion Ambush combat.
+  c6s1: signal("suspenso", 0.325, 0.27),
+  c6s2: signal("combate", 0.695, 0.94),
+};
 
 function ctx(routeSceneId: string | null, nowSec: number, over?: Partial<SessionContext>): SessionContext {
   return {
@@ -135,15 +143,39 @@ describe("scene entry and tick", () => {
     expect(session.view.canPrev).toBe(true);
   });
 
-  it("a new scene switches only after the entry dwell", () => {
+  it("a strong mood change switches on the same scene entry (no entry dwell)", () => {
+    // calma → tristeza: different dominant emotion, like suspenso → combate
+    // on Oz Lion Ambush. A short scene must not wait out the entry dwell.
     const first = entered("s1", 0);
-    const pending = dispatch(first, { type: "sceneEntered", sceneId: "s2" }, ctx("s2", 50));
+    expect(first.view.currentId).toBe("o-calm-a");
+    const next = dispatch(first, { type: "sceneEntered", sceneId: "s2" }, ctx("s2", 50));
+    expect(next.view.currentId).toBe("o-sad");
+    expect(next.view.fadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
+  });
+
+  it("Oz Lion Ambush: suspenso → combate switches at once", () => {
+    const forest = dispatch(
+      startSession(manifest, null),
+      { type: "sceneEntered", sceneId: "c6s1" },
+      ctx("c6s1", 0),
+    );
+    expect(forest.view.currentId).toBe("o-suspense");
+    const ambush = dispatch(forest, { type: "sceneEntered", sceneId: "c6s2" }, ctx("c6s2", 2));
+    expect(ambush.view.currentId).toBe("o-fight");
+    expect(ambush.view.fadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
+  });
+
+  it("a same-emotion scene still waits the entry dwell", () => {
+    const first = entered("s1", 0);
+    expect(first.view.currentId).toBe("o-calm-a");
+    // Another calm scene: keep current through the short dwell.
+    signals.s3 = signal("calma", 0.6, 0.6);
+    const pending = dispatch(first, { type: "sceneEntered", sceneId: "s3" }, ctx("s3", 50));
     expect(pending.view.currentId).toBe("o-calm-a");
-    const early = dispatch(pending, { type: "tick" }, ctx("s2", 52));
-    expect(early).toBe(pending);
-    const late = dispatch(pending, { type: "tick" }, ctx("s2", 56));
-    expect(late.view.currentId).toBe("o-sad");
-    expect(late.view.fadeSec).toBe(3);
+    const early = dispatch(pending, { type: "tick" }, ctx("s3", 50.5));
+    expect(early.view.currentId).toBe("o-calm-a");
+    const late = dispatch(pending, { type: "tick" }, ctx("s3", 51.1));
+    expect(late.scheduler.activeSceneId).toBe("s3");
   });
 
   it("a settled tick returns the identical session object", () => {
@@ -162,7 +194,7 @@ describe("skip and previous", () => {
     const first = entered("s1", 0);
     const skipped = dispatch(first, { type: "skip" }, ctx("s1", 5));
     expect(skipped.view.currentId).toBe("o-calm-b");
-    expect(skipped.view.fadeSec).toBe(3);
+    expect(skipped.view.fadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
     expect(dispatch(skipped, { type: "tick" }, ctx("s1", 100))).toBe(skipped);
     const pending = dispatch(skipped, { type: "sceneEntered", sceneId: "s2" }, ctx("s2", 110));
     const settled = dispatch(pending, { type: "tick" }, ctx("s2", 116));
@@ -193,7 +225,7 @@ describe("skip and previous", () => {
     const a = session.view.currentId as string;
     session = dispatch(session, { type: "trackEnded", trackId: a }, ctx("s1", 10));
     expect(session.view.currentId).not.toBe(a);
-    expect(session.view.fadeSec).toBe(3);
+    expect(session.view.fadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
     session = dispatch(session, { type: "previous" }, ctx("s1", 11));
     expect(session.view.currentId).toBe(a);
   });
@@ -294,7 +326,7 @@ describe("modeAdvanced", () => {
     expect(session.view.currentId).toBe("o-calm-a");
     expect(session.view.playlistOn).toBe(false);
     expect(session.view.style).toBe("orchestral");
-    expect(session.view.fadeSec).toBe(3);
+    expect(session.view.fadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
   });
 
   it("runs a two-state cycle without a Chopin playlist", () => {
@@ -335,7 +367,7 @@ describe("modeAdvanced", () => {
     expect(session.selection.style).toBe("piano");
     expect(session.view.style).toBe("piano");
     expect(session.view.currentId).toBe("p-calm");
-    expect(session.view.fadeSec).toBe(3);
+    expect(session.view.fadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
   });
 
   it("leaves the playlist for a style even with a null route", () => {

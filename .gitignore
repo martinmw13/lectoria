@@ -21,6 +21,8 @@ next-env.d.ts
 
 # Book sources (only processed public-domain JSON is committed)
 *.epub
+# Synthetic upload-validation fixtures (scripts/make-epub-fixtures.mjs).
+!core/fixtures/epub/*.epub
 data/raw/
 pipeline/out/
 # Resume scratch for the bookmap pass; bookmap.json itself is committed

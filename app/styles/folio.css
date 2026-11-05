@@ -148,25 +148,51 @@ scrolls at desktop size; the reading column scrolls inside itself. */
   display: inline-block;
 }
 
+/* Chapter selector: a boxless button like the Style menu, and a list in
+ * the skin's own surface, border and UI lettering (skins override below). */
+.chapter-jump-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 2px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .chapter-jump-text {
   color: var(--color-text-muted);
   letter-spacing: 0.08em;
 }
 
-.chapter-jump select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  opacity: 0;
-  cursor: pointer;
-  font-size: 12.5px;
+.chapter-jump-chev {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--motion-duration, 160ms) ease;
 }
 
-.chapter-jump:hover .chapter-jump-text {
+.chapter-jump-btn:hover .chapter-jump-text,
+.chapter-jump-btn[aria-expanded="true"] .chapter-jump-text {
   color: var(--color-accent);
 }
 
-.chapter-jump:focus-within .chapter-jump-text {
+.chapter-jump-btn[aria-expanded="true"] .chapter-jump-chev {
+  transform: rotate(180deg);
+}
+
+.chapter-jump-btn:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
@@ -514,7 +540,13 @@ h2.chapter-title:focus-visible {
   color: var(--color-text-muted);
 }
 
-.style-picker select {
+.style-picker .style-select-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
   border: 0;
   border-bottom: 1px dashed var(--color-border);
   background: transparent;
@@ -523,7 +555,7 @@ h2.chapter-title:focus-visible {
   cursor: pointer;
 }
 
-.style-picker select:hover {
+.style-picker .style-select-btn:hover {
   color: var(--color-accent);
 }
 
@@ -542,7 +574,7 @@ h2.chapter-title:focus-visible {
   max-width: 100%;
 }
 
-.style-picker select:focus-visible,
+.style-picker .style-select-btn:focus-visible,
 .style-custom input:focus-visible,
 .style-custom button:focus-visible {
   outline: 2px solid var(--color-accent);

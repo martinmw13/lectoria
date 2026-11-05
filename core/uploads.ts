@@ -40,6 +40,7 @@ export const UPLOAD_JEV_MODEL = "jev-1.14.0";
 
 export type UploadErrorCode =
   | "too_long"
+  | "too_short"
   | "daily_books_reached"
   | "daily_budget_reached"
   | "human_required"
@@ -52,6 +53,7 @@ export const UPLOAD_MESSAGES: Record<UploadErrorCode, string> = {
   too_long: "This one is longer than the free book covers. With your own Meta key you can still read it with a soundtrack.",
   daily_books_reached: "That's your free book for today. More tomorrow, or use your own key for this one.",
   daily_budget_reached: "So many people loved this that we've run out of credits to share today. Try again tomorrow, or bring your own key.",
+  too_short: "This EPUB looks empty or too short. It needs at least one page of text.",
   human_required: "One quick check that you're a person first.",
   bad_request: "Something went wrong there. Try again?",
   unavailable: "We couldn't process this book right now. Try again in a moment.",
@@ -61,6 +63,7 @@ export const UPLOAD_MESSAGES: Record<UploadErrorCode, string> = {
 
 export const UPLOAD_HTTP_STATUS: Record<UploadErrorCode, number> = {
   too_long: 413,
+  too_short: 422,
   daily_books_reached: 429,
   daily_budget_reached: 503,
   human_required: 403,

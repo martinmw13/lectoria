@@ -227,7 +227,7 @@ export function ChatPanel({
           onClick={onToggleSpoilers}
         >
           <span className="chat-switch-track" aria-hidden="true" />
-          {CHAT_COPY.spoilers} <small>{spoilers ? CHAT_COPY.spoilersOn : CHAT_COPY.spoilersOff}</small>
+          {CHAT_COPY.spoilers}
         </button>
       </div>
 

@@ -75,7 +75,7 @@ test("narration start does not pause music and lowers its gain", async () => {
 
   await render(duckTarget(true, MUSIC_DUCK_DB));
   expect(pause).not.toHaveBeenCalled();
-  expect(db(audio.volume / full)).toBeCloseTo(-11, 1);
+  expect(db(audio.volume / full)).toBeCloseTo(-MUSIC_DUCK_DB, 1);
   expect(audio.volume).toBeLessThan(full);
 
   await render(duckTarget(false, MUSIC_DUCK_DB));
@@ -124,7 +124,7 @@ test("narration keeps rain playing about 6 dB lower, then restores it", async ()
 
   rain.setDuck(duckTarget(true, AMBIENCE_DUCK_DB));
   expect(voice.stops).toBe(0);
-  expect(db(voice.ramps.at(-1)! / full)).toBeCloseTo(-6, 1);
+  expect(db(voice.ramps.at(-1)! / full)).toBeCloseTo(-AMBIENCE_DUCK_DB, 1);
 
   rain.setDuck(duckTarget(false, AMBIENCE_DUCK_DB));
   expect(voice.ramps.at(-1)).toBeCloseTo(full, 5);

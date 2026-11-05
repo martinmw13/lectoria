@@ -124,7 +124,15 @@ describe("scene change", () => {
   });
 
   it("still holds a switch until min-track time passes", () => {
-    const d = tickScheduler(playing("sad-1", 90), scene("calma"), manifest, 100, env(() => 0.5));
+    // Same active scene re-check: started at 90, tick at 90+minTrack-1 still holds.
+    const started = 90;
+    const d = tickScheduler(
+      playing("sad-1", started),
+      scene("calma"),
+      manifest,
+      started + MUSIC_CONFIG.minTrackSec - 1,
+      env(() => 0.5),
+    );
     expect(d.switchToId).toBeNull();
   });
 });

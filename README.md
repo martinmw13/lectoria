@@ -51,7 +51,15 @@ Meta's Muse built this repo and runs inside it.
 - Scenes: Muse Spark splits each chapter into scenes, one call per chapter with a JSON schema ([pipeline/segment.ts](pipeline/segment.ts)).
 - Emotions: Jev classifies each scene. When Jev returns `unknown` or its confidence is under 0.6, Muse Spark overrides the emotion vector and the scene records the override ([pipeline/classify.ts](pipeline/classify.ts), [core/emotion.ts](core/emotion.ts)). In Oz that happened for 43 of 151 scenes.
 - Re-splits: where the emotion shift inside a scene is borderline, Muse Spark decides whether to split it and records why ([pipeline/resplit.ts](pipeline/resplit.ts)).
-- Images: "Picture this" illustrations come from Muse Image (`muse-image-1.0`) ([server/images/meta.ts](server/images/meta.ts)).
+- Images: every picture the app draws, in all six visual styles, is generated with Meta's Muse Image (`muse-image-1.0`): "Picture this", scene pictures and "Relive this chapter in panels" ([server/images/meta.ts](server/images/meta.ts)).
+
+**Art in the repo made with Meta.** These committed images were also generated with Muse Image (`muse-image-1.0`):
+
+- The Wonderful Wizard of Oz character portraits (Dorothy, Uncle Henry, Aunt Em and Toto, in every style) in [public/portraits/](public/portraits/).
+- The watercolor "Just Chopin!" button icon, [public/art/skins/watercolor/chopin.png](public/art/skins/watercolor/chopin.png).
+- The styled shelf covers in [public/covers/v1/](public/covers/v1/), made with [scripts/pregen-covers.ts](scripts/pregen-covers.ts).
+
+[public/art/SOURCES.md](public/art/SOURCES.md) lists the source of every piece of skin art, including the other images made with Meta's image model.
 
 **Dev and production models.** Development, tests and the pipeline default use `muse-spark-1.3-contributor`, the cheaper development model. The public "Ask the book" chat also runs on Contributor ([core/chat.ts](core/chat.ts), [server/chat/](server/chat/)), the same Muse Spark 1.3 model at a fraction of the Standard price; Muse Spark 1.3 Standard (`muse-spark-1.3`) is reserved for final passes. The chat only sees the text up to the reader's page unless spoiler mode is on (see [AGENTS.md](AGENTS.md)).
 

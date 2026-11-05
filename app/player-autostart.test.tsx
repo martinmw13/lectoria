@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { Player } from "./player";
+import { unlockMusicFromGesture } from "./player-autostart";
 import type { Track } from "@/core/music";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -124,4 +125,19 @@ test("an explicit pause is remembered and prevents the next auto-start", async (
   const second = await mount();
   expect(play).not.toHaveBeenCalled();
   expect(second.button.getAttribute("aria-label")).toBe("Play");
+});
+
+test("the Start reading click unlocks audio with a silent play, unless music was paused", async () => {
+  expect(unlockMusicFromGesture()).toBe(true);
+  expect(play).toHaveBeenCalledTimes(1);
+  expect((play.mock.contexts[0] as HTMLAudioElement).src).toMatch(/^data:audio\/wav/);
+  localStorage.setItem("lectoria.music.paused", "1");
+  expect(unlockMusicFromGesture()).toBe(false);
+  expect(play).toHaveBeenCalledTimes(1);
+});
+
+test("a refused unlock fails silently", async () => {
+  play.mockImplementationOnce(blocked);
+  expect(() => unlockMusicFromGesture()).not.toThrow();
+  await Promise.resolve();
 });

@@ -43,11 +43,16 @@ function fakeScroller(sections: Record<string, object>): {
   const nodes: Record<string, object> = {};
   for (const [id, node] of Object.entries(sections)) nodes[id] = node;
   const scroller = {
+    clientHeight: 1000,
+    getBoundingClientRect: () => ({ top: 0 }) as DOMRect,
     querySelector(sel: string) {
       const m = /\[data-scene-id="([^"]+)"\]/.exec(sel);
       const el = m ? nodes[m[1] as string] : undefined;
       if (!el) return null;
-      return { scrollIntoView: (options: ScrollIntoViewOptions) => seen.push(options) };
+      return {
+        scrollIntoView: (options: ScrollIntoViewOptions) => seen.push(options),
+        getBoundingClientRect: () => ({ top: 0 }) as DOMRect,
+      };
     },
   } as unknown as HTMLElement;
   return { scroller, seen };
@@ -60,6 +65,74 @@ describe("scrollToSceneId", () => {
     expect(seen).toHaveLength(1);
     expect(seen[0]?.block).toBe("start");
     expect(scrollToSceneId(scroller, "c9s9")).toBe(false);
+  });
+
+  // Regression: picking chapter N landed on an arbitrary later scene.
+  // content-visibility placeholders (1200px) between here and the target
+  // take their real height as the scroll passes them, so the target moves
+  // after the first scroll. A smooth scroll kept its stale destination.
+  test("a far jump is instant and re-aligns until the target stops moving", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => frames.push(cb));
+    // Target top relative to the scroller: far below, then it drifts as
+    // sections above it render, then holds at 0 once aligned.
+    let top = 50_000;
+    const drift = [3_400, -900, 0];
+    const seen: ScrollIntoViewOptions[] = [];
+    const target = {
+      getBoundingClientRect: () => ({ top }) as DOMRect,
+      scrollIntoView(options: ScrollIntoViewOptions) {
+        seen.push(options);
+        top = drift.shift() ?? 0;
+      },
+    };
+    const scroller = {
+      clientHeight: 800,
+      getBoundingClientRect: () => ({ top: 0 }) as DOMRect,
+      querySelector: () => target,
+    } as unknown as HTMLElement;
+
+    expect(scrollToSceneId(scroller, "c5s1", true)).toBe(true);
+    expect(seen[0]?.behavior).toBe("auto");
+    for (let i = 0; i < 20 && frames.length; i++) frames.shift()?.(0);
+    expect(top).toBe(0);
+    expect(seen.length).toBeGreaterThan(1);
+    expect(seen.every((o) => o.behavior === "auto" && o.block === "start")).toBe(true);
+    expect(frames).toHaveLength(0);
+  });
+
+  test("a user scroll stops the re-align", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => frames.push(cb));
+    let calls = 0;
+    const target = {
+      getBoundingClientRect: () => ({ top: 5_000 }) as DOMRect,
+      scrollIntoView: () => (calls += 1),
+    };
+    const scroller = {
+      clientHeight: 800,
+      getBoundingClientRect: () => ({ top: 0 }) as DOMRect,
+      querySelector: () => target,
+    } as unknown as HTMLElement;
+    scrollToSceneId(scroller, "c5s1");
+    noteUserScroll(scroller);
+    frames.shift()?.(0);
+    expect(calls).toBe(1);
+    expect(frames).toHaveLength(0);
+  });
+
+  test("a nearby jump may still glide", () => {
+    const target = {
+      getBoundingClientRect: () => ({ top: 300 }) as DOMRect,
+      scrollIntoView: vi.fn(),
+    };
+    const scroller = {
+      clientHeight: 800,
+      getBoundingClientRect: () => ({ top: 0 }) as DOMRect,
+      querySelector: () => target,
+    } as unknown as HTMLElement;
+    scrollToSceneId(scroller, "c1s2");
+    expect(target.scrollIntoView).toHaveBeenCalledWith({ block: "start", behavior: "smooth" });
   });
 });
 

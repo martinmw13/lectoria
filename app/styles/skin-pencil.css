@@ -198,7 +198,9 @@ html[data-skin="pencil"] .pane-divider:hover::before {
 html[data-skin="pencil"] .pic-btn {
   font-family: var(--font-pencil-title);
   font-weight: 600;
-  font-size: 20px;
+  /* 20px clipped the panels button label at the left ribbon edge;
+     16px keeps the full label inside the pane at every desktop width. */
+  font-size: 16px;
   color: var(--color-text);
 }
 
@@ -241,7 +243,7 @@ html[data-skin="pencil"] .mtool-sub {
   font-size: 14px;
 }
 
-html[data-skin="pencil"] .style-picker select {
+html[data-skin="pencil"] .style-picker .style-select-btn {
   border-bottom: 0;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 6' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='f' x='-10%25' y='-40%25' width='120%25' height='180%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='2' seed='4' result='n'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='n' scale='2' xChannelSelector='R' yChannelSelector='G' result='d'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='1' seed='3' result='g'/%3E%3CfeColorMatrix in='g' type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.9 1.25' result='ga'/%3E%3CfeComposite in='d' in2='ga' operator='in'/%3E%3C/filter%3E%3C/defs%3E%3Cg filter='url(%23f)' fill='none' stroke='%2345484E' stroke-linecap='round'%3E%3Cpath d='M1 3.4C40 2.6 80 3.8 119 3' stroke-width='1.2' stroke-opacity='.7'/%3E%3C/g%3E%3C/svg%3E")
     0 100% / 100% 4px no-repeat;
@@ -473,4 +475,11 @@ html[data-skin="pencil"][data-theme="dark"] :is(.sticker, .chopin, .player .skip
 html[data-skin="pencil"][data-theme="dark"] .vault-item {
   background: var(--color-surface-soft);
   box-shadow: 0 0 0 1px rgba(228, 230, 235, 0.18);
+}
+
+/* Folded vault fan and vault window grid: loose sketch sheets, square and lightly shaded. */
+html[data-skin="pencil"] :is(.vault-fan-card, .vault-grid-btn) {
+  border-radius: 0;
+  border-color: var(--color-text-muted);
+  box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.15);
 }

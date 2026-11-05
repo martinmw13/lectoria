@@ -1,0 +1,137 @@
+/**
+ * @vitest-environment jsdom
+ */
+import { afterEach, expect, it, vi } from "vitest";
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { CastList } from "./cast-list";
+
+(globalThis as unknown as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+
+const entry = (id: string, name: string) => ({
+  id,
+  name,
+  firstSeen: { sceneId: "c1s1", ch: 1, title: "T" },
+  description: "d",
+  known: [],
+  scenes: 1,
+});
+
+afterEach(() => vi.unstubAllGlobals());
+
+async function openCast(sceneId = "c1s1") {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        cast: [entry("dorothy", "Dorothy"), entry("toto", "Toto"), entry("scarecrow", "Scarecrow")],
+      }),
+    })),
+  );
+  const el = document.createElement("div");
+  const root = createRoot(el);
+  await act(async () => root.render(<CastList bookId="oz" sceneId={sceneId} />));
+  await act(async () => el.querySelector<HTMLButtonElement>(".cast-toggle")!.click());
+  return { el, root };
+}
+
+it("shows portraits only for mapped Oz characters, in the list and the window", async () => {
+  const { el, root } = await openCast();
+  const imgs = el.querySelectorAll<HTMLImageElement>("#cast-panel img.cast-portrait");
+  expect([...imgs].map((i) => i.alt)).toEqual(["Dorothy", "Toto"]);
+  expect(imgs[0]!.alt).toBe("Dorothy");
+  expect(imgs[0]!.getAttribute("src")).toBe("/portraits/skins/engraving/oz.webp");
+  await act(async () => el.querySelector<HTMLButtonElement>(".cast-open")!.click());
+  const big = el.querySelectorAll<HTMLImageElement>("#cast-window img.cast-portrait");
+  expect(big).toHaveLength(2);
+  expect(big[0]!.alt).toBe("Dorothy");
+  act(() => root.unmount());
+});
+
+// Martín's report: the portraits disappeared around chapter 1. A met
+// character keeps their face in chapter 1, later chapters, and on the way
+// back to chapter 1.
+it("keeps the portraits in chapter 1, later chapters and back in chapter 1", async () => {
+  const { el, root } = await openCast("c1s2");
+  const faces = () => [...el.querySelectorAll<HTMLImageElement>("#cast-panel img.cast-portrait")].map((i) => i.alt);
+  expect(faces()).toEqual(["Dorothy", "Toto"]);
+  for (const sceneId of ["c5s1", "c2s1", "c1s1", "c1s4"]) {
+    await act(async () => root.render(<CastList bookId="oz" sceneId={sceneId} />));
+    expect(faces(), sceneId).toEqual(["Dorothy", "Toto"]);
+  }
+  expect(el.querySelectorAll(".cast-card")).toHaveLength(3);
+  act(() => root.unmount());
+});
+
+it("opens the protagonist portrait large on click and closes on Esc, ×, and outside click", async () => {
+  const { el, root } = await openCast();
+  const btn = el.querySelector<HTMLButtonElement>("#cast-panel .cast-portrait-btn")!;
+  expect(btn.getAttribute("aria-label")).toBe("Enlarge portrait of Dorothy");
+  expect(document.querySelector(".portrait-zoom-img")).toBeNull();
+  await act(async () => btn.click());
+  const big = document.querySelector<HTMLImageElement>(".portrait-zoom-img")!;
+  expect(big.getAttribute("src")).toBe("/portraits/skins/engraving/oz@2x.webp");
+  expect(big.alt).toBe("Dorothy");
+  expect(btn.getAttribute("aria-expanded")).toBe("true");
+  await act(async () =>
+    document.querySelector(".portrait-zoom")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+  );
+  expect(document.querySelector(".portrait-zoom")).toBeNull();
+  await act(async () => btn.click());
+  await act(async () => document.querySelector<HTMLButtonElement>(".portrait-zoom-x")!.click());
+  expect(document.querySelector(".portrait-zoom")).toBeNull();
+  await act(async () => btn.click());
+  await act(async () => document.querySelector<HTMLDivElement>(".portrait-zoom-backdrop")!.click());
+  expect(document.querySelector(".portrait-zoom")).toBeNull();
+  act(() => root.unmount());
+});
+
+it("Esc in the zoom closes only the portrait, not the cast window", async () => {
+  const { el, root } = await openCast();
+  document.body.appendChild(el);
+  await act(async () => el.querySelector<HTMLButtonElement>(".cast-open")!.click());
+  await act(async () => el.querySelector<HTMLButtonElement>("#cast-window .cast-portrait-btn")!.click());
+  await act(async () =>
+    document.querySelector(".portrait-zoom")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+  );
+  expect(document.querySelector(".portrait-zoom")).toBeNull();
+  expect(el.querySelector("#cast-window")).not.toBeNull();
+  act(() => root.unmount());
+  el.remove();
+});
+
+it("opens the window from the title and toggles the list only from the chevron", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ cast: [entry("dorothy", "Dorothy")] }) })));
+  const el = document.createElement("div");
+  const root = createRoot(el);
+  await act(async () => root.render(<CastList bookId="oz" sceneId="c1s1" />));
+  expect(el.querySelector(".cast-expand, .cast-seeall")).toBeNull();
+  const title = el.querySelector<HTMLButtonElement>("button.cast-open")!;
+  expect(title.textContent).toBe("Cast so far");
+  expect(title.getAttribute("aria-label")).toBe("Open cast window");
+  expect(title.title).toBe("Open cast window");
+  const toggle = el.querySelector<HTMLButtonElement>("button.cast-toggle")!;
+  await act(async () => toggle.click());
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(el.querySelector("#cast-panel")).not.toBeNull();
+  expect(el.querySelector("#cast-window")).toBeNull();
+  await act(async () => toggle.click());
+  expect(el.querySelector("#cast-panel")).toBeNull();
+  await act(async () => title.click());
+  expect(el.querySelector("#cast-window")).not.toBeNull();
+  expect(el.querySelector("#cast-panel")).toBeNull();
+  await act(async () => el.querySelector<HTMLButtonElement>("#cast-window .chat-x")!.click());
+  expect(el.querySelector("#cast-window")).toBeNull();
+  expect(document.activeElement === title || !el.isConnected).toBe(true);
+  act(() => root.unmount());
+});
+
+it("uses the active skin's portrait", async () => {
+  document.documentElement.dataset.skin = "pencil";
+  const { el, root } = await openCast();
+  const img = el.querySelector<HTMLImageElement>("#cast-panel img.cast-portrait")!;
+  expect(img.getAttribute("src")).toBe("/portraits/skins/pencil/oz.webp");
+  act(() => root.unmount());
+  delete document.documentElement.dataset.skin;
+});

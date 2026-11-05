@@ -5,6 +5,7 @@ import type { Chapter, Paragraph } from "@/core/types";
 import { cleanDeterministic, cleanSections, type Judge } from "@/core/clean";
 import { canonicalLines } from "@/core/gutenberg";
 import { paragraphId } from "@/core/ids";
+import { MIN_BOOK_WORDS } from "@/core/upload-policy";
 import {
   BYOK_BOOK_MAX_WORDS,
   FREE_BOOK_MAX_WORDS,
@@ -129,6 +130,8 @@ export async function createUpload(args: CreateArgs): Promise<{ id: string; chap
   const limit = args.path === "free" && !args.friendAccepted ? FREE_BOOK_MAX_WORDS : BYOK_BOOK_MAX_WORDS;
   const previewWords = countChapterWords(preview.chapters);
   if (previewWords > limit) throw new UploadFailure("too_long");
+  // Same floor the browser applies; the client parse is never trusted.
+  if (previewWords < MIN_BOOK_WORDS) throw new UploadFailure("too_short");
 
   let quotaTaken = false;
   let reservation: SpendReservation | null = null;

@@ -114,7 +114,7 @@ export function section(id: string, label: string, paras: number, wordsPerPara: 
 }
 
 export function tinyBook(): { title: string; sections: RawSection[] } {
-  return { title: "Tiny", sections: [section("s1", "One", 3, 10), section("s2", "Two", 3, 10)] };
+  return { title: "Tiny", sections: [section("s1", "One", 3, 45), section("s2", "Two", 3, 45)] };
 }
 
 export function postRequest(

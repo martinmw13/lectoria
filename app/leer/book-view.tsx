@@ -15,8 +15,8 @@ import { ImagePane } from "../folio/image-pane";
 import { InlineFigureView } from "../folio/inline-figures";
 import { Lightbox } from "../folio/lightbox";
 import { usePictures } from "../folio/use-pictures";
-import type { InlineFigure } from "../folio/use-pictures";
 import { PictureVault } from "../folio/vault";
+import type { VaultFigure, VaultScene } from "../folio/vault-store";
 import { coverTitleLong } from "../folio/panels";
 import type { ChapterPanel } from "../folio/panels";
 import { PanelsModal } from "../folio/panels-modal";
@@ -24,6 +24,7 @@ import { GOTO_SCENE_EVENT, setCurrentSceneId } from "./current-scene";
 import { attachFollowPause, noteUserScroll, pickCurrentScene, scrollToSceneId } from "./scroll-helpers";
 import { ReadAlong } from "../narration/read-along";
 import { MarksList } from "./marks-list";
+import { CastList } from "./cast-list";
 import type { Mark } from "./marks";
 import { NoteEditor, SelectionMenu, type NoteTarget } from "./selection-menu";
 import { useMarks } from "./use-marks";
@@ -41,11 +42,14 @@ export function BookView({
   initialSceneId,
   panelsByChapter,
   visualsOn: visualsOnProp,
+  castOn = false,
 }: {
   model: ReaderModel;
   initialSceneId: string;
   panelsByChapter: { ch: number; panels: ChapterPanel[] }[];
   visualsOn?: boolean;
+  /** Show the spoiler-free cast codex (shelf books with a bookmap). */
+  castOn?: boolean;
 }) {
   // Pictures serve uploads too; the vault and panels stay mounted and
   // the images API fills them from the uploaded text.
@@ -173,12 +177,21 @@ export function BookView({
 
   const figsByN = useMemo(() => groupFiguresByEndN(pic.figures), [pic.figures]);
 
-  function gotoFigure(fig: InlineFigure) {
-    const el = figEls.current.get(fig.id) ?? null;
-    const col = readColRef.current;
-    if (col) noteUserScroll(col);
-    el?.scrollIntoView({ block: "nearest" });
-    pulse(el);
+  // The vault holds the whole book, so a picture may sit in another
+  // scene: go there first, then find the figure (or its paragraph, if it
+  // was taken out of the text) once that scene has painted.
+  function gotoFigure(fig: VaultFigure) {
+    if (fig.sceneId !== currentId) gotoScene(fig.sceneId);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el =
+          figEls.current.get(fig.id) ?? readColRef.current?.querySelector<HTMLElement>(`p[data-n="${fig.endN}"]`) ?? null;
+        const col = readColRef.current;
+        if (col) noteUserScroll(col);
+        el?.scrollIntoView({ block: "nearest" });
+        pulse(el);
+      }),
+    );
   }
 
   function gotoMark(mark: Mark) {
@@ -189,7 +202,8 @@ export function BookView({
     pulse(p);
   }
 
-  function gotoScenePicture() {
+  function gotoScenePicture(scene: VaultScene) {
+    if (scene.sceneId !== currentId) gotoScene(scene.sceneId);
     const img = document.querySelector(".img-pane .pane-img");
     pulse(img instanceof HTMLElement ? img : null);
   }
@@ -198,7 +212,10 @@ export function BookView({
     if (typeof id !== "string") return;
     pic.hidePopover();
     const col = readColRef.current;
-    if (col) scrollToSceneId(col, id, true);
+    // Commit the target itself: the reading-line observer only sees scene
+    // sections, and on narrow screens a tall chapter heading can sit under
+    // the line after the jump, leaving the previous scene current.
+    if (col && scrollToSceneId(col, id, true)) commitScene(id);
   }
 
   // A selection that starts in another scene moves the current scene
@@ -325,9 +342,11 @@ export function BookView({
           onGotoScene={gotoScenePicture}
           onGotoFigure={gotoFigure}
           onOpen={pic.lightbox.open}
+          onDelete={pic.deleteFromVault}
           pref={pref}
           onPrefChange={changePref}
         >
+          {castOn ? <CastList bookId={model.bookId} sceneId={currentId} /> : null}
           <MarksList marks={marks.marks} onGo={gotoMark} onRemove={marks.remove} />
         </PictureVault>
       ) : null}

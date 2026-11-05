@@ -1,0 +1,193 @@
+/* Picture Vault extras: the delete button, the folded fan and the vault
+   window grid. The margin cards themselves live in folio.css. */
+.vault-x + .vault-x {
+  margin-left: 0;
+}
+
+.vault-del span {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* The folded vault: up to five thumbnails fanned like held cards around
+   the middle one (--fan-i is the offset from it), +N for the rest. Skins
+   restyle the cards in their own files. */
+.vault-fan {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 0 14px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.vault-fan:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.vault-fan-deck {
+  position: relative;
+  display: block;
+  height: 112px;
+}
+
+.vault-fan-card {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 78px;
+  height: 98px;
+  margin-left: -39px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  transform-origin: 50% 120%;
+  transform: translateX(calc(var(--fan-i) * 22px)) rotate(calc(var(--fan-i) * 9deg));
+  transition: transform 0.2s ease;
+}
+
+.vault-fan-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.vault-fan:hover .vault-fan-card {
+  transform: translateX(calc(var(--fan-i) * 27px)) rotate(calc(var(--fan-i) * 12deg));
+}
+
+.vault-fan:hover .vault-fan-card,
+.vault-fan:focus-visible .vault-fan-card {
+  border-color: var(--color-accent);
+}
+
+.vault-fan-more {
+  position: absolute;
+  right: 4px;
+  top: 0;
+  z-index: 1;
+  min-width: 26px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-surface);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* The vault window rides on the cast window shell (selection.css). */
+.vault-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.vault-grid-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.vault-grid-btn:hover {
+  border-color: var(--color-accent);
+}
+
+.vault-grid-btn img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.vault-grid-cap {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  padding: 6px 8px 8px;
+  font-family: var(--font-book);
+  font-size: 13.5px;
+  font-style: italic;
+  line-height: 1.35;
+}
+
+.vault-big {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.vault-big-img {
+  max-width: 100%;
+  max-height: calc(100dvh - 480px);
+  min-height: 200px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.vault-big-cap {
+  font-family: var(--font-book);
+  font-style: italic;
+  font-size: 15px;
+  text-align: center;
+}
+
+.vault-big-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.vault-act {
+  padding: 5px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: 600 12.5px/1.3 var(--font-ui);
+  cursor: pointer;
+}
+
+.vault-act:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.vault-act-del:hover {
+  border-color: #b3261e;
+  color: #b3261e;
+}
+
+.vault-grid-btn:focus-visible,
+.vault-act:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vault-fan-card {
+    transition: none;
+  }
+}

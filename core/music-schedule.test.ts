@@ -98,9 +98,9 @@ describe("observeScene and tickScheduler", () => {
     d = observeScene(d.state, "s2", mid, manifest, 50, env);
     expect(d.switchToId).toBeNull();
     expect(d.state.pendingSceneId).toBe("s2");
-    const early = tickScheduler(d.state, mid, manifest, 60, env);
+    const early = tickScheduler(d.state, mid, manifest, 50 + MUSIC_CONFIG.dwellSec - 1, env);
     expect(early.switchToId).toBeNull();
-    const late = tickScheduler(d.state, mid, manifest, 70, env);
+    const late = tickScheduler(d.state, mid, manifest, 50 + MUSIC_CONFIG.dwellSec + 1, env);
     expect(late.state.activeSceneId).toBe("s2");
     expect(late.switchToId).toBe(rankScored(mid, manifest.tracks).map((e) => e.track)[0]?.id);
     expect(late.crossfadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
@@ -113,7 +113,7 @@ describe("observeScene and tickScheduler", () => {
     expect(gap).toBeLessThan(MUSIC_CONFIG.randomTolerance);
     let d = firstActive("tristeza");
     d = observeScene(d.state, "s2", s, manifest, 100, env);
-    const settled = tickScheduler(d.state, s, manifest, 130, env);
+    const settled = tickScheduler(d.state, s, manifest, 100 + MUSIC_CONFIG.dwellSec + 1, env);
     expect(settled.state.activeSceneId).toBe("s2");
     expect(settled.switchToId).toBeNull();
   });
@@ -149,35 +149,81 @@ describe("observeScene and tickScheduler", () => {
     const run = (intensity: number) => {
       let d = observeScene(initScheduler(), "s1", at(0.5), two, 0, env);
       d = observeScene(d.state, "s2", at(intensity), two, 100, env);
-      return tickScheduler(d.state, at(intensity), two, 130, env);
+      return tickScheduler(d.state, at(intensity), two, 100 + MUSIC_CONFIG.dwellSec + 1, env);
     };
     expect(run(wLo).switchToId).toBeNull();
     const hi = run(wHi);
     expect(hi.switchToId).toBe("t1");
   });
 
-  it("holds a mid win until minTrackSec, then switches", () => {
+  it("a scene promotion switches as soon as dwell expires, without waiting for minTrackSec", () => {
     const mid = midSignal();
+    // Short dwell override so promotion lands before minTrackSec; a switch
+    // then can only mean the hold was bypassed on promote.
+    const short = { dwellSec: 1 };
     let d = firstActive("tristeza");
-    d = observeScene(d.state, "s2", mid, manifest, 10, env);
-    const early = tickScheduler(d.state, mid, manifest, 30, env);
-    expect(early.state.activeSceneId).toBe("s2");
+    const entered = 1;
+    d = observeScene(d.state, "s2", mid, manifest, entered, env, short);
+    const before = entered + 0.5;
+    const after = entered + 1.1;
+    expect(after).toBeLessThan(MUSIC_CONFIG.minTrackSec);
+    const early = tickScheduler(d.state, mid, manifest, before, env, short);
     expect(early.switchToId).toBeNull();
-    const late = tickScheduler(early.state, mid, manifest, 56, env);
+    const late = tickScheduler(d.state, mid, manifest, after, env, short);
+    expect(late.state.activeSceneId).toBe("s2");
     expect(late.switchToId).toBe(rankScored(mid, manifest.tracks).map((e) => e.track)[0]?.id);
     expect(late.crossfadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
   });
 
-  it("holds the current track before minTrackSec, then switches with the normal fade", () => {
+  it("dwellSec 0 promotes on the first observe (strong mood / chapter jump)", () => {
+    const mid = midSignal();
+    let d = firstActive("tristeza");
+    d = observeScene(d.state, "s2", mid, manifest, 2, env, { dwellSec: 0 });
+    expect(d.state.activeSceneId).toBe("s2");
+    expect(d.switchToId).toBe(rankScored(mid, manifest.tracks).map((e) => e.track)[0]?.id);
+    expect(d.crossfadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
+  });
+
+  it("switches to the best match on promotion once dwell ends", () => {
     const s = signal("calma");
     let d = firstActive("tristeza");
     d = observeScene(d.state, "s2", s, manifest, 10, env);
-    const early = tickScheduler(d.state, s, manifest, 30, env);
-    expect(early.state.activeSceneId).toBe("s2");
+    const early = tickScheduler(d.state, s, manifest, 10 + MUSIC_CONFIG.dwellSec - 0.5, env);
     expect(early.switchToId).toBeNull();
-    const settled = tickScheduler(early.state, s, manifest, 60, env);
+    const settled = tickScheduler(d.state, s, manifest, 10 + MUSIC_CONFIG.dwellSec + 0.5, env);
     expect(settled.switchToId).toBe("calm");
     expect(settled.crossfadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
+  });
+
+  it("minTrackSec still holds when tick re-checks the same active scene", () => {
+    // Promote into a calm scene (switch happens), then a later tick with a
+    // sadder signal must wait out minTrackSec before reshuffling.
+    const calm = signal("calma");
+    const sad = signal("tristeza");
+    let d = firstActive("calma");
+    d = observeScene(d.state, "s2", calm, manifest, 10, env);
+    d = tickScheduler(d.state, calm, manifest, 10 + MUSIC_CONFIG.dwellSec + 0.5, env);
+    expect(d.state.activeSceneId).toBe("s2");
+    expect(d.state.currentId).toBe("calm");
+    // Force a pending-less re-check with a different emotion: pretend the
+    // active scene's signal changed (same id) by ticking with sad.
+    const started = d.state.currentStartedSec;
+    const early = tickScheduler(
+      { ...d.state, pendingSceneId: null },
+      sad,
+      manifest,
+      started + MUSIC_CONFIG.minTrackSec - 1,
+      env,
+    );
+    expect(early.switchToId).toBeNull();
+    const late = tickScheduler(
+      { ...d.state, pendingSceneId: null },
+      sad,
+      manifest,
+      started + MUSIC_CONFIG.minTrackSec + 1,
+      env,
+    );
+    expect(late.switchToId).toBe("sad-a");
   });
 
   it("keeps only the newest scene on a fast scroll", () => {
@@ -186,9 +232,9 @@ describe("observeScene and tickScheduler", () => {
     expect(d.state.pendingSceneId).toBe("s2");
     d = observeScene(d.state, "s3", signal("suspenso"), manifest, 55, env);
     expect(d.state.pendingSceneId).toBe("s3");
-    const early = tickScheduler(d.state, signal("suspenso"), manifest, 70, env);
+    const early = tickScheduler(d.state, signal("suspenso"), manifest, 55 + MUSIC_CONFIG.dwellSec - 1, env);
     expect(early.state.activeSceneId).toBe("s1");
-    const late = tickScheduler(d.state, signal("suspenso"), manifest, 76, env);
+    const late = tickScheduler(d.state, signal("suspenso"), manifest, 55 + MUSIC_CONFIG.dwellSec + 1, env);
     expect(late.state.activeSceneId).toBe("s3");
     expect(late.switchToId).toBe("tense");
   });

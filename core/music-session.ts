@@ -3,7 +3,7 @@
 // reader builds the context (clock, rng, scene signals) and bridges the
 // view to React state. The player stays the mechanism that performs
 // crossfades; this module decides them.
-import { MUSIC_CONFIG, nextTrack, resolveInitialSelection } from "./music";
+import { MUSIC_CONFIG, dominantEmotion, nextTrack, resolveInitialSelection } from "./music";
 import type {
   MusicManifest,
   MusicSelection,
@@ -272,6 +272,15 @@ export function dispatch(session: MusicSession, intent: MusicIntent, ctx: Sessio
   switch (intent.type) {
     case "sceneEntered": {
       const signal = ctx.signalOf(intent.sceneId);
+      // A new dominant emotion (suspense → combat on Lion Ambush) skips
+      // the entry dwell so a short scene still gets its track before the
+      // reader scrolls past. Same-emotion lands keep the short dwell so
+      // a fast scroll does not flap.
+      const current = ctx.manifest.tracks.find((t) => t.id === session.scheduler.currentId);
+      const strongMood =
+        signal !== null &&
+        current !== undefined &&
+        dominantEmotion(signal) !== current.emotion;
       const decision = observeScene(
         session.scheduler,
         intent.sceneId,
@@ -279,7 +288,7 @@ export function dispatch(session: MusicSession, intent: MusicIntent, ctx: Sessio
         ctx.manifest,
         ctx.nowSec,
         selectEnv(session, ctx),
-        ENTRY_DWELL,
+        strongMood ? { dwellSec: 0 } : ENTRY_DWELL,
       );
       return settle(session, foldSwitch(baseOf(session), decision, true), ctx);
     }
