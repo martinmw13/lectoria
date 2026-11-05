@@ -188,8 +188,11 @@ test("rescan after a scene switch shows the popover at document coordinates", ()
 type Pic = ReturnType<typeof usePictures>;
 let live: Pic | null = null;
 
-function LiveHarness({ sceneId }: { sceneId: string }) {
-  const pic = usePictures({ bookId: "oz", textVersion: "v", sceneId, pref: { kind: "preset", id: "denslow" } });
+type Pref = Parameters<typeof usePictures>[0]["pref"];
+const DENSLOW: Pref = { kind: "preset", id: "denslow" };
+
+function LiveHarness({ sceneId, pref = DENSLOW }: { sceneId: string; pref?: Pref }) {
+  const pic = usePictures({ bookId: "oz", textVersion: "v", sceneId, pref });
   /* eslint-disable-next-line react-hooks/globals -- test probe captures the live hook for request control */
   live = pic;
   return (
@@ -221,9 +224,9 @@ function mountLive(sceneId: string) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
-  const show = (id: string) =>
+  const show = (id: string, pref?: Pref) =>
     act(() => {
-      root.render(<LiveHarness sceneId={id} />);
+      root.render(<LiveHarness sceneId={id} pref={pref} />);
     });
   show(sceneId);
   const pictureSelection = () => {
@@ -384,4 +387,26 @@ test("the vault keeps every picture of the book across chapter and scene moves",
   expect(all()).not.toContain("/ch5-fig.png");
   expect(all()).toContain("/ch5-scene.png");
   act(() => again.root.unmount());
+});
+
+test("a scene picture drawn in one style never shows for another style", async () => {
+  const answer = pendingFetch();
+  const engraving = DENSLOW; // the Engraving skin draws in the default Denslow style
+  const watercolor: Pref = { kind: "preset", id: "watercolor" };
+  const { root, show } = mountLive("c11sA");
+  show("c11sA", engraving);
+  act(() => live!.illustrateScene());
+  await answer(ready("/engraving.png"));
+  expect(live!.card).toEqual({ phase: "ready", url: "/engraving.png", caption: "c" });
+  show("c11sA", watercolor);
+  expect(live!.card.phase).toBe("idle");
+  act(() => live!.illustrateScene());
+  expect(fetch).toHaveBeenCalledTimes(2);
+  const body = JSON.parse((vi.mocked(fetch).mock.calls[1]![1] as RequestInit).body as string) as { style?: unknown };
+  expect(body.style).toEqual({ preset: "watercolor" });
+  await answer(ready("/watercolor.png"));
+  expect(live!.card).toEqual({ phase: "ready", url: "/watercolor.png", caption: "c" });
+  show("c11sA", engraving);
+  expect(live!.card).toEqual({ phase: "ready", url: "/engraving.png", caption: "c" });
+  act(() => root.unmount());
 });
