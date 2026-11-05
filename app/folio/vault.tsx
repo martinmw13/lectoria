@@ -8,7 +8,13 @@ import { Icon } from "../icons";
 import { STYLE_OTHER_VALUE, STYLE_PRESETS, resolveStyleSelect } from "../image-style";
 import type { ImageStylePref } from "../image-style";
 import { truncateCaption } from "./helpers";
+import { ListboxSelect, type ListboxOption } from "./listbox-select";
 import type { InlineFigure } from "./use-pictures";
+
+const STYLE_OPTIONS: ListboxOption[] = [
+  ...STYLE_PRESETS.map((p) => ({ value: p.id, label: p.label })),
+  { value: STYLE_OTHER_VALUE, label: "Other…" },
+];
 
 export function StylePicker({ pref, onChange }: { pref: ImageStylePref; onChange: (pref: ImageStylePref) => void }) {
   const [custom, setCustom] = useState(pref.kind === "custom" ? pref.text : "");
@@ -24,15 +30,14 @@ export function StylePicker({ pref, onChange }: { pref: ImageStylePref; onChange
         <Icon name="brush" width={18} height={18} />
       </span>
       <div className="mtool-text">
-        <label className="mtool-title" htmlFor="style-select">
+        <span className="mtool-title" id="style-select-label">
           Picture style
-        </label>
-        <select
+        </span>
+        <ListboxSelect
           id="style-select"
-          className="mtool-sub"
+          options={STYLE_OPTIONS}
           value={selected}
-          onChange={(e) => {
-            const next = e.target.value;
+          onSelect={(next) => {
             if (next === STYLE_OTHER_VALUE) {
               setCustom(pref.kind === "custom" ? pref.text : "");
               setOtherOpen(true);
@@ -41,17 +46,18 @@ export function StylePicker({ pref, onChange }: { pref: ImageStylePref; onChange
             setOtherOpen(false);
             onChange({ kind: "preset", id: next });
           }}
-          onKeyDown={(e) => {
+          onClosedKeyDown={(e) => {
             if (e.key === "Escape") setOtherOpen(false);
           }}
+          className="style-select"
+          buttonClassName="style-select-btn mtool-sub"
+          listClassName="style-select-list"
+          listLabel="Picture styles"
+          ariaLabelledBy="style-select-label style-select"
+          align="start"
         >
-          {STYLE_PRESETS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-          <option value={STYLE_OTHER_VALUE}>Other…</option>
-        </select>
+          <span className="style-select-text">{STYLE_OPTIONS.find((o) => o.value === selected)?.label}</span>
+        </ListboxSelect>
         {selected === STYLE_OTHER_VALUE ? (
           <div className="style-custom">
             <input

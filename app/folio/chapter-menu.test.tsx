@@ -65,7 +65,7 @@ describe("ChapterMenu", () => {
     expect(button().getAttribute("aria-expanded")).toBe("true");
     expect(button().getAttribute("aria-controls")).toBe(list()?.id);
     const current = options().find((o) => o.getAttribute("aria-selected") === "true");
-    expect(current?.dataset.ch).toBe("2");
+    expect(current?.dataset.value).toBe("2");
     expect(button().getAttribute("aria-activedescendant")).toBe(current?.id);
     expect(current?.scrollIntoView).toHaveBeenCalled();
   });
@@ -76,7 +76,7 @@ describe("ChapterMenu", () => {
     key("ArrowDown");
     key("ArrowDown");
     key("ArrowDown"); // clamps at the end
-    expect(document.getElementById(button().getAttribute("aria-activedescendant")!)?.dataset.ch).toBe("12");
+    expect(document.getElementById(button().getAttribute("aria-activedescendant")!)?.dataset.value).toBe("12");
     key("Home");
     key("Enter");
     expect(onJump).toHaveBeenCalledWith(1);
@@ -88,7 +88,7 @@ describe("ChapterMenu", () => {
     key("ArrowDown");
     key("1");
     key("2");
-    expect(document.getElementById(button().getAttribute("aria-activedescendant")!)?.dataset.ch).toBe("12");
+    expect(document.getElementById(button().getAttribute("aria-activedescendant")!)?.dataset.value).toBe("12");
     expect(typeAheadMatch(chapters, "how", 0)).toBe(2);
     expect(typeAheadMatch(chapters, "the", 0)).toBe(1);
     expect(typeAheadMatch(chapters, "zzz", 0)).toBe(-1);

@@ -203,7 +203,7 @@ html[data-skin="watercolor"] .mtool-title {
   font-size: 16px;
 }
 
-html[data-skin="watercolor"] .style-picker select {
+html[data-skin="watercolor"] .style-picker .style-select-btn {
   border-bottom: 0;
   background: linear-gradient(90deg, rgba(127, 176, 255, 0.45), rgba(127, 176, 255, 0.08)) 0 100% / 100% 2px no-repeat;
 }

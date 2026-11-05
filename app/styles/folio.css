@@ -197,95 +197,6 @@ scrolls at desktop size; the reading column scrolls inside itself. */
   outline-offset: 2px;
 }
 
-.chapter-menu-list {
-  position: fixed;
-  z-index: 90;
-  width: 340px;
-  max-height: min(60vh, 440px);
-  margin: 0;
-  padding: 6px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  list-style: none;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-family: var(--font-ui), system-ui, sans-serif;
-  font-size: 14px;
-  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.35);
-  animation: style-menu-drop 160ms ease;
-}
-
-.chapter-menu-item {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-height: 36px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  line-height: 1.3;
-}
-
-.chapter-menu-item[data-active] {
-  background: var(--color-surface-soft);
-}
-
-.chapter-menu-item[aria-selected="true"] {
-  color: var(--color-accent);
-  font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--color-accent);
-}
-
-.chapter-menu-num {
-  min-width: 2ch;
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.chapter-menu-item[aria-selected="true"] .chapter-menu-num {
-  color: inherit;
-}
-
-html[data-skin="comic"] .chapter-menu-list {
-  border: 2px solid #14161c;
-  border-radius: 4px;
-  box-shadow: 4px 4px 0 #14161c;
-}
-
-html[data-skin="comic"] .chapter-menu-item[aria-selected="true"] {
-  background: #ffe45c;
-  color: #14161c;
-}
-
-html[data-skin="engraving"] .chapter-menu-list {
-  border-radius: 2px;
-  font-family: var(--font-fell), georgia, serif;
-  font-size: 15px;
-}
-
-html[data-skin="watercolor"] .chapter-menu-list,
-html[data-skin="ink"] .chapter-menu-list {
-  border-radius: 14px;
-}
-
-@media (pointer: coarse) {
-  .chapter-menu-item {
-    min-height: 44px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chapter-menu-list {
-    animation: none;
-  }
-  .chapter-jump-chev {
-    transition: none;
-  }
-}
-
 .theme-btn {
   width: 34px;
   height: 34px;
@@ -629,7 +540,13 @@ h2.chapter-title:focus-visible {
   color: var(--color-text-muted);
 }
 
-.style-picker select {
+.style-picker .style-select-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
   border: 0;
   border-bottom: 1px dashed var(--color-border);
   background: transparent;
@@ -638,7 +555,7 @@ h2.chapter-title:focus-visible {
   cursor: pointer;
 }
 
-.style-picker select:hover {
+.style-picker .style-select-btn:hover {
   color: var(--color-accent);
 }
 
@@ -657,7 +574,7 @@ h2.chapter-title:focus-visible {
   max-width: 100%;
 }
 
-.style-picker select:focus-visible,
+.style-picker .style-select-btn:focus-visible,
 .style-custom input:focus-visible,
 .style-custom button:focus-visible {
   outline: 2px solid var(--color-accent);
