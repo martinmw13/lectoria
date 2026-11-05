@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
+import { MUSIC_CONFIG,
   candidatesFor,
   CHOPIN_PLAYLIST_ID,
   nextTrack,
@@ -227,7 +227,7 @@ describe("playlist mode", () => {
     };
     const d = enterPlaylist(playing, manifest, CHOPIN_PLAYLIST_ID, 10);
     expect(d.switchToId).toBe("chop-1");
-    expect(d.crossfadeSec).toBe(3);
+    expect(d.crossfadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
     expect(d.state.currentStartedSec).toBe(10);
     expect(d.state.playlist).toEqual({ id: CHOPIN_PLAYLIST_ID, index: 0 });
   });
@@ -237,7 +237,7 @@ describe("playlist mode", () => {
     for (const want of ["chop-2", "chop-3", "chop-4", "chop-1"]) {
       const d = noteTrackEnded(state, signal("calma"), manifest, state.currentId as string, 10, envA);
       expect(d.switchToId).toBe(want);
-      expect(d.crossfadeSec).toBe(3);
+      expect(d.crossfadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
       state = d.state;
     }
     expect(state.playlist).toEqual({ id: CHOPIN_PLAYLIST_ID, index: 0 });
@@ -251,7 +251,7 @@ describe("playlist mode", () => {
     const state = enterPlaylist(initScheduler(), solo, "solo", 0).state;
     const d = noteTrackEnded(state, signal("calma"), solo, "chop-1", 130, envA);
     expect(d.switchToId).toBe("chop-1");
-    expect(d.crossfadeSec).toBe(3);
+    expect(d.crossfadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
     expect(d.state.playlist).toEqual({ id: "solo", index: 0 });
   });
 
@@ -285,7 +285,7 @@ describe("playlist mode", () => {
     const state = entered();
     const d = exitPlaylist(state, signal("calma"), manifest, 100, envA);
     expect(d.switchToId).toBe("a-calma");
-    expect(d.crossfadeSec).toBe(3);
+    expect(d.crossfadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
     expect(d.state.playlist).toBeNull();
     const pending = observeScene(d.state, "s2", signal("tristeza"), manifest, 150, envA);
     const resumed = tickScheduler(pending.state, signal("tristeza"), manifest, 171, envA);

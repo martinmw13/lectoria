@@ -238,10 +238,11 @@ export function Player({
       }
       return;
     }
-    // The single start path: fade 0 on the very first press. replayNonce
-    // re-cues the same track (one-track playlist wrap); nothing else is a dep
-    // so volume, pause/play, and re-renders never restart the track.
-    const dur = firstPlayRef.current ? 0 : fadeSecRef.current;
+    // The single start path: fade 0 on the very first press. Later swaps
+    // always crossfade (scheduler fade, else the config default) so a
+    // stale 0 from the session never cuts the audio. replayNonce re-cues
+    // the same track; nothing else is a dep so volume/pause never restart.
+    const dur = firstPlayRef.current ? 0 : loopFadeSec();
     firstPlayRef.current = false;
     requestPlayRef.current(next, dur);
   }, [started, trackId, replayNonce]);

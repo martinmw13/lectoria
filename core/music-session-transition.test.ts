@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHOPIN_PLAYLIST_ID } from "./music";
+import { MUSIC_CONFIG, CHOPIN_PLAYLIST_ID } from "./music";
 import type { MusicManifest, SceneSignal, Track } from "./music";
 import type { Vector8 } from "./types";
 import { EMOTIONS } from "./types";
@@ -93,7 +93,7 @@ describe("mode intent drift (pins current behavior)", () => {
     expect(left.view.playlistOn).toBe(false);
     expect(left.selection).toEqual({ style: "piano" });
     expect(left.view.currentId).toBe("p-calm");
-    expect(left.view.fadeSec).toBe(3);
+    expect(left.view.fadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
   });
 
   it("same style and same mode are no-ops", () => {
@@ -118,7 +118,7 @@ describe("mode intent drift (pins current behavior)", () => {
     const viaMode = dispatch(base, { type: "modeAdvanced", to: CHOPIN_PLAYLIST_ID }, cx(manifest, "s1", 5));
     expect(viaMode.view).toEqual(viaToggle.view);
     expect(viaMode.selection).toEqual(viaToggle.selection);
-    expect(viaMode.view.fadeSec).toBe(3);
+    expect(viaMode.view.fadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
   });
 
   it("entering matches between playlistToggled and modeAdvanced", () => {

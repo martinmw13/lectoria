@@ -268,9 +268,11 @@ export function Reader({
 
   useEffect(() => {
     // Settle an expired entry dwell, or re-check the scene after a hold.
+    // 250ms keeps the 1.5s entry dwell from waiting nearly a full second
+    // on the tick; the dispatch is a no-op when nothing is pending.
     const timer = window.setInterval(() => {
       send({ type: "tick" });
-    }, 1000);
+    }, 250);
     return () => window.clearInterval(timer);
   }, [send]);
 

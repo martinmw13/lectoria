@@ -103,7 +103,18 @@ function promote(
     overrideId: null,
     overrideSceneId: null,
   };
-  const decision = evaluateSwitch(settled, signal, manifest, nowSec, config, env);
+  // A scene change is allowed to cut a track that has not yet hit
+  // minTrackSec. That hold only applies when tick re-checks the same
+  // active scene; without this bypass, a fresh track could sit for the
+  // full min-track window after every scene entry and never adapt.
+  const decision = evaluateSwitch(
+    settled,
+    signal,
+    manifest,
+    nowSec,
+    { ...config, minTrackSec: 0 },
+    env,
+  );
   return { ...decision, state: { ...decision.state, activeSceneId: sceneId } };
 }
 
@@ -128,7 +139,13 @@ export function observeScene(
     return noChange({ ...state, pendingSceneId: null, pendingSinceSec: 0 });
   }
   if (sceneId !== state.pendingSceneId) {
-    return noChange({ ...state, pendingSceneId: sceneId, pendingSinceSec: nowSec });
+    const pending = { ...state, pendingSceneId: sceneId, pendingSinceSec: nowSec };
+    // dwellSec 0 (strong mood change / chapter jump): promote on the
+    // same observe so a short combat scene is not scrolled past first.
+    if (config.dwellSec <= 0) {
+      return promote(pending, sceneId, signal, manifest, nowSec, config, env);
+    }
+    return noChange(pending);
   }
   if (nowSec - state.pendingSinceSec < config.dwellSec) return noChange(state);
   return promote(state, sceneId, signal, manifest, nowSec, config, env);

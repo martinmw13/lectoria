@@ -64,10 +64,19 @@ export function cosineSimilarity(scene: SceneSignal, track: Track): number {
 export const MUSIC_CONFIG: MusicConfig = {
   similarity: bhattacharyyaSimilarity,
   weights: { emotion: 0.7, intensity: 0.15, tempo: 0.15 },
-  dwellSec: 20,
-  sceneEntryDwellSec: 5,
-  minTrackSec: 45,
-  crossfadeSec: 3,
+  // Same-scene re-check hold (ticks after a scene is already active).
+  dwellSec: 8,
+  // How long a new scene must stay under the reading line before its
+  // soundtrack can take over. Short enough that a 3-paragraph combat
+  // beat (Oz Lion Ambush) still wins; long enough that a fast scroll
+  // only settles on the last scene.
+  sceneEntryDwellSec: 1,
+  // Within one scene, do not reshuffle for this long. Scene promotions
+  // bypass it; a strong mood change (new dominant emotion) also skips
+  // the entry dwell so combat/suspense cuts land while the scene is in view.
+  minTrackSec: 4,
+  // Equal-power crossfade length used by the player for every switch.
+  crossfadeSec: 1.75,
   // Admits near ties into the random-mode draw without letting clearly
   // worse matches in.
   randomTolerance: 0.05,

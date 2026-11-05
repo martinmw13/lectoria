@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextTrack } from "./music";
+import { MUSIC_CONFIG, nextTrack } from "./music";
 import type { MusicManifest, MusicSelection, SceneSignal, SelectEnv, Track } from "./music";
 import type { Vector8 } from "./types";
 import { EMOTIONS } from "./types";
@@ -125,11 +125,11 @@ describe("scheduled select", () => {
   it("draws another eligible track once min-track time has passed", () => {
     const d = tickScheduler(playing("a-triste", 0), signal("calma"), manifest, 100, orchSeeded());
     expect(d.switchToId).toBe("a-calma");
-    expect(d.crossfadeSec).toBe(3);
+    expect(d.crossfadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
   });
 
   it("holds the current pick until min-track time passes", () => {
-    const d = tickScheduler(playing("a-triste", 0), signal("calma"), manifest, 10, orchSeeded());
+    const d = tickScheduler(playing("a-triste", 0), signal("calma"), manifest, MUSIC_CONFIG.minTrackSec - 1, orchSeeded());
     expect(d.switchToId).toBeNull();
   });
 
@@ -143,7 +143,7 @@ describe("scheduled select", () => {
     expect(d.switchToId).toBe("a-calma");
     expect(draw.calls()).toBe(1);
     const held = counting();
-    const h = tickScheduler(playing("a-triste", 0), signal("calma"), manifest, 10, orchSeeded(held.rng));
+    const h = tickScheduler(playing("a-triste", 0), signal("calma"), manifest, MUSIC_CONFIG.minTrackSec - 1, orchSeeded(held.rng));
     expect(h.switchToId).toBeNull();
     expect(held.calls()).toBe(1);
     const kept = counting();
@@ -198,7 +198,7 @@ describe("requestManualTrack", () => {
     expect(d.switchToId).toBe("b-calma");
     expect(d.state.currentId).toBe("b-calma");
     expect(d.state.overrideId).toBe("b-calma");
-    expect(d.crossfadeSec).toBe(3);
+    expect(d.crossfadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
     const held = tickScheduler(d.state, signal("calma"), manifest, 50, orch);
     expect(held.switchToId).toBeNull();
   });
@@ -250,7 +250,7 @@ describe("switchStyle", () => {
     expect(d.switchToId).toBe("a-calma");
     const changed = switchStyle(d.state, signal("calma"), manifest, 1, "piano");
     expect(changed.switchToId).toBe("p-calma");
-    expect(changed.crossfadeSec).toBe(3);
+    expect(changed.crossfadeSec).toBe(MUSIC_CONFIG.crossfadeSec);
     expect(changed.state.overrideId).toBe("p-calma");
   });
 
