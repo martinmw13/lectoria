@@ -16,6 +16,7 @@ import {
   usageCostMicro,
 } from "@/core/chat";
 import type { ChatErrorBody, ChatErrorCode, ChatRequest } from "@/core/chat";
+import { answerCacheKey, isCommonQuestion, normalizeQuestion } from "@/core/chat-cache";
 import type { KV } from "@/core/types";
 import { isUploadId } from "@/core/uploads";
 import { isKnownBookId, loadBook, loadBookData } from "@/server/books";
@@ -33,6 +34,8 @@ import { CHAT_QUOTA_TTL_SEC, refundDualQuota, takeDualQuota } from "@/server/gua
 import { clientIp, hashIp, ipBucket, rejectsCrossSite, utcDay } from "@/server/guard/request";
 import { reserveSpend } from "@/server/guard/spend";
 import type { SpendReservation } from "@/server/guard/spend";
+import { createKvAnswerCache, selectAnswerCache } from "./answer-cache";
+import type { AnswerCache } from "./answer-cache";
 import { readChatEnv } from "./env";
 import type { ChatEnv } from "./env";
 import { createChatStreamer } from "./stream";
@@ -45,6 +48,7 @@ export interface ChatHandlerDeps {
   fetchFn?: typeof fetch;
   now?: Date;
   loadBook?: (bookId: string) => Promise<BookPayload>;
+  answerCache?: AnswerCache;
 }
 
 // Expected failures (bad input, over limit, missing env, spent budget)
@@ -173,8 +177,9 @@ export async function handleChatPost(req: Request, deps: ChatHandlerDeps = {}): 
     // finished uploads load through the loader pictures use. A missing,
     // unfinished, or expired upload answers 400, with the quota given back.
     let book: BookPayload["book"];
+    let scenes: BookPayload["scenes"];
     try {
-      ({ book } = isUploadId(body.bookId)
+      ({ book, scenes } = isUploadId(body.bookId)
         ? await (deps.loadBook ?? loadBook)(body.bookId)
         : await loadBookData(body.bookId));
     } catch {
@@ -188,14 +193,53 @@ export async function handleChatPost(req: Request, deps: ChatHandlerDeps = {}): 
       book.chapters.find((c) => clampedN >= c.start_n && clampedN <= c.end_n) ??
       book.chapters[book.chapters.length - 1];
     if (!chapter) return fail("unavailable", "?", cookies, false, body.bookId);
+
+    // Shared-answer cache, only for a first recap-type question about a
+    // shelf book, owner key, no spoilers. BYOK and uploads never touch it.
+    // The answer is drawn from the text before the reader's scene, so
+    // everyone in that scene may see it and no one sees past where they are.
+    const question = body.messages[0]?.content ?? "";
+    const normalized = normalizeQuestion(question);
+    const scene = scenes.find((sc) => clampedN >= sc.start_n && clampedN <= sc.end_n);
+    const cacheable =
+      !byok &&
+      !isUploadId(body.bookId) &&
+      !body.spoilers &&
+      body.messages.length === 1 &&
+      scene !== undefined &&
+      scene.start_n > 1 &&
+      isCommonQuestion(normalized);
+    const textUpTo = cacheable && scene ? scene.start_n - 1 : body.upToN;
     const system = buildChatSystemPrompt({
       title: book.title,
       author: book.author,
       chapterNumber: chapter.ch,
       chapterTitle: chapter.title,
       spoilers: body.spoilers,
-      bookText: bookTextUpTo(book.paragraphs, book.chapters, body.upToN, body.spoilers),
+      bookText: bookTextUpTo(book.paragraphs, book.chapters, textUpTo, body.spoilers),
     });
+    const answerCache: AnswerCache | null = cacheable
+      ? (deps.answerCache ?? (deps.kv ? createKvAnswerCache(kv) : selectAnswerCache(kv)))
+      : null;
+    const cacheKey =
+      answerCache && scene
+        ? answerCacheKey({
+            bookId: body.bookId,
+            textVersion: book.textVersion,
+            sceneId: scene.id,
+            normalizedQuestion: normalized,
+            systemPrompt: system,
+          })
+        : null;
+    if (answerCache && cacheKey) {
+      const hit = await answerCache.get(cacheKey);
+      if (hit !== null) {
+        console.info(`chat cache hit book=${body.bookId} ch=${chapter.ch}`);
+        const headers = new Headers({ "Content-Type": "text/event-stream", "Cache-Control": "no-store" });
+        for (const cookie of cookies) headers.append("Set-Cookie", cookie);
+        return new Response(encodeSse("delta", { text: hit }) + encodeSse("done", { remaining }), { headers });
+      }
+    }
     const messages: UpstreamMessage[] = [{ role: "system", content: system }, ...body.messages];
 
     // A Redis failure between reserves must give back what was taken.
@@ -276,12 +320,14 @@ export async function handleChatPost(req: Request, deps: ChatHandlerDeps = {}): 
           }
         };
         let sent = 0;
+        let answer = "";
         let usageState = usage;
         const pushText = (text: string): void => {
           const room = CHAT_MAX_ANSWER_CHARS - sent;
           if (room <= 0) return;
           const slice = text.slice(0, room);
           sent += slice.length;
+          answer += slice;
           send("delta", { text: slice });
         };
         try {
@@ -312,6 +358,9 @@ export async function handleChatPost(req: Request, deps: ChatHandlerDeps = {}): 
           // No usage block: keep the whole reserve rather than refund a real answer.
           const diff = usageState ? usageCostMicro(usageState) - reservation.amountMicro : 0;
           await reservation.adjust(diff);
+        }
+        if (answerCache && cacheKey && answer.trim().length > 0 && !req.signal.aborted) {
+          await answerCache.set(cacheKey, answer);
         }
         send("done", byok ? {} : { remaining });
         close();

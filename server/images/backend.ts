@@ -17,7 +17,7 @@ export type ImageBackend =
 
 const LOCAL_REQUIRED = ["META_API_KEY", "SESSION_SECRET", "IP_HASH_SALT"] as const;
 
-function remoteCacheReady(from: NodeJS.ProcessEnv): boolean {
+export function remoteCacheReady(from: NodeJS.ProcessEnv): boolean {
   const url = usable(from.UPSTASH_REDIS_REST_URL) ?? usable(from.KV_REST_API_URL);
   const token = usable(from.UPSTASH_REDIS_REST_TOKEN) ?? usable(from.KV_REST_API_TOKEN);
   return Boolean(usable(from.BLOB_READ_WRITE_TOKEN) && url?.startsWith("https://") && token);
