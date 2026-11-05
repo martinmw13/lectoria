@@ -1,15 +1,16 @@
 import { BYOK_HEADER } from "@/core/chat";
 import { MSG_FAILED, MSG_HUMAN, MSG_RETRY } from "@/core/images";
 import type { ImageErrorCode, ImageResponse } from "@/core/images";
-import { getReaderKey } from "../leer/reader-key";
+import { getReaderKey, setSessionKey } from "../leer/reader-key";
 
 const POLL_MS = 3000;
 const POLL_MAX = 40;
 
 async function postImage(body: unknown): Promise<ImageResponse> {
-  // Uploads finished with the reader's own Meta key send it along, so
-  // pictures bill that key; without it the server uses ours. The key
-  // lives in module memory only and never reaches shelf-book requests.
+  // The reader's own Meta key (an upload's, or one typed in this tab)
+  // rides along in a header, so pictures bill that key and skip the free
+  // daily quota; without it the server uses ours. Memory only, never in
+  // the body, the URL, storage, or logs.
   const bookId = (body as { bookId?: unknown }).bookId;
   const key = typeof bookId === "string" ? getReaderKey(bookId) : null;
   // One generating request runs up to the 120 s server budget, so this
@@ -44,8 +45,10 @@ export class ImageRequestError extends Error {
   }
 }
 
+// These hide Retry and offer the reader's own key instead; a refused key
+// (byok_invalid) offers to enter another one.
 export function isQuotaCode(code: ImageErrorCode): boolean {
-  return code === "quota" || code === "budget" || code === "daily_budget";
+  return code === "quota" || code === "budget" || code === "daily_budget" || code === "byok_invalid";
 }
 
 export async function poll(
@@ -67,6 +70,8 @@ export async function poll(
     if (res.status === "ready") return { url: res.url, caption: res.caption };
     if (res.status === "error") {
       if (res.code === "human") throw new HumanNeeded();
+      // A refused tab key is dropped, so the next try asks for another.
+      if (res.code === "byok_invalid") setSessionKey(null);
       throw new ImageRequestError(res.code, res.message);
     }
     left -= 1;

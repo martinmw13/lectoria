@@ -7,6 +7,7 @@ import {
   STYLE_PRESETS,
   effectiveImageStylePref,
   loadImageStylePref,
+  migrateLegacyImageStyle,
   parseImageStylePref,
   requestStyleFields,
   resolveStyleSelect,
@@ -89,6 +90,62 @@ describe("parseImageStylePref", () => {
     try {
       saveImageStylePref({ kind: "preset", id: "pencil" });
       expect(loadImageStylePref()).toEqual({ kind: "preset", id: "pencil" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps an explicit pick per skin, so an old Denslow pick never overrides Watercolor", () => {
+    const store: Record<string, string> = { "lectoria.imageStyle": JSON.stringify({ kind: "preset", id: "denslow" }) };
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => store[key] ?? null,
+        setItem: (key: string, value: string) => {
+          store[key] = value;
+        },
+        removeItem: (key: string) => {
+          delete store[key];
+        },
+      },
+    });
+    try {
+      expect(effectiveImageStylePref(loadImageStylePref("watercolor"), "watercolor")).toEqual({ kind: "preset", id: "watercolor" });
+      saveImageStylePref({ kind: "preset", id: "denslow" }, "engraving");
+      expect(loadImageStylePref("watercolor")).toBeNull();
+      expect(loadImageStylePref("engraving")).toEqual({ kind: "preset", id: "denslow" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("moves the old global pick to Engraving only, once", () => {
+    const store: Record<string, string> = { "lectoria.imageStyle": JSON.stringify({ kind: "preset", id: "anime" }) };
+    const storage = {
+      getItem: (key: string) => store[key] ?? null,
+      setItem: (key: string, value: string) => {
+        store[key] = value;
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
+    };
+    vi.stubGlobal("window", { localStorage: storage });
+    try {
+      expect(loadImageStylePref("watercolor")).toBeNull();
+      expect(store["lectoria.imageStyle"]).toBeUndefined();
+      expect(loadImageStylePref("engraving")).toEqual({ kind: "preset", id: "anime" });
+      expect(requestStyleFields(effectiveImageStylePref(loadImageStylePref("watercolor"), "watercolor"))).toEqual({
+        style: { preset: "watercolor" },
+      });
+      // An Engraving pick of its own is never overwritten by a stale global.
+      store["lectoria.imageStyle"] = JSON.stringify({ kind: "preset", id: "comic" });
+      migrateLegacyImageStyle(storage);
+      expect(loadImageStylePref("engraving")).toEqual({ kind: "preset", id: "anime" });
+      // Garbage in the old key is dropped, not migrated.
+      store["lectoria.imageStyle"] = "{not json";
+      delete store["lectoria.imageStyle.engraving"];
+      migrateLegacyImageStyle(storage);
+      expect(store["lectoria.imageStyle.engraving"]).toBeUndefined();
     } finally {
       vi.unstubAllGlobals();
     }

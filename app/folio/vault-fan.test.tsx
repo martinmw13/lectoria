@@ -11,7 +11,7 @@ import { FAN_MAX, PictureVault } from "./vault";
 
 const scene = (n: number) => ({ id: `s${n}`, sceneId: `c${n}s1`, url: `/p${n}.png`, caption: `Picture ${n}` });
 
-function mount(count: number, onDelete = () => {}) {
+function mount(count: number, onDelete = () => {}, onEmpty?: () => void) {
   const host = document.createElement("div");
   const root = createRoot(host);
   act(() =>
@@ -23,6 +23,7 @@ function mount(count: number, onDelete = () => {}) {
         onGotoFigure={() => {}}
         onOpen={() => {}}
         onDelete={onDelete}
+        onEmpty={onEmpty}
         pref={{ kind: "preset", id: "denslow" }}
         onPrefChange={() => {}}
       />,
@@ -73,6 +74,39 @@ test("the fan opens a window with every picture; a pick shows it large and only 
   act(() => win.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
   expect(host.querySelector("#vault-window")).toBeNull();
   expect(document.activeElement).toBe(host.querySelector(".vault-fan"));
+  act(() => root.unmount());
+  host.remove();
+});
+
+test("Empty vault asks first: Keep them or Escape cancels, Empty it empties", () => {
+  const onEmpty = vi.fn();
+  const { host, root } = mount(3, () => {}, onEmpty);
+  act(() => host.querySelector<HTMLButtonElement>(".vault-fan")!.click());
+  const emptyBtn = () => host.querySelector<HTMLButtonElement>(".vault-empty-all");
+  expect(emptyBtn()?.textContent).toBe("Empty vault");
+  act(() => emptyBtn()!.click());
+  expect(onEmpty).not.toHaveBeenCalled();
+  const yes = host.querySelector<HTMLButtonElement>(".vault-empty-yes")!;
+  expect(document.activeElement).toBe(yes);
+  act(() => host.querySelector<HTMLButtonElement>(".vault-empty-no")!.click());
+  expect(host.querySelector(".vault-empty-confirm")).toBeNull();
+  act(() => emptyBtn()!.click());
+  act(() => {
+    host.querySelector("#vault-window")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
+  expect(host.querySelector(".vault-empty-confirm")).toBeNull();
+  expect(host.querySelector("#vault-window")).not.toBeNull();
+  act(() => emptyBtn()!.click());
+  act(() => host.querySelector<HTMLButtonElement>(".vault-empty-yes")!.click());
+  expect(onEmpty).toHaveBeenCalledTimes(1);
+  act(() => root.unmount());
+  host.remove();
+});
+
+test("no Empty vault button without a handler", () => {
+  const { host, root } = mount(3);
+  act(() => host.querySelector<HTMLButtonElement>(".vault-fan")!.click());
+  expect(host.querySelector(".vault-empty-all")).toBeNull();
   act(() => root.unmount());
   host.remove();
 });

@@ -49,3 +49,20 @@ test("never stores blob: or data: urls, and ignores junk in storage", async () =
   expect(b.bookVault("pride").scenes.map((s) => s.url)).toEqual(["/p.png"]);
   expect(b.bookVault("carol")).toEqual({ scenes: [], figures: [] });
 });
+
+test("Empty vault clears only the current book's key, and stays empty after a reload", async () => {
+  const a = await fresh();
+  a.keepScenePicture("oz", "c5s1", "https://blob.example/a.png", "The Scarecrow");
+  a.keepFigurePicture("oz", "c5s2", fig("f1", "https://blob.example/f.png"));
+  a.keepScenePicture("alice", "c1s1", "https://blob.example/alice.png", "Rabbit");
+  const heard = vi.fn();
+  a.subscribeVault(heard);
+  expect(a.emptyVault("oz")).toEqual({ scenes: [], figures: [] });
+  expect(heard).toHaveBeenCalled();
+  expect(localStorage.getItem("lectoria:vault:oz")).toBeNull();
+  expect(localStorage.getItem("lectoria:vault:alice")).not.toBeNull();
+  vi.resetModules();
+  const b = await fresh();
+  expect(b.bookVault("oz")).toEqual({ scenes: [], figures: [] });
+  expect(b.bookVault("alice").scenes).toHaveLength(1);
+});

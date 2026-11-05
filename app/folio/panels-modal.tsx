@@ -3,6 +3,7 @@
 // chapters past the reader's reach stay gated.
 "use client";
 
+import { PictureByok } from "./picture-byok";
 import { useEffect, useRef } from "react";
 import { TurnstileWidget } from "../turnstile";
 import type { ImageStylePref } from "../image-style";
@@ -104,7 +105,7 @@ export function PanelsModal({
                 {needHuman ? (
                   <TurnstileWidget onToken={submitHumanPass} />
                 ) : page.quota ? (
-                  <p>{PICTURE_COPY.quotaByok}</p>
+                  <PictureByok onKey={retry} />
                 ) : (
                   <button type="button" className="retry-text" onClick={retry}>
                     {PICTURE_COPY.retry}

@@ -51,8 +51,10 @@ test("a quota error hides retry and points to the key option", () => {
   try {
     const err = host.querySelector(".gen-error");
     expect(err?.textContent).toContain("That's all five pictures");
-    expect(err?.textContent).toContain("Bring your own key!");
     expect(err?.querySelector(".retry-text")).toBeNull();
+    // The key step for pictures sits under the message.
+    expect(host.querySelector(".picture-byok")?.textContent).toContain("Bring your own key!");
+    expect(host.querySelector('.picture-byok input[type="password"]')).not.toBeNull();
   } finally {
     act(() => root.unmount());
   }

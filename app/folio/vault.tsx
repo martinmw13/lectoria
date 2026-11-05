@@ -139,13 +139,21 @@ interface VaultPick {
 export function VaultWindow({
   items,
   onDelete,
+  onEmpty,
   onClose,
 }: {
   items: VaultPick[];
   onDelete: (url: string) => void;
+  /** Removes every picture from the vault, after a confirm. */
+  onEmpty?: () => void;
   onClose: () => void;
 }) {
   const [pick, setPick] = useState<string | null>(null);
+  const [confirmEmpty, setConfirmEmpty] = useState(false);
+  const confirmRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (confirmEmpty) confirmRef.current?.focus();
+  }, [confirmEmpty]);
   const xRef = useRef<HTMLButtonElement | null>(null);
   const backRef = useRef<HTMLButtonElement | null>(null);
   const big = items.find((i) => i.url === pick) ?? null;
@@ -162,7 +170,8 @@ export function VaultWindow({
         onKeyDown={(e) => {
           if (e.key !== "Escape") return;
           e.stopPropagation();
-          if (big) setPick(null);
+          if (confirmEmpty) setConfirmEmpty(false);
+          else if (big) setPick(null);
           else onClose();
         }}
       >
@@ -174,6 +183,32 @@ export function VaultWindow({
             </button>
           </div>
           <p className="chat-scope">{`${keptLine(items.length)}. Every picture drawn in this book.`}</p>
+          {onEmpty && items.length > 0 ? (
+            confirmEmpty ? (
+              <div className="vault-empty-confirm" role="group" aria-label="Confirm emptying the vault">
+                <span className="vault-empty-q">Remove every kept picture in this book?</span>
+                <button
+                  ref={confirmRef}
+                  type="button"
+                  className="vault-act vault-act-del vault-empty-yes"
+                  onClick={() => {
+                    setConfirmEmpty(false);
+                    setPick(null);
+                    onEmpty();
+                  }}
+                >
+                  Empty it
+                </button>
+                <button type="button" className="vault-act vault-empty-no" onClick={() => setConfirmEmpty(false)}>
+                  Keep them
+                </button>
+              </div>
+            ) : (
+              <button type="button" className="vault-act vault-act-del vault-empty-all" onClick={() => setConfirmEmpty(true)}>
+                Empty vault
+              </button>
+            )
+          ) : null}
         </div>
         <div className="chat-log vault-log">
           {big ? (
@@ -235,6 +270,7 @@ export function PictureVault({
   onGotoFigure,
   onOpen,
   onDelete,
+  onEmpty,
   pref,
   onPrefChange,
   children,
@@ -248,6 +284,7 @@ export function PictureVault({
   onOpen: (src: string, caption: string, opener: HTMLElement | null) => void;
   /** The vault's own delete, the only way a picture leaves it. */
   onDelete: (url: string) => void;
+  onEmpty?: () => void;
   pref: ImageStylePref;
   onPrefChange: (pref: ImageStylePref) => void;
   /** Extra margin rows under the vault, such as notes and highlights. */
@@ -356,6 +393,7 @@ export function PictureVault({
         <VaultWindow
           items={items}
           onDelete={onDelete}
+          onEmpty={onEmpty}
           onClose={() => {
             setOpen(false);
             fanRef.current?.querySelector("button")?.focus();

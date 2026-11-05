@@ -21,6 +21,7 @@ import { readBodyCapped } from "@/server/guard/body";
 import { createRestKV } from "@/server/guard/kv";
 import { clientIp, rejectsCrossSite, utcDay } from "@/server/guard/request";
 import { readImageBackend, localImageKV } from "./backend";
+import { localQuotaExempt } from "./env";
 import type { ImageEnv } from "./env";
 import { errorTag } from "./errors";
 import { createBlobStore } from "./blob";
@@ -44,6 +45,8 @@ export interface ImagesHandlerDeps {
   generate?: ImageGenerator;
   fetchFn?: typeof fetch;
   loadBook?: (bookId: string) => Promise<BookPayload>;
+  /** Tests pin this; by default the server env decides (localQuotaExempt). */
+  quotaExempt?: boolean;
 }
 
 function isAsciiPrintable(text: string): boolean {
@@ -244,6 +247,7 @@ export async function handleImagesPost(req: Request, deps: ImagesHandlerDeps = {
       generate: deps.generate ?? createMetaClient(byokKey ?? env.metaKey),
       env,
       byok: byokKey !== null,
+      skipQuota: deps.quotaExempt ?? localQuotaExempt(),
       content: {
         ...content,
         reference,

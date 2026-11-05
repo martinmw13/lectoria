@@ -17,6 +17,7 @@ import { Lightbox } from "../folio/lightbox";
 import { usePictures } from "../folio/use-pictures";
 import { PictureVault } from "../folio/vault";
 import type { VaultFigure, VaultScene } from "../folio/vault-store";
+import { chapterHeading } from "./chapter-heading";
 import { coverTitleLong } from "../folio/panels";
 import type { ChapterPanel } from "../folio/panels";
 import { PanelsModal } from "../folio/panels-modal";
@@ -54,10 +55,13 @@ export function BookView({
   // Pictures serve uploads too; the vault and panels stay mounted and
   // the images API fills them from the uploaded text.
   const visualsOn = visualsOnProp ?? true;
-  const [storedPref, setStoredPref] = useState<ImageStylePref | null>(null);
+  // The pick is per skin; a pick read for another skin is ignored until
+  // this skin's own pick loads, so one skin never draws another's style.
+  const [stored, setStored] = useState<{ skin: string; pref: ImageStylePref | null } | null>(null);
   // Server render uses the default so hydration matches; the live skin
   // applies on mount via useSyncExternalStore.
   const skin = useSkin();
+  const storedPref = stored !== null && stored.skin === skin ? stored.pref : null;
   const pref = effectiveImageStylePref(storedPref, skin);
   const [currentId, setCurrentId] = useState(initialSceneId);
   const [panelsCh, setPanelsCh] = useState<number | null>(null);
@@ -164,13 +168,13 @@ export function BookView({
   }, [gotoScene]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-only image-style pref restore from localStorage
-    setStoredPref(loadImageStylePref());
-  }, []);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- per-skin image-style pref restore from localStorage
+    setStored({ skin, pref: loadImageStylePref(skin) });
+  }, [skin]);
 
   function changePref(next: ImageStylePref) {
-    setStoredPref(next);
-    saveImageStylePref(next);
+    setStored({ skin, pref: next });
+    saveImageStylePref(next, skin);
   }
 
   const closePanels = useCallback(() => setPanelsCh(null), []);
@@ -254,15 +258,20 @@ export function BookView({
         <h1 className="sr-only">{model.title}</h1>
         <ReadAlong columnRef={readColRef} />
         {model.chapters.map((chapter) => {
-          const coverLong = coverTitleLong(chapter.title);
+          const heading = chapterHeading(chapter.title);
+          const coverLong = coverTitleLong(heading.title);
           return (
             <div className="chapter-block" key={chapter.ch} data-ch={chapter.ch}>
-              <div className="kicker">Chapter</div>
-              <p className="cover-num" data-long={coverLong} aria-label={`Chapter ${chapter.ch}`}>
-                {chapter.ch}
-              </p>
+              {heading.showNumber ? (
+                <>
+                  <div className="kicker">Chapter</div>
+                  <p className="cover-num" data-long={coverLong} aria-label={`Chapter ${chapter.ch}`}>
+                    {chapter.ch}
+                  </p>
+                </>
+              ) : null}
               <h2 className="chapter-title cover-title" data-long={coverLong}>
-                {chapter.title}
+                {heading.title}
               </h2>
               <hr className="cover-rule" />
               {chapter.scenes.map((s, si) => (
@@ -343,6 +352,7 @@ export function BookView({
           onGotoFigure={gotoFigure}
           onOpen={pic.lightbox.open}
           onDelete={pic.deleteFromVault}
+          onEmpty={pic.emptyVault}
           pref={pref}
           onPrefChange={changePref}
         >

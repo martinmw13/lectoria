@@ -172,7 +172,7 @@ describe("uploaded books", () => {
     expect(generate.generate).not.toHaveBeenCalled();
   });
 
-  it("uses the reader key and skips our spend while still taking quota", async () => {
+  it("uses the reader key and skips both our spend and the free daily quota", async () => {
     const payload = {
       book: {
         id: UPLOAD_ID,
@@ -225,8 +225,8 @@ describe("uploaded books", () => {
       ipHash: hashIp(ipBucket("9.9.9.9", issued.id), imgEnv.ipSalt),
       anonId: issued.id,
     });
-    expect(await kv.get(keys.ip)).toBe("1");
-    expect(await kv.get(keys.anon)).toBe("1");
+    expect(await kv.get(keys.ip)).toBeNull();
+    expect(await kv.get(keys.anon)).toBeNull();
   });
 
   it("reserves our spend for an upload without a reader key", async () => {

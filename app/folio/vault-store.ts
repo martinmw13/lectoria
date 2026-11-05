@@ -103,6 +103,18 @@ export function keepFigurePicture(bookId: string, sceneId: string, fig: InlineFi
   return save(bookId, { ...prev, figures: [...prev.figures, { ...fig, sceneId }] });
 }
 
+/** Empties this book's vault only (the window's Empty vault button). */
+export function emptyVault(bookId: string): BookVault {
+  books.set(bookId, EMPTY_VAULT);
+  try {
+    window.localStorage.removeItem(vaultKey(bookId));
+  } catch {
+    // Storage blocked: the vault is still empty for this page.
+  }
+  for (const fn of listeners) fn();
+  return EMPTY_VAULT;
+}
+
 /** The vault's own delete: the only way a picture leaves the vault. */
 export function deleteVaultPicture(bookId: string, url: string): BookVault {
   const prev = bookVault(bookId);

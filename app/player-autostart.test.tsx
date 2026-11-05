@@ -3,7 +3,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { Player } from "./player";
-import { unlockMusicFromGesture } from "./player-autostart";
+import { MUSIC_INTENT_TTL_MS, takeAutostartIntent, unlockMusicFromGesture } from "./player-autostart";
+import { DEFAULT_VOLUME, MUSIC_PREFS_KEY } from "./music-prefs";
 import type { Track } from "@/core/music";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -31,6 +32,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   localStorage.clear();
+  sessionStorage.clear();
   document.body.innerHTML = "";
 });
 
@@ -127,13 +129,73 @@ test("an explicit pause is remembered and prevents the next auto-start", async (
   expect(second.button.getAttribute("aria-label")).toBe("Play");
 });
 
-test("the Start reading click unlocks audio with a silent play, unless music was paused", async () => {
+test("the Start reading click unlocks audio with a silent play, even after a pause", async () => {
+  localStorage.setItem("lectoria.music.paused", "1");
   expect(unlockMusicFromGesture()).toBe(true);
   expect(play).toHaveBeenCalledTimes(1);
   expect((play.mock.contexts[0] as HTMLAudioElement).src).toMatch(/^data:audio\/wav/);
-  localStorage.setItem("lectoria.music.paused", "1");
-  expect(unlockMusicFromGesture()).toBe(false);
+  expect(localStorage.getItem("lectoria.music.paused")).toBeNull();
+});
+
+test("Start reading turns a stored mute or zero volume back on, keeping the rest", () => {
+  localStorage.setItem(
+    MUSIC_PREFS_KEY,
+    JSON.stringify({ style: "film", volume: 0, muted: true, playlist: true }),
+  );
+  unlockMusicFromGesture();
+  const stored = JSON.parse(localStorage.getItem(MUSIC_PREFS_KEY)!);
+  expect(stored).toMatchObject({ style: "film", muted: false, volume: DEFAULT_VOLUME, playlist: true });
+});
+
+test("Start reading keeps a stored non-zero volume", () => {
+  localStorage.setItem(MUSIC_PREFS_KEY, JSON.stringify({ style: null, volume: 0.3, muted: true, playlist: false }));
+  unlockMusicFromGesture();
+  expect(JSON.parse(localStorage.getItem(MUSIC_PREFS_KEY)!)).toMatchObject({ muted: false, volume: 0.3 });
+});
+
+test("music starts after Start reading even when it was paused before", async () => {
+  const first = await mount();
+  await act(async () => first.button.click());
+  await act(async () => first.root.unmount());
+  play.mockClear();
+
+  unlockMusicFromGesture();
+  play.mockClear();
+  const second = await mount();
   expect(play).toHaveBeenCalledTimes(1);
+  expect(second.button.getAttribute("aria-label")).toBe("Pause");
+});
+
+test("the intent survives a blocked autoplay: the first gesture in the reader starts music", async () => {
+  unlockMusicFromGesture();
+  play.mockClear();
+  play.mockImplementationOnce(blocked);
+  const { button } = await mount();
+  expect(button.getAttribute("aria-label")).toBe("Play");
+  await act(async () => {
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+  });
+  expect(play).toHaveBeenCalledTimes(2);
+  expect(button.getAttribute("aria-label")).toBe("Pause");
+});
+
+test("the autostart intent is read once and expires", () => {
+  unlockMusicFromGesture(1_000);
+  expect(takeAutostartIntent(1_500)).toBe(true);
+  expect(takeAutostartIntent(1_600)).toBe(false);
+  unlockMusicFromGesture(1_000);
+  expect(takeAutostartIntent(1_000 + MUSIC_INTENT_TTL_MS + 1)).toBe(false);
+});
+
+test("a pause in the reader still sticks for a plain reload (no Start reading)", async () => {
+  const first = await mount();
+  await act(async () => first.button.click());
+  await act(async () => first.root.unmount());
+  play.mockClear();
+  sessionStorage.clear();
+  const second = await mount();
+  expect(play).not.toHaveBeenCalled();
+  expect(second.button.getAttribute("aria-label")).toBe("Play");
 });
 
 test("a refused unlock fails silently", async () => {

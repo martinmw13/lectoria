@@ -12,9 +12,6 @@ export const PICTURE_COPY = {
   oneAtATime: "One picture at a time",
   // Shown with the person-check before retrying the failed picture.
   human: MSG_HUMAN,
-  // Shown instead of retry on daily and budget limits: pictures rest,
-  // while chat keeps its own key option open.
-  quotaByok: "You can keep asking questions meanwhile \u2014 chat has a Bring your own key! option.",
 } as const;
 
 export function PictureIcon({ size = 13 }: { size?: number }) {

@@ -2,6 +2,7 @@
 // after their end paragraph. Click opens the lightbox.
 "use client";
 
+import { PictureByok } from "./picture-byok";
 import { createPortal } from "react-dom";
 import { truncateCaption } from "./helpers";
 import { PICTURE_COPY, PictureIcon } from "./picture-copy";
@@ -66,14 +67,13 @@ export function InlineFigureView({
       <figure className="genfig" data-fig={figure.id} ref={refCb as React.Ref<HTMLElement>}>
         <p className="gen-error" role="alert">
           {figure.message}{" "}
-          {figure.quota ? (
-            PICTURE_COPY.quotaByok
-          ) : (
+          {figure.quota ? null : (
             <button type="button" className="retry-text" onClick={onRetry}>
               {PICTURE_COPY.retry}
             </button>
           )}
         </p>
+        {figure.quota ? <PictureByok onKey={onRetry} /> : null}
       </figure>
     );
   }

@@ -3,7 +3,7 @@
 // survive sub-page and scene moves, so a shown picture never refetches.
 //
 // Ordering rules: one request at a time across scene and figure. The
-// module-level `inFlight` record names what is generating, so a scene
+// module-level `flight.current` record names what is generating, so a scene
 // switch shows `loading` only for that; a second request while one is in
 // flight shows a short hint where it was asked. retryFigure only works
 // from the error phase; the caller must call hidePopover on pager moves. The style pref arrives as a hook argument and is read through a
@@ -19,9 +19,11 @@ import { requestStyleFields, styleCredit } from "../image-style";
 import type { ImageStylePref } from "../image-style";
 import { pickEndN, pickStartN } from "../picture-selection";
 import { paraOf, popoverPos } from "./selection-geom";
-import { EMPTY_VAULT, bookVault, deleteVaultPicture, keepFigurePicture, keepScenePicture, subscribeVault, type VaultScene } from "./vault-store";
+import { figureSlot, figureCache, flight, nextFigureId, release, sceneCache, sceneCard, sceneFigures, sceneSlot, type InFlight } from "./picture-cache";
+import { EMPTY_VAULT, bookVault, deleteVaultPicture, emptyVault, keepFigurePicture, keepScenePicture, subscribeVault, type VaultScene } from "./vault-store";
 
 export { keepFigurePicture, keepScenePicture, popoverPos, type VaultScene };
+export { figureSlot, sceneSlot, type InFlight };
 import type { ParaEntry } from "../picture-selection";
 
 export type SceneCard =
@@ -50,41 +52,8 @@ export interface LightboxItem {
 
 const HINT_MS = 2400;
 
-// What is generating right now, across scene moves. One at a time.
-export type InFlight = { kind: "scene"; sceneId: string } | { kind: "figure"; sceneId: string; id: string } | null;
-let inFlight: InFlight = null;
-
-function release(mine: InFlight): void {
-  if (inFlight === mine) inFlight = null;
-}
-
-// The pane picture depends on the scene and the style sent, so its cache
-// and in-flight slot are keyed by both: a picture drawn in one style must
-// never show when the reader asks for the scene in another.
-export function sceneSlot(sceneId: string, pref: ImageStylePref): string {
-  return `${sceneId}\u0000${JSON.stringify(requestStyleFields(pref).style ?? null)}`;
-}
-
-function sceneCard(slot: string): SceneCard {
-  const hit = sceneCache.get(slot);
-  if (hit) return { phase: "ready", url: hit.url, caption: hit.caption };
-  return inFlight?.kind === "scene" && inFlight.sceneId === slot ? { phase: "loading" } : { phase: "idle" };
-}
-
-// Cached figures for a scene; a loading one shows only while it really is
-// the request in flight.
-function sceneFigures(sceneId: string): InlineFigure[] {
-  return (figureCache.get(sceneId) ?? []).filter(
-    (f) => f.phase !== "loading" || (inFlight?.kind === "figure" && inFlight.sceneId === sceneId && inFlight.id === f.id),
-  );
-}
-
 type HintAt = { where: "scene" } | { where: "popover" } | { where: "figure"; id: string } | null;
 
-const sceneCache = new Map<string, { url: string; caption: string }>();
-const figureCache = new Map<string, InlineFigure[]>();
-// Seeded by time so new ids never match vault entries saved by an earlier page load.
-let figureSeq = Date.now();
 
 export function usePictures({
   bookId,
@@ -97,9 +66,10 @@ export function usePictures({
   sceneId: string;
   pref: ImageStylePref;
 }) {
-  const slot = sceneSlot(sceneId, pref);
+  const slot = sceneSlot(bookId, sceneId, pref);
+  const figSlot = figureSlot(bookId, sceneId);
   const [card, setCard] = useState<SceneCard>(() => sceneCard(slot));
-  const [figures, setFigures] = useState<InlineFigure[]>(() => sceneFigures(sceneId));
+  const [figures, setFigures] = useState<InlineFigure[]>(() => sceneFigures(figSlot));
   // The vault is the whole book's, whatever scene is in view.
   const vault = useSyncExternalStore(
     subscribeVault,
@@ -142,6 +112,9 @@ export function usePictures({
   const sceneRef = useRef(sceneId);
   // eslint-disable-next-line react-hooks/refs -- latest-scene mirror so late polls cannot paint another scene
   sceneRef.current = sceneId;
+  const figSlotRef = useRef(figSlot);
+  // eslint-disable-next-line react-hooks/refs -- latest book+scene mirror so late polls cannot paint another book
+  figSlotRef.current = figSlot;
   const slotRef = useRef(slot);
   // eslint-disable-next-line react-hooks/refs -- latest scene+style mirror so late polls cannot paint another style
   slotRef.current = slot;
@@ -164,11 +137,11 @@ export function usePictures({
   // The card and figures follow the scene in view through the session
   // caches; in-flight requests keep filling the cache they started.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- scene change resets card, figures and popover
-    setFigures(sceneFigures(sceneId));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- book or scene change resets figures and popover
+    setFigures(sceneFigures(figSlot));
     setPopover(null);
     setHintAt(null);
-  }, [sceneId]);
+  }, [figSlot]);
 
   // The pane card follows the scene and the style: a style change shows
   // that style's picture, or idle so it can be drawn.
@@ -194,11 +167,12 @@ export function usePictures({
     }, HINT_MS);
   }, []);
 
-  // Writes the scene's own cache entry; paints only if it is still current.
-  const storeFigures = useCallback((scene: string, update: (prev: InlineFigure[]) => InlineFigure[]) => {
-    const value = update(figureCache.get(scene) ?? []);
-    figureCache.set(scene, value);
-    if (sceneRef.current === scene) setFigures(value);
+  // Writes the scene's own cache entry (keyed by figureSlot); paints only
+  // if that book's scene is still current.
+  const storeFigures = useCallback((fslot: string, update: (prev: InlineFigure[]) => InlineFigure[]) => {
+    const value = update(figureCache.get(fslot) ?? []);
+    figureCache.set(fslot, value);
+    if (figSlotRef.current === fslot) setFigures(value);
   }, []);
 
   const openLightbox = useCallback((src: string, caption: string, opener: HTMLElement | null) => {
@@ -213,13 +187,13 @@ export function usePictures({
   }, []);
 
   const illustrateScene = useCallback((token?: string) => {
-    if (inFlight !== null && sceneId !== "" && !sceneCache.has(slot)) {
+    if (flight.current !== null && sceneId !== "" && !sceneCache.has(slot)) {
       showHint({ where: "scene" });
       return;
     }
-    if (!canIllustrateScene({ sceneId, busy: inFlight !== null, cached: sceneCache.has(slot) })) return;
+    if (!canIllustrateScene({ sceneId, busy: flight.current !== null, cached: sceneCache.has(slot) })) return;
     const mine: InFlight = { kind: "scene", sceneId: slot };
-    inFlight = mine;
+    flight.current = mine;
     setPopover(null);
     setHintAt(null);
     setCard({ phase: "loading" });
@@ -257,8 +231,9 @@ export function usePictures({
 
   const requestFigure = useCallback(
     (scene: string, id: string, startN: number, endN: number, token?: string) => {
-      // Callers claim inFlight; this starts the request and releases it.
-      const mine = inFlight;
+      // Callers claim flight.current; this starts the request and releases it.
+      const mine = flight.current;
+      const fslot = figureSlot(bookId, scene);
       void poll(
         {
           kind: "passage",
@@ -271,14 +246,14 @@ export function usePictures({
         token,
       )
         .then(({ url }) => {
-          storeFigures(scene, (prev) =>
+          storeFigures(fslot, (prev) =>
             prev.map((f) => (f.id === id ? { ...f, phase: "ready", url, message: null } : f)),
           );
-          const done = figureCache.get(scene)?.find((f) => f.id === id);
+          const done = figureCache.get(fslot)?.find((f) => f.id === id);
           if (done) keepFigurePicture(bookId, scene, done);
         })
         .catch((err: unknown) => {
-          storeFigures(scene, (prev) =>
+          storeFigures(fslot, (prev) =>
             prev.map((f) =>
               f.id === id
                 ? {
@@ -292,15 +267,15 @@ export function usePictures({
           );
           if (err instanceof HumanNeeded) {
             const retryWithToken = (t: string) => {
-              if (inFlight !== null) {
+              if (flight.current !== null) {
                 showHint({ where: "figure", id });
                 humanRetry.current = retryWithToken;
                 setNeedHuman(true);
                 return;
               }
-              inFlight = { kind: "figure", sceneId: scene, id };
+              flight.current = { kind: "figure", sceneId: fslot, id };
               setHintAt(null);
-              storeFigures(scene, (prev) =>
+              storeFigures(fslot, (prev) =>
                 prev.map((f) => (f.id === id ? { ...f, phase: "loading", message: null } : f)),
               );
               // eslint-disable-next-line react-hooks/immutability -- deferred figure retry recursion, runs after render
@@ -321,7 +296,7 @@ export function usePictures({
     const view = viewNodeRef.current;
     const sel = window.getSelection();
     if (!view || !sel || !sel.rangeCount) return;
-    if (inFlight !== null) {
+    if (flight.current !== null) {
       showHint({ where: "popover" });
       return;
     }
@@ -336,11 +311,12 @@ export function usePictures({
     if (startN === null || endN === null) return;
     setPopover(null);
     sel.removeAllRanges();
-    const id = `f${figureSeq++}`;
+    const id = nextFigureId();
     const scene = sceneRef.current;
-    inFlight = { kind: "figure", sceneId: scene, id };
+    const fslot = figSlotRef.current;
+    flight.current = { kind: "figure", sceneId: fslot, id };
     const credit = styleCredit(requestStyleFields(prefRef.current));
-    storeFigures(scene, (prev) => [
+    storeFigures(fslot, (prev) => [
       ...prev,
       { id, phase: "loading", url: null, quote, startN, endN, credit, message: null },
     ]);
@@ -349,26 +325,26 @@ export function usePictures({
 
   const retryFigure = useCallback(
     (id: string) => {
-      const found = figureCache.get(sceneId)?.find((f) => f.id === id);
-      if (found?.phase === "error" && inFlight !== null) {
+      const found = figureCache.get(figSlot)?.find((f) => f.id === id);
+      if (found?.phase === "error" && flight.current !== null) {
         showHint({ where: "figure", id });
         return;
       }
-      if (!canRetryFigure(found, inFlight !== null)) return;
-      inFlight = { kind: "figure", sceneId, id };
+      if (!canRetryFigure(found, flight.current !== null)) return;
+      flight.current = { kind: "figure", sceneId: figSlot, id };
       setHintAt(null);
-      storeFigures(sceneId, (prev) => prev.map((f) => (f.id === id ? { ...f, phase: "loading", message: null } : f)));
+      storeFigures(figSlot, (prev) => prev.map((f) => (f.id === id ? { ...f, phase: "loading", message: null } : f)));
       requestFigure(sceneId, id, found.startN, found.endN);
     },
-    [requestFigure, storeFigures, sceneId, showHint],
+    [requestFigure, storeFigures, sceneId, figSlot, showHint],
   );
 
   // Takes the figure out of the text only; its vault entry stays.
   const removeFigure = useCallback(
     (id: string) => {
-      storeFigures(sceneId, (prev) => prev.filter((f) => f.id !== id));
+      storeFigures(figSlot, (prev) => prev.filter((f) => f.id !== id));
     },
-    [storeFigures, sceneId],
+    [storeFigures, figSlot],
   );
 
   // Re-read the live selection against the current text view. The
@@ -508,6 +484,7 @@ export function usePictures({
     vaultScenes: vault.scenes,
     vaultFigures: vault.figures,
     deleteFromVault: (url: string) => deleteVaultPicture(bookId, url),
+    emptyVault: () => emptyVault(bookId),
     popover: shownPopover,
     viewRef,
     popRef,
