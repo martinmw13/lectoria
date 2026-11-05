@@ -58,10 +58,17 @@ function release(mine: InFlight): void {
   if (inFlight === mine) inFlight = null;
 }
 
-function sceneCard(sceneId: string): SceneCard {
-  const hit = sceneCache.get(sceneId);
+// The pane picture depends on the scene and the style sent, so its cache
+// and in-flight slot are keyed by both: a picture drawn in one style must
+// never show when the reader asks for the scene in another.
+export function sceneSlot(sceneId: string, pref: ImageStylePref): string {
+  return `${sceneId}\u0000${JSON.stringify(requestStyleFields(pref).style ?? null)}`;
+}
+
+function sceneCard(slot: string): SceneCard {
+  const hit = sceneCache.get(slot);
   if (hit) return { phase: "ready", url: hit.url, caption: hit.caption };
-  return inFlight?.kind === "scene" && inFlight.sceneId === sceneId ? { phase: "loading" } : { phase: "idle" };
+  return inFlight?.kind === "scene" && inFlight.sceneId === slot ? { phase: "loading" } : { phase: "idle" };
 }
 
 // Cached figures for a scene; a loading one shows only while it really is
@@ -90,7 +97,8 @@ export function usePictures({
   sceneId: string;
   pref: ImageStylePref;
 }) {
-  const [card, setCard] = useState<SceneCard>(() => sceneCard(sceneId));
+  const slot = sceneSlot(sceneId, pref);
+  const [card, setCard] = useState<SceneCard>(() => sceneCard(slot));
   const [figures, setFigures] = useState<InlineFigure[]>(() => sceneFigures(sceneId));
   // The vault is the whole book's, whatever scene is in view.
   const vault = useSyncExternalStore(
@@ -134,6 +142,9 @@ export function usePictures({
   const sceneRef = useRef(sceneId);
   // eslint-disable-next-line react-hooks/refs -- latest-scene mirror so late polls cannot paint another scene
   sceneRef.current = sceneId;
+  const slotRef = useRef(slot);
+  // eslint-disable-next-line react-hooks/refs -- latest scene+style mirror so late polls cannot paint another style
+  slotRef.current = slot;
 
   // The last selection rescan painted, so repeat events for an unchanged
   // selection (pointerup plus mouseup, selectionchange bursts) paint once.
@@ -154,11 +165,17 @@ export function usePictures({
   // caches; in-flight requests keep filling the cache they started.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- scene change resets card, figures and popover
-    setCard(sceneCard(sceneId));
     setFigures(sceneFigures(sceneId));
     setPopover(null);
     setHintAt(null);
   }, [sceneId]);
+
+  // The pane card follows the scene and the style: a style change shows
+  // that style's picture, or idle so it can be drawn.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- scene or style change resets the card
+    setCard(sceneCard(slot));
+  }, [slot]);
 
   useEffect(
     () => () => {
@@ -196,24 +213,24 @@ export function usePictures({
   }, []);
 
   const illustrateScene = useCallback((token?: string) => {
-    if (inFlight !== null && sceneId !== "" && !sceneCache.has(sceneId)) {
+    if (inFlight !== null && sceneId !== "" && !sceneCache.has(slot)) {
       showHint({ where: "scene" });
       return;
     }
-    if (!canIllustrateScene({ sceneId, busy: inFlight !== null, cached: sceneCache.has(sceneId) })) return;
-    const mine: InFlight = { kind: "scene", sceneId };
+    if (!canIllustrateScene({ sceneId, busy: inFlight !== null, cached: sceneCache.has(slot) })) return;
+    const mine: InFlight = { kind: "scene", sceneId: slot };
     inFlight = mine;
     setPopover(null);
     setHintAt(null);
     setCard({ phase: "loading" });
     void poll({ kind: "scene", bookId, textVersion, sceneId, ...requestStyleFields(prefRef.current) }, token)
       .then(({ url, caption }) => {
-        sceneCache.set(sceneId, { url, caption });
+        sceneCache.set(slot, { url, caption });
         keepScenePicture(bookId, sceneId, url, caption);
-        if (sceneRef.current === sceneId) setCard({ phase: "ready", url, caption });
+        if (slotRef.current === slot) setCard({ phase: "ready", url, caption });
       })
       .catch((err: unknown) => {
-        if (sceneRef.current === sceneId) {
+        if (slotRef.current === slot) {
           if (err instanceof HumanNeeded) {
             // eslint-disable-next-line react-hooks/immutability -- deferred human-retry callback, runs after render
             humanRetry.current = (t) => illustrateScene(t);
@@ -229,14 +246,14 @@ export function usePictures({
       .finally(() => {
         release(mine);
       });
-  }, [bookId, textVersion, sceneId, showHint]);
+  }, [bookId, textVersion, sceneId, slot, showHint]);
 
   // Dismisses the pane picture so it can be drawn again. The vault keeps
   // it: only the pane cache is cleared, never the vault store.
   const clearScene = useCallback(() => {
-    sceneCache.delete(sceneId);
+    sceneCache.delete(slot);
     setCard({ phase: "idle" });
-  }, [sceneId]);
+  }, [slot]);
 
   const requestFigure = useCallback(
     (scene: string, id: string, startN: number, endN: number, token?: string) => {
