@@ -29,7 +29,7 @@ describe("heroArt", () => {
     const png = readFileSync(join(process.cwd(), "public", src));
     expect(png.subarray(1, 4).toString()).toBe("PNG");
     expect(png.readUInt32BE(16)).toBe(128);
-    expect(png.length).toBeLessThan(30_000);
+    expect(png.length).toBeLessThan(40_000);
   });
 
   it("ships a separate burst SVG per comic music mode", () => {

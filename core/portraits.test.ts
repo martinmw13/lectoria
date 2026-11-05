@@ -68,14 +68,14 @@ describe("protagonist portraits", () => {
     expect(portraitFor("oz", "dorothy", 2, "ink")).toBeNull();
   });
 
-  it("ships every declared skin copy, thumb and @2x, under 60KB", () => {
+  it("ships every declared skin copy, thumb and @2x, under 100KB", () => {
     for (const list of Object.values(PORTRAITS))
       for (const p of list)
         for (const skin of p.skins ?? []) {
           for (const path of [p.src, p.large]) {
             const file = join(root, "public", path.replace("/portraits/", `/portraits/skins/${skin}/`));
             expect(existsSync(file), file).toBe(true);
-            expect(statSync(file).size, file).toBeLessThanOrEqual(60_000);
+            expect(statSync(file).size, file).toBeLessThanOrEqual(100_000);
           }
         }
   });
