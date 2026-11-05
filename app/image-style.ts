@@ -6,6 +6,34 @@ import type { ImageStylePresetId, StyleChoice } from "@/core/image-style";
 
 export const IMAGE_STYLE_KEY = "lectoria.imageStyle";
 
+// An explicit pick belongs to the skin it was made in: a global pick made
+// on Engraving (often just Denslow, its default) used to override every
+// other skin's default, so Watercolor kept drawing Denslow.
+export function imageStyleKey(skin?: string): string {
+  return skin === undefined ? IMAGE_STYLE_KEY : `${IMAGE_STYLE_KEY}.${skin}`;
+}
+
+// The old global key moves to Engraving, the skin it was almost always
+// picked in (the default skin), unless Engraving already has its own pick.
+// It is then removed so it never leaks into another skin again.
+const LEGACY_STYLE_SKIN = "engraving";
+
+export function migrateLegacyImageStyle(storage: Pick<Storage, "getItem" | "setItem" | "removeItem">): void {
+  const legacy = storage.getItem(IMAGE_STYLE_KEY);
+  if (legacy === null) return;
+  const target = imageStyleKey(LEGACY_STYLE_SKIN);
+  if (storage.getItem(target) === null) {
+    let valid = false;
+    try {
+      valid = toImageStylePref(JSON.parse(legacy) as unknown) !== null;
+    } catch {
+      valid = false;
+    }
+    if (valid) storage.setItem(target, legacy);
+  }
+  storage.removeItem(IMAGE_STYLE_KEY);
+}
+
 export type ImageStylePref = { kind: "preset"; id: string } | { kind: "custom"; text: string };
 
 export interface StylePreset {
@@ -46,10 +74,11 @@ export function parseImageStylePref(json: unknown): ImageStylePref {
 
 // Null means no explicit pick stored. Invalid stored values also read
 // as null so the skin default (Denslow today) applies.
-export function loadImageStylePref(): ImageStylePref | null {
+export function loadImageStylePref(skin?: string): ImageStylePref | null {
   try {
     if (typeof window === "undefined") return null;
-    const raw = window.localStorage.getItem(IMAGE_STYLE_KEY);
+    if (skin !== undefined) migrateLegacyImageStyle(window.localStorage);
+    const raw = window.localStorage.getItem(imageStyleKey(skin));
     if (!raw) return null;
     return toImageStylePref(JSON.parse(raw) as unknown);
   } catch {
@@ -70,10 +99,10 @@ export function effectiveImageStylePref(pref: ImageStylePref | null, skin?: stri
   return "custom" in eff ? { kind: "custom", text: eff.custom } : { kind: "preset", id: eff.preset };
 }
 
-export function saveImageStylePref(pref: ImageStylePref): void {
+export function saveImageStylePref(pref: ImageStylePref, skin?: string): void {
   try {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(IMAGE_STYLE_KEY, JSON.stringify(pref));
+    window.localStorage.setItem(imageStyleKey(skin), JSON.stringify(pref));
   } catch {
     // Private mode: new pictures use the default until reload.
   }
