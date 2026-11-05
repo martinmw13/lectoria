@@ -137,7 +137,15 @@ export interface ChapterRequest {
 
 export type ImageRequest = PassageRequest | SceneRequest | ChapterRequest;
 
-export type ImageErrorCode = "quota" | "budget" | "daily_budget" | "human" | "unavailable" | "bad_request";
+export type ImageErrorCode =
+  | "quota"
+  | "budget"
+  | "daily_budget"
+  | "human"
+  | "unavailable"
+  | "bad_request"
+  // The reader's own key was refused for pictures (wrong key or no image access).
+  | "byok_invalid";
 
 export type ImageResponse =
   | { status: "ready"; url: string; cached: boolean; caption: string }

@@ -5,6 +5,7 @@ import {
   MSG_CREDITS_OUT,
   MSG_FAILED,
   MSG_HUMAN,
+  MSG_BYOK_IMAGES,
   MSG_QUOTA,
   QUOTA_TTL_SEC,
   LOCK_TTL_SEC,
@@ -21,6 +22,7 @@ import { addRange, parseRanges, pickReusable, rangeListKeyFor } from "@/core/ima
 import type { ParaRange } from "@/core/image-ranges";
 import type { ImageEnv } from "./env";
 import { errorTag } from "./errors";
+import { MetaImageError } from "./meta";
 import { buildFinalPrompt } from "./final-prompt";
 import { checkHuman } from "@/server/guard/human";
 import type { HumanCheckInput } from "@/server/guard/human";
@@ -58,8 +60,12 @@ export interface OrchestrateDeps {
   // Human gate, checked once on the cache-miss path after the lock.
   // Absent in tests that do not cover the check.
   human?: HumanCheckInput;
-  // The reader's own key pays: quota still applies, our spend does not.
+  // The reader's own key pays: neither the daily free quota nor our
+  // spend caps apply. The key itself never reaches this module.
   byok?: boolean;
+  // Local development only (see localQuotaExempt): the daily free quota
+  // is skipped; our spend caps still apply. Never true in production.
+  skipQuota?: boolean;
   // Receives the issued human cookie, if any; the handler sets it.
   humanOut?: { setCookie?: string };
 }
@@ -192,18 +198,20 @@ export async function orchestrate(
       return { status: "ready", url: existing, cached: true, caption: captionFor(req, deps.content) };
     }
 
-    const quota = await takeDualQuota(deps.kv, keys, {
-      limit: DAILY_IMAGE_LIMIT,
-      ttlSec: QUOTA_TTL_SEC,
-    });
-    if (!quota.ok) {
-      await release();
-      return { status: "error", code: "quota", message: MSG_QUOTA };
+    // The free daily quota counts pictures paid with our key only.
+    if (!deps.byok && !deps.skipQuota) {
+      const quota = await takeDualQuota(deps.kv, keys, {
+        limit: DAILY_IMAGE_LIMIT,
+        ttlSec: QUOTA_TTL_SEC,
+      });
+      if (!quota.ok) {
+        await release();
+        return { status: "error", code: "quota", message: MSG_QUOTA };
+      }
+      quotaTaken = true;
     }
-    quotaTaken = true;
 
-    // Both caps apply only to requests paid with our key; the reader's
-    // own key skips them while the per-person quota above still applies.
+    // Both caps apply only to requests paid with our key.
     if (!deps.byok) {
       const spent = await reserveSpend(deps.kv, {
         amountMicro: imageCostMicro(),
@@ -241,6 +249,10 @@ export async function orchestrate(
       await refundQuotaOnce();
       await release();
       console.error(`image generate failed: ${errorTag(e)}`);
+      // A refused reader key gets a fixed message, never the provider's.
+      if (deps.byok && e instanceof MetaImageError && (e.status === 401 || e.status === 403)) {
+        return { status: "error", code: "byok_invalid", message: MSG_BYOK_IMAGES };
+      }
       return { status: "error", code: "unavailable", message: MSG_FAILED };
     }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CHAT_QUOTE_EVENT, type QuoteDetail } from "./chat-bridge";
-import { getReaderKey } from "../leer/reader-key";
+import { getReaderKey, setSessionKey } from "../leer/reader-key";
 import { ChatPanel } from "./chat-panel";
 import { CHAT_COPY, CHAT_LABEL } from "./copy";
 import { SUGGESTED_QUESTIONS } from "./suggestions";
@@ -77,6 +77,8 @@ export function ReaderChat({
           byokKey={effectiveKey}
           onKeySubmit={(key) => {
             setByokKey(key);
+            // Tab memory only: pictures use the same key from now on.
+            setSessionKey(key);
             chat.retry({ key });
           }}
           onHumanPass={(token) => {

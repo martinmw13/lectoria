@@ -6,7 +6,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { ByokStep } from "../home/byok";
-import { setReaderKey } from "../leer/reader-key";
+import { setReaderKey, setSessionKey } from "../leer/reader-key";
 import { sendQuoteToChat } from "./chat-bridge";
 import { ReaderChat } from "./reader-chat";
 import { SUGGESTED_QUESTIONS } from "./suggestions";
@@ -134,6 +134,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setSessionKey(null);
   act(() => {
     root?.unmount();
   });

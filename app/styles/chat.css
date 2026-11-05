@@ -361,25 +361,25 @@ html[data-skin="comic"] .chat-q {
   color: #5b2a22;
 }
 .chat-note h3,
-.chat-note .ob-byok-t {
+:is(.chat-note, .picture-byok) .ob-byok-t {
   margin: 0 0 6px;
   font: 700 17px var(--font-ui);
   color: var(--color-text);
 }
 /* The home page's key step, restyled for the panel (home-bring.css is
    home-only). Boxless action, underline field like the composer. */
-.chat-note .ob-note {
+:is(.chat-note, .picture-byok) .ob-note {
   margin: 6px 0 0;
   font-size: 13.5px;
 }
-.chat-note .ob-field {
+:is(.chat-note, .picture-byok) .ob-field {
   display: grid;
   gap: 2px;
   margin-top: 8px;
   font: 500 12.5px var(--font-ui);
   color: var(--color-text-muted, var(--color-text));
 }
-.chat-note .ob-input {
+:is(.chat-note, .picture-byok) .ob-input {
   font: 14px var(--font-book);
   color: var(--color-text);
   background: transparent;
@@ -388,34 +388,34 @@ html[data-skin="comic"] .chat-q {
   border-radius: 0;
   padding: 4px 2px;
 }
-.chat-note .ob-input:focus-visible {
+:is(.chat-note, .picture-byok) .ob-input:focus-visible {
   outline: none;
   border-bottom-color: var(--color-accent);
 }
-html[data-skin="comic"] .chat-note .ob-input {
+html[data-skin="comic"] :is(.chat-note, .picture-byok) .ob-input {
   border: 2px solid var(--color-text);
   border-radius: 4px;
   background: #fff;
   padding: 4px 6px;
 }
-.chat-note .ob-actions {
+:is(.chat-note, .picture-byok) .ob-actions {
   margin-top: 8px;
 }
-.chat-note .ob-action {
+:is(.chat-note, .picture-byok) .ob-action {
   all: unset;
   cursor: pointer;
   font: 600 14px var(--chat-label-font);
   color: var(--color-accent);
   background: linear-gradient(var(--color-accent), var(--color-accent)) 0 100% / 0 1.5px no-repeat;
 }
-.chat-note .ob-action:hover:not(:disabled) {
+:is(.chat-note, .picture-byok) .ob-action:hover:not(:disabled) {
   background-size: 100% 1.5px;
 }
-.chat-note .ob-action:focus-visible {
+:is(.chat-note, .picture-byok) .ob-action:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
-.chat-note .ob-action:disabled {
+:is(.chat-note, .picture-byok) .ob-action:disabled {
   cursor: default;
   opacity: 0.45;
 }

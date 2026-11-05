@@ -27,6 +27,15 @@ const REQUIRED = [
   "IP_HASH_SALT",
 ] as const;
 
+// The daily free picture quota is for the public site. Local development
+// (next dev, off Vercel) skips it so the owner can iterate; any Vercel
+// deploy (production or preview) and any non-dev build always enforce it.
+// There is no request-controlled switch: only the server's own env.
+export function localQuotaExempt(from: NodeJS.ProcessEnv = process.env): boolean {
+  if (from.VERCEL || from.VERCEL_ENV) return false;
+  return from.NODE_ENV === "development";
+}
+
 export function readImageEnv(from: NodeJS.ProcessEnv = process.env): ImageEnv {
   const upstashUrl = usable(from.UPSTASH_REDIS_REST_URL) ?? usable(from.KV_REST_API_URL);
   const upstashToken = usable(from.UPSTASH_REDIS_REST_TOKEN) ?? usable(from.KV_REST_API_TOKEN);

@@ -2,6 +2,7 @@
 // with hover expand, error with retry. Click opens the lightbox.
 "use client";
 
+import { PictureByok } from "./picture-byok";
 import { useRef, useState } from "react";
 import { PANELS_LABEL } from "./panels";
 import { PICTURE_COPY } from "./picture-copy";
@@ -138,7 +139,7 @@ export function ImagePane({
               <>
                 <p>{card.message}</p>
                 {card.quota ? (
-                  <p>{PICTURE_COPY.quotaByok}</p>
+                  <PictureByok onKey={onRetry} />
                 ) : (
                   <button type="button" className="retry-text" onClick={onRetry}>
                     {PICTURE_COPY.retry}

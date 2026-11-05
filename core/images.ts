@@ -38,6 +38,9 @@ export const MSG_FAILED = "That picture didn't come out. Try again?";
 export const MSG_RETRY = "This one is taking a while. Try again in a moment.";
 export const MSG_HUMAN = "One quick check that you're a person first.";
 export const MSG_STYLE = "That style won't work here. Try another?";
+// Never the provider's own words: those can echo request details.
+export const MSG_BYOK_IMAGES =
+  "Your key couldn't make this picture. Pictures need a Meta key with image access.";
 
 export interface ImageStore {
   findUrl(path: string): Promise<string | null>;
