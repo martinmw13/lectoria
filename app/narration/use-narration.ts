@@ -19,9 +19,10 @@ import {
   AMBIENCE_DUCK_DB,
   MUSIC_DUCK_DB,
   NARRATION_DUCK_DOWN_MS,
+  NARRATION_DUCK_HOLD_MS,
   NARRATION_DUCK_UP_MS,
   duckTarget,
-  rampDuck,
+  easeDuck,
 } from "./duck";
 import { DEFAULT_NARRATION_PREFS, loadNarrationPrefs, saveNarrationPrefs } from "./prefs";
 import type { NarrationChapterEntry, NarrationPrefs, NarrationStatus } from "./types";
@@ -51,18 +52,27 @@ function useDuckRamp(target: number): number {
       setDuck(target);
       return;
     }
-    const duration = target < duckRef.current ? NARRATION_DUCK_DOWN_MS : NARRATION_DUCK_UP_MS;
+    const from = duckRef.current;
+    const duration = target < from ? NARRATION_DUCK_DOWN_MS : NARRATION_DUCK_UP_MS;
     let raf = 0;
-    let prev = performance.now();
+    let start = -1;
     const tick = (now: number) => {
-      const next = rampDuck(duckRef.current, target, now - prev, duration);
-      prev = now;
+      if (start < 0) start = now;
+      const next = easeDuck(from, target, now - start, duration);
       duckRef.current = next;
       setDuck(next);
       if (next !== target) raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // Releases wait out the between-chunk gap; a re-duck inside it
+    // cancels the timer and the level never moves.
+    const hold = target > from ? NARRATION_DUCK_HOLD_MS : 0;
+    const timer = setTimeout(() => {
+      raf = requestAnimationFrame(tick);
+    }, hold);
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(raf);
+    };
   }, [target]);
   return duck;
 }
@@ -359,7 +369,8 @@ export function useNarrationController(opts: {
   }, [effectiveVoice]);
 
   // Duck ramps: music about 11 dB and rain about 6 dB under the user's
-  // own sliders while the voice plays, ~300 ms each way. Pause, the end
+  // own sliders while the voice plays, eased over ~1 s each way; a
+  // release waits ~0.6 s so chunk gaps hold the duck. Pause, the end
   // of the book, errors, and switching off all restore the level.
   const narrating = prefs.on && playing;
   const duck = useDuckRamp(duckTarget(narrating, MUSIC_DUCK_DB));
