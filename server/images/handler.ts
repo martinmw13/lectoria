@@ -20,10 +20,11 @@ import { issueAnonId, parseAnonCookie, serializeAnonCookie, verifyAnonCookie } f
 import { readBodyCapped } from "@/server/guard/body";
 import { createRestKV } from "@/server/guard/kv";
 import { clientIp, rejectsCrossSite, utcDay } from "@/server/guard/request";
-import { readImageEnv } from "./env";
+import { readImageBackend, localImageKV } from "./backend";
 import type { ImageEnv } from "./env";
 import { errorTag } from "./errors";
 import { createBlobStore } from "./blob";
+import { createLocalImageStore } from "./local-cache";
 import { chapterReference, getBookmap, passageReference } from "./bookmap-prompt";
 import { createMetaClient } from "./meta";
 import { orchestrate } from "./orchestrate";
@@ -92,9 +93,13 @@ export async function handleImagesPost(req: Request, deps: ImagesHandlerDeps = {
   }
 
   let env = deps.env;
+  // Set only off Vercel without a full Blob/KV setup (see backend.ts).
+  let localDir: string | null = null;
   if (!env) {
     try {
-      env = readImageEnv();
+      const backend = readImageBackend();
+      env = backend.env;
+      if (backend.mode === "local") localDir = backend.dir;
     } catch (e) {
       const message = e instanceof Error ? e.message : "";
       const prefix = "missing image env:";
@@ -234,8 +239,8 @@ export async function handleImagesPost(req: Request, deps: ImagesHandlerDeps = {
     const ip = clientIp(req.headers);
     const humanOut: { setCookie?: string } = {};
     const res = await orchestrate(parsed, {
-      kv: deps.kv ?? createRestKV(env.upstashUrl, env.upstashToken),
-      store: deps.store ?? createBlobStore(),
+      kv: deps.kv ?? (localDir !== null ? localImageKV(localDir) : createRestKV(env.upstashUrl, env.upstashToken)),
+      store: deps.store ?? (localDir !== null ? createLocalImageStore(localDir) : createBlobStore()),
       generate: deps.generate ?? createMetaClient(byokKey ?? env.metaKey),
       env,
       byok: byokKey !== null,

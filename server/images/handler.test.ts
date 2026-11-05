@@ -216,6 +216,8 @@ describe("handleImagesPost", () => {
 
   it("returns generic text when KV throws", async () => {
     for (const k of REQUIRED) process.env[k] = `test-${k}`;
+    // A full remote setup, so the Redis path (not the local disk cache) runs.
+    process.env.UPSTASH_REDIS_REST_URL = "https://test.example";
     vi.stubGlobal(
       "fetch",
       vi.fn().mockRejectedValue(new Error("upstash-boom-marker")),
