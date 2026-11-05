@@ -352,6 +352,7 @@ export function BookView({
           onGotoFigure={gotoFigure}
           onOpen={pic.lightbox.open}
           onDelete={pic.deleteFromVault}
+          onEmpty={pic.emptyVault}
           pref={pref}
           onPrefChange={changePref}
         >

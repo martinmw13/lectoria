@@ -175,6 +175,55 @@
   color: var(--color-accent);
 }
 
+.vault-empty-all {
+  margin-top: 8px;
+}
+
+.vault-empty-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font: 500 12.5px/1.3 var(--font-ui);
+}
+
+.vault-empty-yes {
+  border-color: #b3261e;
+  color: #b3261e;
+}
+
+/* Per-skin dress for the Empty vault controls. */
+html[data-skin="engraving"] :is(.vault-empty-all, .vault-empty-confirm .vault-act) {
+  border-radius: 2px;
+  font-family: var(--font-book);
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+}
+html[data-skin="watercolor"] :is(.vault-empty-all, .vault-empty-confirm .vault-act) {
+  border-radius: 14px 10px 16px 9px;
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+}
+html[data-skin="ink"] :is(.vault-empty-all, .vault-empty-confirm .vault-act) {
+  border-radius: 0;
+  border-width: 1.5px;
+  border-color: var(--color-text);
+}
+html[data-skin="pencil"] :is(.vault-empty-all, .vault-empty-confirm .vault-act) {
+  border-style: dashed;
+  border-radius: 6px;
+}
+html[data-skin="comic"] :is(.vault-empty-all, .vault-empty-confirm .vault-act) {
+  border: 2px solid #111;
+  border-radius: 6px;
+  box-shadow: 2px 2px 0 #111;
+  text-transform: uppercase;
+}
+html[data-skin="chihiro"] :is(.vault-empty-all, .vault-empty-confirm .vault-act) {
+  border-radius: 999px;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
 .vault-act-del:hover {
   border-color: #b3261e;
   color: #b3261e;

@@ -20,7 +20,7 @@ import type { ImageStylePref } from "../image-style";
 import { pickEndN, pickStartN } from "../picture-selection";
 import { paraOf, popoverPos } from "./selection-geom";
 import { figureSlot, figureCache, flight, nextFigureId, release, sceneCache, sceneCard, sceneFigures, sceneSlot, type InFlight } from "./picture-cache";
-import { EMPTY_VAULT, bookVault, deleteVaultPicture, keepFigurePicture, keepScenePicture, subscribeVault, type VaultScene } from "./vault-store";
+import { EMPTY_VAULT, bookVault, deleteVaultPicture, emptyVault, keepFigurePicture, keepScenePicture, subscribeVault, type VaultScene } from "./vault-store";
 
 export { keepFigurePicture, keepScenePicture, popoverPos, type VaultScene };
 export { figureSlot, sceneSlot, type InFlight };
@@ -484,6 +484,7 @@ export function usePictures({
     vaultScenes: vault.scenes,
     vaultFigures: vault.figures,
     deleteFromVault: (url: string) => deleteVaultPicture(bookId, url),
+    emptyVault: () => emptyVault(bookId),
     popover: shownPopover,
     viewRef,
     popRef,
