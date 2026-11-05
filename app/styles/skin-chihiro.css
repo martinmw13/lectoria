@@ -63,3 +63,10 @@ html[data-skin="chihiro"][data-theme="dark"] :is(.stickers[data-art="hero"] .sti
 }
 
 /* Button motion (lift, ground shadow, settle, .fx particles) lives in motion-pencil.css. */
+
+/* Folded vault fan and vault window grid: soft rounded cels with a warm glow. */
+html[data-skin="chihiro"] :is(.vault-fan-card, .vault-grid-btn) {
+  border-radius: 12px;
+  border-color: var(--color-border);
+  box-shadow: 0 4px 12px rgba(200, 140, 80, 0.25);
+}

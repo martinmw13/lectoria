@@ -476,3 +476,10 @@ html[data-skin="pencil"][data-theme="dark"] .vault-item {
   background: var(--color-surface-soft);
   box-shadow: 0 0 0 1px rgba(228, 230, 235, 0.18);
 }
+
+/* Folded vault fan and vault window grid: loose sketch sheets, square and lightly shaded. */
+html[data-skin="pencil"] :is(.vault-fan-card, .vault-grid-btn) {
+  border-radius: 0;
+  border-color: var(--color-text-muted);
+  box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.15);
+}

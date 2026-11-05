@@ -10,7 +10,7 @@
 // ref, so the callbacks stay stable when it changes.
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { MSG_FAILED } from "@/core/images";
 import { canIllustrateScene, canRetryFigure } from "./figure-placement";
 import { HumanNeeded, ImageRequestError, isQuotaCode, poll } from "./image-poll";
@@ -19,7 +19,7 @@ import { requestStyleFields, styleCredit } from "../image-style";
 import type { ImageStylePref } from "../image-style";
 import { pickEndN, pickStartN } from "../picture-selection";
 import { paraOf, popoverPos } from "./selection-geom";
-import { figureVault, keepFigurePicture, keepScenePicture, sceneVault, type VaultScene } from "./vault-store";
+import { EMPTY_VAULT, bookVault, deleteVaultPicture, keepFigurePicture, keepScenePicture, subscribeVault, type VaultScene } from "./vault-store";
 
 export { keepFigurePicture, keepScenePicture, popoverPos, type VaultScene };
 import type { ParaEntry } from "../picture-selection";
@@ -76,7 +76,8 @@ type HintAt = { where: "scene" } | { where: "popover" } | { where: "figure"; id:
 
 const sceneCache = new Map<string, { url: string; caption: string }>();
 const figureCache = new Map<string, InlineFigure[]>();
-let figureSeq = 1;
+// Seeded by time so new ids never match vault entries saved by an earlier page load.
+let figureSeq = Date.now();
 
 export function usePictures({
   bookId,
@@ -91,8 +92,12 @@ export function usePictures({
 }) {
   const [card, setCard] = useState<SceneCard>(() => sceneCard(sceneId));
   const [figures, setFigures] = useState<InlineFigure[]>(() => sceneFigures(sceneId));
-  const [vaultScenes, setVaultScenes] = useState<VaultScene[]>(() => sceneVault(sceneId));
-  const [vaultFigures, setVaultFigures] = useState<InlineFigure[]>(() => figureVault(sceneId));
+  // The vault is the whole book's, whatever scene is in view.
+  const vault = useSyncExternalStore(
+    subscribeVault,
+    () => bookVault(bookId),
+    () => EMPTY_VAULT,
+  );
   const [hintAt, setHintAt] = useState<HintAt>(null);
   const hintTimer = useRef<number | null>(null);
   const [popover, setPopover] = useState<{ top: number; left: number } | null>(null);
@@ -151,8 +156,6 @@ export function usePictures({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- scene change resets card, figures and popover
     setCard(sceneCard(sceneId));
     setFigures(sceneFigures(sceneId));
-    setVaultScenes(sceneVault(sceneId));
-    setVaultFigures(figureVault(sceneId));
     setPopover(null);
     setHintAt(null);
   }, [sceneId]);
@@ -206,11 +209,8 @@ export function usePictures({
     void poll({ kind: "scene", bookId, textVersion, sceneId, ...requestStyleFields(prefRef.current) }, token)
       .then(({ url, caption }) => {
         sceneCache.set(sceneId, { url, caption });
-        const kept = keepScenePicture(sceneId, url, caption);
-        if (sceneRef.current === sceneId) {
-          setCard({ phase: "ready", url, caption });
-          setVaultScenes(kept);
-        }
+        keepScenePicture(bookId, sceneId, url, caption);
+        if (sceneRef.current === sceneId) setCard({ phase: "ready", url, caption });
       })
       .catch((err: unknown) => {
         if (sceneRef.current === sceneId) {
@@ -232,7 +232,7 @@ export function usePictures({
   }, [bookId, textVersion, sceneId, showHint]);
 
   // Dismisses the pane picture so it can be drawn again. The vault keeps
-  // it: only the pane cache is cleared, never sceneVaultCache.
+  // it: only the pane cache is cleared, never the vault store.
   const clearScene = useCallback(() => {
     sceneCache.delete(sceneId);
     setCard({ phase: "idle" });
@@ -258,10 +258,7 @@ export function usePictures({
             prev.map((f) => (f.id === id ? { ...f, phase: "ready", url, message: null } : f)),
           );
           const done = figureCache.get(scene)?.find((f) => f.id === id);
-          if (done) {
-            const kept = keepFigurePicture(scene, done);
-            if (sceneRef.current === scene) setVaultFigures(kept);
-          }
+          if (done) keepFigurePicture(bookId, scene, done);
         })
         .catch((err: unknown) => {
           storeFigures(scene, (prev) =>
@@ -491,8 +488,9 @@ export function usePictures({
     needHuman,
     submitHumanToken,
     figures: shownFigures,
-    vaultScenes,
-    vaultFigures,
+    vaultScenes: vault.scenes,
+    vaultFigures: vault.figures,
+    deleteFromVault: (url: string) => deleteVaultPicture(bookId, url),
     popover: shownPopover,
     viewRef,
     popRef,

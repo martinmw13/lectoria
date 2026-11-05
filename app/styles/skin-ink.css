@@ -404,3 +404,9 @@ html[data-skin="ink"] .read-aloud-label {
 }
 
 /* Button motion (wiggle, pop-in, stamp-thump press) lives in motion-classic.css. */
+
+/* Folded vault fan and vault window grid: brushed black frames. */
+html[data-skin="ink"] :is(.vault-fan-card, .vault-grid-btn) {
+  border: 2px solid var(--color-text);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.25);
+}

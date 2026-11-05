@@ -7,13 +7,11 @@ import { PORTRAIT_SKINS, PORTRAITS, portraitFor } from "./portraits";
 const root = join(__dirname, "..");
 
 describe("protagonist portraits", () => {
-  it("shows Dorothy's portrait in Oz chapter 1 only", () => {
-    expect(portraitFor("oz", "dorothy", 1)).toEqual({
+  it("gives Dorothy her portrait whatever the chapter (the cast gates who is met)", () => {
+    expect(portraitFor("oz", "dorothy")).toEqual({
       src: "/portraits/oz.webp",
       large: "/portraits/oz@2x.webp",
     });
-    expect(portraitFor("oz", "dorothy", 2)).toBeNull();
-    expect(portraitFor("oz", "dorothy", undefined)).toBeNull();
   });
 
   it("gives Oz a portrait for every character present in chapter 1", () => {
@@ -27,14 +25,13 @@ describe("protagonist portraits", () => {
     );
     expect([...ch1].sort()).toEqual(["aunt-em", "dorothy", "toto", "uncle-henry"]);
     expect(ch1.size).toBeGreaterThan(1);
-    for (const id of ch1) expect(portraitFor("oz", id, 1), id).not.toBeNull();
-    expect(portraitFor("oz", "toto", 2)).toBeNull();
+    for (const id of ch1) expect(portraitFor("oz", id), id).not.toBeNull();
   });
 
   it("never gives a portrait to anyone but a mapped character", () => {
-    expect(portraitFor("oz", "scarecrow", 1)).toBeNull();
-    expect(portraitFor("alice", "white-rabbit", 1)).toBeNull();
-    expect(portraitFor("unknown-book", "dorothy", 1)).toBeNull();
+    expect(portraitFor("oz", "scarecrow")).toBeNull();
+    expect(portraitFor("alice", "white-rabbit")).toBeNull();
+    expect(portraitFor("unknown-book", "dorothy")).toBeNull();
   });
 
   it("maps every shelf book to a real bookmap character and a committed image", () => {
@@ -59,13 +56,13 @@ describe("protagonist portraits", () => {
   });
 
   it("picks the restyled Oz portrait for the active skin, with the realistic one as fallback", () => {
-    expect(portraitFor("oz", "toto", 1, "comic")).toEqual({
+    expect(portraitFor("oz", "toto", "comic")).toEqual({
       src: "/portraits/skins/comic/oz-toto.webp",
       large: "/portraits/skins/comic/oz-toto@2x.webp",
     });
-    expect(portraitFor("oz", "dorothy", 1, "not-a-skin")).toEqual({ src: "/portraits/oz.webp", large: "/portraits/oz@2x.webp" });
-    expect(portraitFor("oz", "dorothy", 1)).toEqual({ src: "/portraits/oz.webp", large: "/portraits/oz@2x.webp" });
-    expect(portraitFor("oz", "dorothy", 2, "ink")).toBeNull();
+    expect(portraitFor("oz", "dorothy", "not-a-skin")).toEqual({ src: "/portraits/oz.webp", large: "/portraits/oz@2x.webp" });
+    expect(portraitFor("oz", "dorothy")).toEqual({ src: "/portraits/oz.webp", large: "/portraits/oz@2x.webp" });
+    expect(portraitFor("oz", "dorothy", "ink")).toEqual({ src: "/portraits/skins/ink/oz.webp", large: "/portraits/skins/ink/oz@2x.webp" });
   });
 
   it("ships every declared skin copy, thumb and @2x, under 100KB", () => {

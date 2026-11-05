@@ -1,7 +1,9 @@
 // Character portraits: a teaser for future character art. Each shelf
 // book has a face-only portrait of its protagonist; Oz, the demo book,
-// also has one for every character met in chapter 1. They show in the
-// cast only while the reader is in chapter 1. No one else gets one.
+// also has one for every character met in chapter 1. A portrait shows on
+// its character's cast card in every chapter: the cast lists only who the
+// reader has met, so a face never arrives before its character does.
+// No one else gets one.
 export interface Portrait {
   /** Bookmap character id the portrait belongs to. */
   characterId: string;
@@ -130,19 +132,16 @@ export const PORTRAITS: Readonly<Record<string, readonly Portrait[]>> = {
   ],
 };
 
-export const PORTRAIT_CHAPTER = 1;
-
 export type PortraitSrc = Pick<Portrait, "src" | "large">;
 
 const skinned = (path: string, skin: string) => path.replace("/portraits/", `/portraits/skins/${skin}/`);
 
 /**
- * The portrait for this cast entry, or null unless the book maps one for it
- * and the reader is in chapter 1. With a skin that has a restyled copy, the
- * copy is used; otherwise the default (realistic) portrait.
+ * The portrait for this cast entry, or null unless the book maps one for it.
+ * With a skin that has a restyled copy, the copy is used; otherwise the
+ * default (realistic) portrait.
  */
-export function portraitFor(bookId: string, characterId: string, chapter: number | undefined, skin?: string): PortraitSrc | null {
-  if (chapter !== PORTRAIT_CHAPTER) return null;
+export function portraitFor(bookId: string, characterId: string, skin?: string): PortraitSrc | null {
   const p = PORTRAITS[bookId]?.find((x) => x.characterId === characterId);
   if (!p) return null;
   if (skin && p.skins?.includes(skin)) return { src: skinned(p.src, skin), large: skinned(p.large, skin) };

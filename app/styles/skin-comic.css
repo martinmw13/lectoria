@@ -190,3 +190,15 @@ html[data-skin="comic"] .wm-brand em {
     font-size: 28px;
   }
 }
+
+/* Folded vault fan and vault window grid: panels with thick ink and a hard offset shadow. */
+html[data-skin="comic"] :is(.vault-fan-card, .vault-grid-btn) {
+  border: 2.5px solid #000;
+  border-radius: 2px;
+  box-shadow: 3px 3px 0 #000;
+}
+
+html[data-skin="comic"] :is(.vault-fan-more, .vault-act) {
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+}

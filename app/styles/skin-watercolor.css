@@ -413,3 +413,10 @@ html[data-skin="watercolor"] .read-aloud-label {
 }
 
 /* Button motion (bleed, wet-in, press) lives in motion-classic.css. */
+
+/* Folded vault fan and vault window grid: soft washed cards with the skin's uneven corners. */
+html[data-skin="watercolor"] :is(.vault-fan-card, .vault-grid-btn) {
+  border-radius: 14px 9px 16px 8px;
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(120, 90, 60, 0.22);
+}
