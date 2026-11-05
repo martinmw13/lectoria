@@ -101,6 +101,16 @@ function reliveButtons(host: HTMLElement): HTMLButtonElement[] {
   return [...host.querySelectorAll<HTMLButtonElement>(".chapter-relive .panels-link")];
 }
 
+test("a numeral-only chapter title is one heading, never Chapter / 1 / I", async () => {
+  const host = await mount();
+  const block = host.querySelector('.chapter-block[data-ch="1"]')!;
+  expect(block.querySelector(".cover-num")).toBeNull();
+  expect(block.querySelector(".kicker")).toBeNull();
+  const h2s = block.querySelectorAll("h2.chapter-title");
+  expect(h2s).toHaveLength(1);
+  expect(h2s[0]?.textContent).toBe("Chapter 1");
+});
+
 test("one h1 and chapter h2s inside main#story", async () => {
   const host = await mount();
   const h1s = host.querySelectorAll("h1");
