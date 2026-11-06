@@ -62,6 +62,18 @@ If no row fits, read `.agents/skills/poteto-help/SKILL.md`, which maps situation
 
 `interrogate` is written for Cursor. Under Muse, run the same review with Muse subagents and `muse-spark-1.3` as reviewers.
 
+## pstack and ponytail usage (tokens)
+
+Ponytail stays on at full for every coding task: smallest complete change, no over-engineering.
+
+pstack skills live in `.agents/skills/` and keep that philosophy, but they cost tokens when they fan out.
+
+- Always apply ponytail (and `ponytail-review` on your own diff).
+- Do not run `/poteto-mode` or full pstack playbooks on small, obvious fixes.
+- For a single need, load one named skill (`how`, `blast-radius`, `principle-fix-root-causes`, `principle-prove-it-works`, `typescript-best-practices`, `tdd`, `unslop`).
+- Save `arena`, `interrogate`, and `swarm` for contested or high-risk work only.
+- Never spawn Opus, cloud agents, or Max Mode. Reasoning ceiling is high. Prefer the cheapest model that can finish the task.
+
 ## Workflow
 
 Each task follows the same loop. Muse Spark 1.3 Standard (`muse-spark-1.3`) writes the design in `docs/tasks/NN-name.md`; the orchestrating agent writes the review in `docs/reviews/NN.md`. `muse-spark-1.3-contributor` implements. Implement and review run at most two rounds.
